@@ -1,82 +1,164 @@
-import type { Member } from "@/lib/members";
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Member, MemberRole, MemberStatus } from "@/lib/members";
 import { formatExecTitle, formatMemberName, formatRole } from "@/lib/members";
 
 type MembersTableProps = {
   members: Member[];
 };
 
-function StatusBadge({ status }: { status: Member["status"] }) {
-  const styles = {
-    active: "bg-green-50 text-green-700 border-green-200",
-    inactive: "bg-zinc-100 text-zinc-600 border-zinc-200",
-    alumni: "bg-amber-50 text-amber-700 border-amber-200",
-  };
+type StatusFilter = "all" | MemberStatus;
+type RoleFilter = "all" | MemberRole;
 
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
-}
+const inputClassName =
+  "w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
 
 export default function MembersTable({ members }: MembersTableProps) {
-  if (members.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-center text-zinc-500">
-        No members found yet.
-      </p>
-    );
-  }
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return members.filter((member) => {
+      if (statusFilter !== "all" && member.status !== statusFilter) {
+        return false;
+      }
+
+      if (roleFilter !== "all" && !member.roles.includes(roleFilter)) {
+        return false;
+      }
+
+      if (query) {
+        const name = formatMemberName(member).toLowerCase();
+        if (!name.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [members, searchQuery, statusFilter, roleFilter]);
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" || statusFilter !== "active" || roleFilter !== "all";
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-200">
-      <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
-        <thead className="bg-zinc-50">
-          <tr>
-            <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Phone</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Class</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Status</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Roles</th>
-            <th className="px-4 py-3 font-medium text-zinc-700">Exec Title</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-200 bg-white">
-          {members.map((member) => (
-            <tr key={member.id} className="hover:bg-zinc-50/80">
-              <td className="px-4 py-3 font-medium text-zinc-900">
-                {formatMemberName(member)}
-              </td>
-              <td className="px-4 py-3 text-zinc-600">{member.email}</td>
-              <td className="px-4 py-3 text-zinc-600">{member.phone}</td>
-              <td className="px-4 py-3 text-zinc-600">
-                {member.graduation_year}
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={member.status} />
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {member.roles.map((role) => (
-                    <span
-                      key={role}
-                      className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
-                    >
-                      {formatRole(role)}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-zinc-600">
-                {formatExecTitle(member.exec_title) ?? "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="min-w-0 flex-1 sm:max-w-sm">
+          <label htmlFor="member-search" className="mb-1.5 block text-sm font-medium text-zinc-700">
+            Search by name
+          </label>
+          <input
+            id="member-search"
+            type="search"
+            placeholder="Search members..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className={inputClassName}
+          />
+        </div>
+
+        <div className="w-full sm:w-40">
+          <label htmlFor="status-filter" className="mb-1.5 block text-sm font-medium text-zinc-700">
+            Status
+          </label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+            className={inputClassName}
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="alumni">Alumni</option>
+          </select>
+        </div>
+
+        <div className="w-full sm:w-40">
+          <label htmlFor="role-filter" className="mb-1.5 block text-sm font-medium text-zinc-700">
+            Role
+          </label>
+          <select
+            id="role-filter"
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value as RoleFilter)}
+            className={inputClassName}
+          >
+            <option value="all">All</option>
+            <option value="dancer">Dancer</option>
+            <option value="exec">Exec</option>
+            <option value="production">Production</option>
+          </select>
+        </div>
+      </div>
+
+      <p className="text-sm text-zinc-600">
+        Showing {filteredMembers.length} member
+        {filteredMembers.length === 1 ? "" : "s"}
+      </p>
+
+      {members.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-center text-zinc-500">
+          No members yet. Add your first member to get started.
+        </p>
+      ) : filteredMembers.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-center text-zinc-500">
+          {hasActiveFilters
+            ? "No members match your search or filters. Try adjusting your criteria."
+            : "No members found."}
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-zinc-200">
+          <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
+            <thead className="bg-zinc-50">
+              <tr>
+                <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
+                <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
+                <th className="px-4 py-3 font-medium text-zinc-700">Graduation Year</th>
+                <th className="px-4 py-3 font-medium text-zinc-700">Roles</th>
+                <th className="px-4 py-3 font-medium text-zinc-700">Exec Title</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 bg-white">
+              {filteredMembers.map((member) => (
+                <tr
+                  key={member.id}
+                  onClick={() => router.push(`/members/${member.id}`)}
+                  className="cursor-pointer transition hover:bg-zinc-50/80"
+                >
+                  <td className="px-4 py-3 font-medium text-zinc-900">
+                    {formatMemberName(member)}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-600">{member.email}</td>
+                  <td className="px-4 py-3 text-zinc-600">{member.graduation_year}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {member.roles.map((role) => (
+                        <span
+                          key={role}
+                          className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
+                        >
+                          {formatRole(role)}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-zinc-600">
+                    {formatExecTitle(member.exec_title) ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,18 @@ export type Member = {
   status: "active" | "inactive" | "alumni";
   roles: string[];
   exec_title: string | null;
+  dietary_restrictions?: string | null;
+  medical_conditions?: string | null;
+  shirt_size?: string | null;
+  pants_size?: string | null;
+  government_id_path?: string | null;
+  birthday_image_path?: string | null;
+  student_id_path?: string | null;
+  covid_vaccination_path?: string | null;
+  drinks_alcohol?: boolean | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  pending_review?: boolean;
 };
 
 export type MemberStatus = Member["status"];

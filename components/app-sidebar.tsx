@@ -3,11 +3,53 @@
 import { useState } from "react";
 import SidebarNav from "@/components/sidebar-nav";
 import LogoutButton from "@/components/logout-button";
+import { useUserRole } from "@/hooks/use-user-role";
 import type { UserProfile } from "@/lib/get-user-profile";
+import { formatExecTitle, type ExecTitle } from "@/lib/members";
 
 type AppSidebarProps = {
   user: UserProfile;
 };
+
+function isReadOnlyRole(execTitle: ExecTitle | null) {
+  return execTitle === "marketing" || execTitle === "social";
+}
+
+function RoleBadge() {
+  const { execTitle, loading } = useUserRole();
+
+  if (loading) {
+    return (
+      <span className="mt-2 inline-flex rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+        Loading role...
+      </span>
+    );
+  }
+
+  if (!execTitle) {
+    return (
+      <span className="mt-2 inline-flex rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
+        Executive Board
+      </span>
+    );
+  }
+
+  const label = formatExecTitle(execTitle) ?? "Executive Board";
+  const isReadOnly = isReadOnlyRole(execTitle);
+
+  return (
+    <span
+      className={`mt-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        isReadOnly
+          ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+          : "bg-[#990000]/10 text-[#990000]"
+      }`}
+    >
+      {label}
+      {isReadOnly ? " · Read only" : ""}
+    </span>
+  );
+}
 
 export default function AppSidebar({ user }: AppSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -57,8 +99,8 @@ export default function AppSidebar({ user }: AppSidebarProps) {
         <div className="mt-auto border-t border-zinc-200 px-4 py-4">
           <div className="mb-3 rounded-lg bg-zinc-50 px-3 py-3">
             <p className="text-sm font-medium text-zinc-900">{user.name}</p>
-            <p className="text-xs text-zinc-500">{user.role}</p>
-            <p className="mt-1 truncate text-xs text-zinc-400">{user.email}</p>
+            <RoleBadge />
+            <p className="mt-2 truncate text-xs text-zinc-400">{user.email}</p>
           </div>
           <LogoutButton />
         </div>

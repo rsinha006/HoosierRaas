@@ -1,7 +1,6 @@
-import Link from "next/link";
 import MembersTable from "@/components/members-table";
+import AddMemberButton from "@/components/add-member-button";
 import { createClient } from "@/lib/supabase/server";
-import { getUserProfile } from "@/lib/get-user-profile";
 import type { Member } from "@/lib/members";
 
 type MembersPageProps = {
@@ -12,14 +11,12 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
   const params = await searchParams;
   const showSuccess = params.created === "1";
 
-  const [supabase, user] = await Promise.all([
-    createClient(),
-    getUserProfile(),
-  ]);
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("members")
     .select("*")
+    .eq("pending_review", false)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
 
@@ -31,20 +28,10 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">Members</h1>
-            <p className="mt-2 text-zinc-600">
-              Team roster — {members.length} member
-              {members.length === 1 ? "" : "s"}
-            </p>
+            <p className="mt-2 text-zinc-600">Team roster</p>
           </div>
 
-          {user?.isExec && (
-            <Link
-              href="/members/new"
-              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
-            >
-              Add member
-            </Link>
-          )}
+          <AddMemberButton />
         </div>
       </div>
 
@@ -66,7 +53,9 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           <p className="mt-1 text-sm">{error.message}</p>
         </div>
       ) : (
-        <MembersTable members={members} />
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <MembersTable members={members} />
+        </div>
       )}
     </div>
   );
