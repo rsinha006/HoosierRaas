@@ -11,6 +11,10 @@ import {
   type MemberRole,
 } from "@/lib/members";
 import { CLOTHING_SIZES, ONBOARDING_STORAGE_BUCKET } from "@/lib/onboarding";
+import {
+  toUserFacingMemberSaveError,
+  toUserFacingStorageError,
+} from "@/lib/user-facing-errors";
 
 type OnboardingReviewCardProps = {
   member: Member;
@@ -65,7 +69,7 @@ function DocumentLink({
     setLoading(false);
 
     if (signedUrlError || !data?.signedUrl) {
-      setError("Could not open file.");
+      setError(toUserFacingStorageError(signedUrlError ?? new Error("not found")));
       return;
     }
 
@@ -222,7 +226,7 @@ export default function OnboardingReviewCard({
     setLoading(false);
 
     if (error) {
-      setSaveError(error.message);
+      setSaveError(toUserFacingMemberSaveError(error));
       return;
     }
 

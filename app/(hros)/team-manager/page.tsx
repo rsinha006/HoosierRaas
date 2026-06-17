@@ -1,10 +1,9 @@
 import Link from "next/link";
-import OnboardingLinkGenerator from "@/components/onboarding-link-generator";
-import PendingOnboardingReviews from "@/components/pending-onboarding-reviews";
+import PressingDeadlinesSection from "@/components/pressing-deadlines-section";
 import { getUserMember } from "@/lib/get-user-member";
+import { buildPressingDeadlineGroups } from "@/lib/pressing-deadlines";
 import { hasWriteAccess } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
-import type { Member } from "@/lib/members";
 
 export default async function TeamManagerPage() {
   const [supabase, userMember] = await Promise.all([
@@ -14,23 +13,38 @@ export default async function TeamManagerPage() {
 
   const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "team-manager");
 
-  const [{ data, error }, { count: competitionCount }] = await Promise.all([
-    supabase
-      .from("members")
-      .select("*")
-      .eq("pending_review", true)
-      .order("created_at", { ascending: false }),
+  const [{ count: competitionCount }, { data: deadlinesData }] = await Promise.all([
     supabase.from("competitions").select("*", { count: "exact", head: true }),
+    supabase
+      .from("deadlines")
+      .select(
+        `
+        id,
+        competition_id,
+        name,
+        due_date,
+        fine_amount,
+        is_hard_cutoff,
+        status,
+        completed_at,
+        created_at,
+        competitions (
+          id,
+          name
+        )
+      `,
+      )
+      .eq("status", "pending"),
   ]);
 
-  const pendingMembers = (data ?? []) as Member[];
+  const pressingDeadlineGroups = buildPressingDeadlineGroups(deadlinesData ?? []);
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold text-zinc-900">Team Manager</h1>
         <p className="mt-2 text-zinc-600">
-          Competition logistics, attendance, and member onboarding.
+          Competition logistics and attendance.
         </p>
       </div>
 
@@ -66,16 +80,7 @@ export default async function TeamManagerPage() {
         </div>
       </section>
 
-      {canWrite ? <OnboardingLinkGenerator /> : null}
-
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-          <p className="font-medium">Could not load pending reviews</p>
-          <p className="mt-1 text-sm">{error.message}</p>
-        </div>
-      ) : (
-        <PendingOnboardingReviews members={pendingMembers} canWrite={canWrite} />
-      )}
+      <PressingDeadlinesSection groups={pressingDeadlineGroups} />
     </div>
   );
 }
