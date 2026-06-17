@@ -12,6 +12,8 @@ export type Competition = {
   mix_format: string | null;
   roster_min: number | null;
   roster_max: number | null;
+  per_person_registration_cost: number | null;
+  tech_rehearsal_required: boolean | null;
   status: CompetitionStatus;
   packet_url: string | null;
   packet_uploaded_at: string | null;

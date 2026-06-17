@@ -13,6 +13,10 @@ import {
   validateRegistrationPacket,
 } from "@/lib/registration-packets";
 import { uploadRegistrationPacket } from "@/lib/upload-registration-packet";
+import {
+  toUserFacingSaveError,
+  toUserFacingStorageError,
+} from "@/lib/user-facing-errors";
 
 type RegistrationPacketUploadProps = {
   competitionId: string;
@@ -54,7 +58,7 @@ export default function RegistrationPacketUpload({
     setOpening(false);
 
     if (error || !data?.signedUrl) {
-      setSaveError("Could not open the registration packet.");
+      setSaveError(toUserFacingStorageError(error ?? new Error("not found")));
       return;
     }
 
@@ -110,11 +114,7 @@ export default function RegistrationPacketUpload({
       setReplacing(false);
       router.refresh();
     } catch (error) {
-      setSaveError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while uploading the packet.",
-      );
+      setSaveError(toUserFacingSaveError(error));
     } finally {
       setLoading(false);
       setProgress(0);

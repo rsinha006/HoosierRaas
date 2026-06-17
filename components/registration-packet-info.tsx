@@ -1,23 +1,85 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import type { ExtractedPacketData } from "@/lib/packet-extraction-types";
+import {
+  buildPacketReviewFormState,
+  savePacketReviewDraft,
+} from "@/lib/packet-review";
 import {
   REGISTRATION_PACKETS_BUCKET,
   formatPacketUploadedAt,
   getPacketFilename,
 } from "@/lib/registration-packets";
+import {
+  toUserFacingExtractionError,
+  toUserFacingStorageError,
+} from "@/lib/user-facing-errors";
 
 type RegistrationPacketInfoProps = {
+  competitionId: string;
+  competitionName: string;
   packetUrl: string | null;
   packetUploadedAt: string | null;
 };
 
+type ExtractPacketApiResponse = {
+  data?: ExtractedPacketData;
+  warnings?: string[];
+  error?: string;
+};
+
+function isExtractedPacketData(value: unknown): value is ExtractedPacketData {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    Array.isArray(record.deadlines) &&
+    Array.isArray(record.fees) &&
+    typeof record.roster_rules === "object" &&
+    record.roster_rules !== null &&
+    typeof record.performance_rules === "object" &&
+    record.performance_rules !== null &&
+    Array.isArray(record.contacts)
+  );
+}
+
+function parseExtractPacketResponse(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const record = payload as ExtractPacketApiResponse;
+
+  if (record.data && isExtractedPacketData(record.data)) {
+    return {
+      data: record.data,
+      warnings: Array.isArray(record.warnings)
+        ? record.warnings.filter((warning): warning is string => typeof warning === "string")
+        : [],
+    };
+  }
+
+  if (isExtractedPacketData(payload)) {
+    return { data: payload, warnings: [] as string[] };
+  }
+
+  return null;
+}
+
 export default function RegistrationPacketInfo({
+  competitionId,
+  competitionName,
   packetUrl,
   packetUploadedAt,
 }: RegistrationPacketInfoProps) {
+  const router = useRouter();
   const [opening, setOpening] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!packetUrl) {
@@ -36,30 +98,90 @@ export default function RegistrationPacketInfo({
     setOpening(false);
 
     if (signedUrlError || !data?.signedUrl) {
-      setError("Could not open the registration packet.");
+      setError(toUserFacingStorageError(signedUrlError ?? new Error("not found")));
       return;
     }
 
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
+  async function extractData() {
+    setExtracting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/extract-packet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath: packetUrl }),
+      });
+
+      const payload = (await response.json()) as ExtractPacketApiResponse;
+
+      if (!response.ok) {
+        setError(
+          typeof payload.error === "string"
+            ? payload.error
+            : toUserFacingExtractionError(new Error("extract failed")),
+        );
+        return;
+      }
+
+      const parsed = parseExtractPacketResponse(payload);
+      if (!parsed) {
+        setError(
+          "We received data from the AI but could not read it. Please try again, or add deadlines manually on the review screen.",
+        );
+        return;
+      }
+
+      const reviewState = buildPacketReviewFormState(
+        competitionId,
+        competitionName,
+        parsed.data,
+        parsed.warnings,
+      );
+      savePacketReviewDraft(reviewState);
+      router.push(`/team-manager/competitions/${competitionId}/review-packet`);
+    } catch (caughtError) {
+      setError(toUserFacingExtractionError(caughtError));
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-lg font-semibold text-zinc-900">Registration packet</h2>
-      <p className="mt-2 text-sm text-zinc-700">{getPacketFilename(packetUrl)}</p>
+      <p className="mt-1 text-sm text-zinc-700">{getPacketFilename(packetUrl)}</p>
       {packetUploadedAt ? (
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500">
           Uploaded {formatPacketUploadedAt(packetUploadedAt)}
         </p>
       ) : null}
-      <button
-        type="button"
-        onClick={openPacket}
-        disabled={opening}
-        className="mt-4 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
-      >
-        {opening ? "Opening..." : "View PDF"}
-      </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={openPacket}
+          disabled={opening || extracting}
+          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+        >
+          {opening ? "Opening PDF..." : "View PDF"}
+        </button>
+        <button
+          type="button"
+          onClick={extractData}
+          disabled={opening || extracting}
+          className="rounded-lg bg-[#990000] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#7a0000] disabled:opacity-60"
+        >
+          {extracting ? "Reading packet..." : "Extract Data"}
+        </button>
+      </div>
+      {extracting ? (
+        <p className="mt-2 text-sm text-zinc-600">
+          The AI is reading your registration packet. This can take up to a minute.
+        </p>
+      ) : null}
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
     </section>
   );
