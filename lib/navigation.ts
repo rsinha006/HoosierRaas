@@ -26,11 +26,6 @@ export const APP_MODULES: AppModule[] = [
     description: "Practice sessions, video submissions",
   },
   {
-    name: "Calendar",
-    href: "/calendar",
-    description: "Marketing, social, production task calendars",
-  },
-  {
     name: "Members",
     href: "/members",
     description: "Roster management",

@@ -4,7 +4,6 @@ export const PROTECTED_ROUTE_PREFIXES = [
   "/team-manager",
   "/finance",
   "/attendance",
-  "/calendar",
   "/members",
 ];
 
