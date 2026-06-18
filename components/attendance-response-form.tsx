@@ -175,16 +175,16 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
       isEmergency,
     );
 
-    const { error } = await supabase.from("attendance_records").insert({
-      session_id: session.id,
-      respondent_name: `${firstName.trim()} ${lastName.trim()}`,
-      respondent_email: normalizedEmail,
-      attendance_status: attendanceStatus,
-      excuse_text: showExcuseFields ? excuseText.trim() : null,
-      advance_notice: showExcuseFields ? advanceNotice : false,
-      is_emergency: showExcuseFields ? isEmergency : false,
-      practice_video_submitted: showVideoSection ? practiceVideoSubmitted : null,
-      practice_video_excuse:
+    const { error } = await supabase.rpc("submit_attendance_response", {
+      p_session_id: session.id,
+      p_respondent_name: `${firstName.trim()} ${lastName.trim()}`,
+      p_respondent_email: normalizedEmail,
+      p_attendance_status: attendanceStatus,
+      p_excuse_text: showExcuseFields ? excuseText.trim() : null,
+      p_advance_notice: showExcuseFields ? advanceNotice : false,
+      p_is_emergency: showExcuseFields ? isEmergency : false,
+      p_practice_video_submitted: showVideoSection ? practiceVideoSubmitted : null,
+      p_practice_video_excuse:
         showVideoSection && practiceVideoSubmitted === false
           ? practiceVideoExcuse.trim()
           : null,
