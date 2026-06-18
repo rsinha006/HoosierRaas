@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ExecTitle } from "@/lib/members";
 
 export type UserMember = {
+  id: string;
   roles: string[];
   exec_title: ExecTitle | null;
 };
@@ -18,7 +19,7 @@ export async function getUserMember(): Promise<UserMember | null> {
 
   const { data } = await supabase
     .from("members")
-    .select("roles, exec_title")
+    .select("id, roles, exec_title")
     .eq("email", user.email.toLowerCase())
     .maybeSingle();
 
@@ -27,6 +28,7 @@ export async function getUserMember(): Promise<UserMember | null> {
   }
 
   return {
+    id: data.id,
     roles: Array.isArray(data.roles) ? data.roles : [],
     exec_title: data.exec_title,
   };
