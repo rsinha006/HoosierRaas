@@ -2,6 +2,14 @@ import { createClient } from "@/lib/supabase/client";
 import type { PacketReviewFormState } from "@/lib/packet-review";
 import { toUserFacingSaveError } from "@/lib/user-facing-errors";
 
+type ExistingDeadline = {
+  id: string;
+  name: string;
+  due_date: string | null;
+  status: "pending" | "complete";
+  completed_at: string | null;
+};
+
 function parseOptionalNumber(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -28,6 +36,41 @@ function parseOptionalDate(value: string) {
 
 function throwSaveError(error: { message: string }) {
   throw new Error(toUserFacingSaveError(error));
+}
+
+function normalizeDeadlineName(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function deadlineExactKey(name: string, dueDate: string | null) {
+  return `${normalizeDeadlineName(name)}::${dueDate ?? ""}`;
+}
+
+function takeDeadlineMatch(
+  reviewed: { name: string; due_date: string | null },
+  exactMatches: Map<string, ExistingDeadline[]>,
+  uniqueNameMatches: Map<string, ExistingDeadline>,
+  usedIds: Set<string>,
+) {
+  const exactKey = deadlineExactKey(reviewed.name, reviewed.due_date);
+  const exactCandidates = exactMatches.get(exactKey) ?? [];
+
+  while (exactCandidates.length > 0) {
+    const candidate = exactCandidates.shift();
+    if (candidate && !usedIds.has(candidate.id)) {
+      usedIds.add(candidate.id);
+      return candidate;
+    }
+  }
+
+  const nameKey = normalizeDeadlineName(reviewed.name);
+  const nameCandidate = uniqueNameMatches.get(nameKey);
+  if (nameCandidate && !usedIds.has(nameCandidate.id)) {
+    usedIds.add(nameCandidate.id);
+    return nameCandidate;
+  }
+
+  return null;
 }
 
 export async function saveCompetitionPacketData(state: PacketReviewFormState) {
@@ -65,13 +108,13 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
     );
   }
 
-  const { error: deleteDeadlinesError } = await supabase
+  const { data: existingDeadlines, error: existingDeadlinesError } = await supabase
     .from("deadlines")
-    .delete()
+    .select("id, name, due_date, status, completed_at")
     .eq("competition_id", state.competitionId);
 
-  if (deleteDeadlinesError) {
-    throwSaveError(deleteDeadlinesError);
+  if (existingDeadlinesError) {
+    throwSaveError(existingDeadlinesError);
   }
 
   const { error: deleteFeesError } = await supabase
@@ -92,22 +135,74 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
     throwSaveError(deleteContactsError);
   }
 
-  const deadlinesToInsert = state.deadlines
-    .filter((deadline) => deadline.name.trim())
-    .map((deadline) => ({
-      competition_id: state.competitionId,
-      name: deadline.name.trim(),
-      due_date: parseOptionalDate(deadline.due_date),
-      fine_amount: parseOptionalNumber(deadline.fine_amount),
-      is_hard_cutoff: deadline.is_hard_cutoff,
-      status: "pending" as const,
-      completed_at: null,
-    }));
+  const exactDeadlineMatches = new Map<string, ExistingDeadline[]>();
+  const deadlinesByName = new Map<string, ExistingDeadline[]>();
 
-  if (deadlinesToInsert.length > 0) {
-    const { error } = await supabase
-      .from("deadlines")
-      .insert(deadlinesToInsert);
+  for (const deadline of (existingDeadlines ?? []) as ExistingDeadline[]) {
+    const exactKey = deadlineExactKey(deadline.name, deadline.due_date);
+    const exactCandidates = exactDeadlineMatches.get(exactKey) ?? [];
+    exactCandidates.push(deadline);
+    exactDeadlineMatches.set(exactKey, exactCandidates);
+
+    const nameKey = normalizeDeadlineName(deadline.name);
+    const nameCandidates = deadlinesByName.get(nameKey) ?? [];
+    nameCandidates.push(deadline);
+    deadlinesByName.set(nameKey, nameCandidates);
+  }
+
+  const uniqueDeadlineNameMatches = new Map<string, ExistingDeadline>();
+  for (const [nameKey, candidates] of deadlinesByName) {
+    if (candidates.length === 1) {
+      uniqueDeadlineNameMatches.set(nameKey, candidates[0]);
+    }
+  }
+
+  const usedDeadlineIds = new Set<string>();
+  const deadlinesToUpsert = state.deadlines
+    .filter((deadline) => deadline.name.trim())
+    .map((deadline) => {
+      const reviewedDeadline = {
+        competition_id: state.competitionId,
+        name: deadline.name.trim(),
+        due_date: parseOptionalDate(deadline.due_date),
+        fine_amount: parseOptionalNumber(deadline.fine_amount),
+        is_hard_cutoff: deadline.is_hard_cutoff,
+      };
+      const existingDeadline = takeDeadlineMatch(
+        reviewedDeadline,
+        exactDeadlineMatches,
+        uniqueDeadlineNameMatches,
+        usedDeadlineIds,
+      );
+
+      return {
+        ...reviewedDeadline,
+        id: existingDeadline?.id,
+        status: existingDeadline?.status ?? ("pending" as const),
+        completed_at: existingDeadline?.completed_at ?? null,
+      };
+    });
+
+  for (const deadline of deadlinesToUpsert) {
+    const { error } = deadline.id
+      ? await supabase
+          .from("deadlines")
+          .update({
+            name: deadline.name,
+            due_date: deadline.due_date,
+            fine_amount: deadline.fine_amount,
+            is_hard_cutoff: deadline.is_hard_cutoff,
+          })
+          .eq("id", deadline.id)
+      : await supabase.from("deadlines").insert({
+          competition_id: deadline.competition_id,
+          name: deadline.name,
+          due_date: deadline.due_date,
+          fine_amount: deadline.fine_amount,
+          is_hard_cutoff: deadline.is_hard_cutoff,
+          status: deadline.status,
+          completed_at: deadline.completed_at,
+        });
 
     if (error) {
       throwSaveError(error);
