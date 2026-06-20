@@ -63,37 +63,19 @@ function PendingRequestCard({
     setLoadingAction("approve");
 
     const supabase = createClient();
-    const { error } = await supabase
-      .from("expense_requests")
-      .update({
-        status: "approved",
-        approved_at: new Date().toISOString(),
-        approved_by_member_id: reviewerMemberId,
-        denial_reason: null,
-      })
-      .eq("id", request.id)
-      .eq("status", "pending");
+    const { error } = await supabase.rpc("approve_expense_request", {
+      p_request_id: request.id,
+      p_reviewer_member_id: reviewerMemberId,
+    });
 
     if (error) {
       setLoadingAction(null);
-      setActionError(error.message);
+      setActionError(
+        error.message === "expense_request_not_pending"
+          ? "This request has already been reviewed."
+          : error.message,
+      );
       return;
-    }
-
-    if (request.iufb_line_item_id && request.iufb_line_item) {
-      const { error: iufbError } = await supabase
-        .from("iufb_line_items")
-        .update({
-          spent_amount:
-            Number(request.iufb_line_item.spent_amount) + Number(request.amount),
-        })
-        .eq("id", request.iufb_line_item_id);
-
-      if (iufbError) {
-        setLoadingAction(null);
-        setActionError(iufbError.message);
-        return;
-      }
     }
 
     setLoadingAction(null);
