@@ -17,6 +17,23 @@ as $$
   limit 1;
 $$;
 
+create or replace function public.has_valid_member_role_shape(member_roles text[], member_exec_title text)
+returns boolean
+language sql
+immutable
+as $$
+  select member_roles <@ array['dancer', 'exec', 'production']::text[]
+    and cardinality(member_roles) > 0
+    and (
+      ('exec' = any (member_roles)
+        and member_exec_title in ('captain', 'team_manager', 'finance', 'marketing', 'social'))
+      or (
+        not ('exec' = any (member_roles))
+        and member_exec_title is null
+      )
+    );
+$$;
+
 drop policy if exists "Allow anonymous dancer onboarding insert" on public.members;
 create policy "Allow anonymous dancer onboarding insert"
 on public.members
@@ -30,10 +47,24 @@ with check (
   and public.is_onboarding_submission(roles)
 );
 
+drop policy if exists "Captain and TM can insert members" on public.members;
+create policy "Captain and TM can insert members"
+on public.members
+for insert
+to authenticated
+with check (
+  public.get_my_exec_title() in ('captain', 'team_manager')
+  and pending_review = false
+  and public.has_valid_member_role_shape(roles, exec_title)
+);
+
 drop policy if exists "Captain and TM can update members" on public.members;
 create policy "Captain and TM can update members"
 on public.members
 for update
 to authenticated
 using (public.get_my_exec_title() in ('captain', 'team_manager'))
-with check (public.get_my_exec_title() in ('captain', 'team_manager'));
+with check (
+  public.get_my_exec_title() in ('captain', 'team_manager')
+  and public.has_valid_member_role_shape(roles, exec_title)
+);
