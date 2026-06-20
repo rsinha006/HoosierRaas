@@ -94,10 +94,6 @@ export default function RegistrationPacketUpload({
         onProgress: setProgress,
       });
 
-      if (packetUrl && packetUrl !== storagePath) {
-        await supabase.storage.from(REGISTRATION_PACKETS_BUCKET).remove([packetUrl]);
-      }
-
       const { error } = await supabase
         .from("competitions")
         .update({
@@ -108,6 +104,18 @@ export default function RegistrationPacketUpload({
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      if (packetUrl && packetUrl !== storagePath) {
+        const { error: removeError } = await supabase.storage
+          .from(REGISTRATION_PACKETS_BUCKET)
+          .remove([packetUrl]);
+
+        if (removeError) {
+          setSaveError(
+            "Uploaded the new packet, but the old file could not be removed.",
+          );
+        }
       }
 
       setSelectedFile(null);
