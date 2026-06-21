@@ -76,38 +76,6 @@ function takeDeadlineMatch(
 export async function saveCompetitionPacketData(state: PacketReviewFormState) {
   const supabase = createClient();
 
-  const { data: updatedCompetition, error: competitionError } = await supabase
-    .from("competitions")
-    .update({
-      status: "active",
-      roster_min: parseOptionalInteger(state.roster_rules.min_size),
-      roster_max: parseOptionalInteger(state.roster_rules.max_size),
-      per_person_registration_cost: parseOptionalNumber(
-        state.roster_rules.per_person_registration_cost,
-      ),
-      min_performance_duration: parseOptionalInteger(
-        state.performance_rules.min_duration_minutes,
-      ),
-      max_performance_duration: parseOptionalInteger(
-        state.performance_rules.max_duration_minutes,
-      ),
-      mix_format: state.performance_rules.mix_format.trim() || null,
-      tech_rehearsal_required: state.performance_rules.tech_rehearsal_required,
-    })
-    .eq("id", state.competitionId)
-    .select("id")
-    .maybeSingle();
-
-  if (competitionError) {
-    throwSaveError(competitionError);
-  }
-
-  if (!updatedCompetition) {
-    throw new Error(
-      "We could not find this competition. It may have been deleted or you may not have access.",
-    );
-  }
-
   const { data: existingDeadlines, error: existingDeadlinesError } = await supabase
     .from("deadlines")
     .select("id, name, due_date, status, completed_at")
@@ -115,24 +83,6 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
 
   if (existingDeadlinesError) {
     throwSaveError(existingDeadlinesError);
-  }
-
-  const { error: deleteFeesError } = await supabase
-    .from("fees")
-    .delete()
-    .eq("competition_id", state.competitionId);
-
-  if (deleteFeesError) {
-    throwSaveError(deleteFeesError);
-  }
-
-  const { error: deleteContactsError } = await supabase
-    .from("competition_contacts")
-    .delete()
-    .eq("competition_id", state.competitionId);
-
-  if (deleteContactsError) {
-    throwSaveError(deleteContactsError);
   }
 
   const exactDeadlineMatches = new Map<string, ExistingDeadline[]>();
@@ -158,7 +108,7 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
   }
 
   const usedDeadlineIds = new Set<string>();
-  const deadlinesToUpsert = state.deadlines
+  const deadlinesToSave = state.deadlines
     .filter((deadline) => deadline.name.trim())
     .map((deadline) => {
       const reviewedDeadline = {
@@ -176,43 +126,19 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
       );
 
       return {
-        ...reviewedDeadline,
-        id: existingDeadline?.id,
+        id: existingDeadline?.id ?? null,
+        name: reviewedDeadline.name,
+        due_date: reviewedDeadline.due_date,
+        fine_amount: reviewedDeadline.fine_amount,
+        is_hard_cutoff: reviewedDeadline.is_hard_cutoff,
         status: existingDeadline?.status ?? ("pending" as const),
         completed_at: existingDeadline?.completed_at ?? null,
       };
     });
 
-  for (const deadline of deadlinesToUpsert) {
-    const { error } = deadline.id
-      ? await supabase
-          .from("deadlines")
-          .update({
-            name: deadline.name,
-            due_date: deadline.due_date,
-            fine_amount: deadline.fine_amount,
-            is_hard_cutoff: deadline.is_hard_cutoff,
-          })
-          .eq("id", deadline.id)
-      : await supabase.from("deadlines").insert({
-          competition_id: deadline.competition_id,
-          name: deadline.name,
-          due_date: deadline.due_date,
-          fine_amount: deadline.fine_amount,
-          is_hard_cutoff: deadline.is_hard_cutoff,
-          status: deadline.status,
-          completed_at: deadline.completed_at,
-        });
-
-    if (error) {
-      throwSaveError(error);
-    }
-  }
-
-  const feesToInsert = state.fees
+  const feesToSave = state.fees
     .filter((fee) => fee.name.trim())
     .map((fee) => ({
-      competition_id: state.competitionId,
       name: fee.name.trim(),
       amount: parseOptionalNumber(fee.amount) ?? 0,
       is_per_person: fee.is_per_person,
@@ -220,18 +146,9 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
       due_date: parseOptionalDate(fee.due_date),
     }));
 
-  if (feesToInsert.length > 0) {
-    const { error } = await supabase.from("fees").insert(feesToInsert);
-
-    if (error) {
-      throwSaveError(error);
-    }
-  }
-
-  const contactsToInsert = state.contacts
+  const contactsToSave = state.contacts
     .filter((contact) => contact.name.trim())
     .map((contact, index) => ({
-      competition_id: state.competitionId,
       name: contact.name.trim(),
       role: contact.role.trim() || null,
       email: contact.email.trim() || null,
@@ -239,13 +156,27 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
       sort_order: index,
     }));
 
-  if (contactsToInsert.length > 0) {
-    const { error } = await supabase
-      .from("competition_contacts")
-      .insert(contactsToInsert);
+  const { error: saveError } = await supabase.rpc("save_competition_packet_data", {
+    p_competition_id: state.competitionId,
+    p_roster_min: parseOptionalInteger(state.roster_rules.min_size),
+    p_roster_max: parseOptionalInteger(state.roster_rules.max_size),
+    p_per_person_registration_cost: parseOptionalNumber(
+      state.roster_rules.per_person_registration_cost,
+    ),
+    p_min_performance_duration: parseOptionalInteger(
+      state.performance_rules.min_duration_minutes,
+    ),
+    p_max_performance_duration: parseOptionalInteger(
+      state.performance_rules.max_duration_minutes,
+    ),
+    p_mix_format: state.performance_rules.mix_format.trim() || null,
+    p_tech_rehearsal_required: state.performance_rules.tech_rehearsal_required,
+    p_deadlines: deadlinesToSave,
+    p_fees: feesToSave,
+    p_contacts: contactsToSave,
+  });
 
-    if (error) {
-      throwSaveError(error);
-    }
+  if (saveError) {
+    throwSaveError(saveError);
   }
 }
