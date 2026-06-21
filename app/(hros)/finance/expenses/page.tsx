@@ -5,18 +5,18 @@ import { getUserMember } from "@/lib/get-user-member";
 import {
   buildPopulatedGeneralPoolCategories,
   buildPopulatedIufbLineItems,
-  getCurrentSeason,
   getSeasonTimestampBounds,
   type Budget,
   type ExpenseRequestWithRelations,
   type IufbLineItem,
 } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getActiveSeason, getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
 type ExpensesPageProps = {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; season?: string }>;
 };
 
 const expenseRequestSelect = `
@@ -39,7 +39,10 @@ const expenseRequestSelect = `
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
   const showSubmitted = params.submitted === "1";
-  const season = getCurrentSeason();
+  const [{ label: season }, { label: activeSeason }] = await Promise.all([
+    getViewingSeason(params.season),
+    getActiveSeason(),
+  ]);
   const { start, end } = getSeasonTimestampBounds(season);
 
   const [supabase, userMember] = await Promise.all([
@@ -67,6 +70,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     supabase
       .from("competitions")
       .select("id, name, competition_date")
+      .eq("season", season)
       .order("competition_date", { ascending: true }),
     supabase
       .from("expense_requests")
@@ -148,6 +152,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                 <AddExpenseForm
                   compact
+                  season={activeSeason}
                   requesterMemberId={userMember.id}
                   competitions={competitions}
                   generalPoolCategories={generalPoolCategories}

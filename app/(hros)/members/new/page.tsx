@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import MemberCreateForm from "@/components/member-create-form";
 import { getUserProfile } from "@/lib/get-user-profile";
 import { getUserMember } from "@/lib/get-user-member";
+import { getActiveSeason } from "@/lib/seasons";
 import { hasWriteAccess } from "@/lib/rbac";
 
 export default async function NewMemberPage() {
@@ -14,6 +15,7 @@ export default async function NewMemberPage() {
 
   const member = await getUserMember();
   const canWrite = hasWriteAccess(member?.exec_title ?? null, "members");
+  const { label: activeSeason } = await getActiveSeason();
 
   if (!canWrite) {
     return (
@@ -42,7 +44,7 @@ export default async function NewMemberPage() {
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <MemberCreateForm />
+        <MemberCreateForm activeSeason={activeSeason} />
       </div>
     </div>
   );

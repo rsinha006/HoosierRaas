@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { hasAppAccess } from "@/lib/user-access";
+import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -17,18 +19,83 @@ export default function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
+    const normalizedEmail = email.trim().toLowerCase();
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 
-    setLoading(false);
-
     if (signInError) {
+      setLoading(false);
       setError(signInError.message);
       return;
     }
 
+    const { data: activeSeason, error: activeSeasonError } = await supabase
+      .from("seasons")
+      .select("label")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (activeSeasonError) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("Could not verify your access. Please try again.");
+      return;
+    }
+
+    const { data: member, error: memberError } = await supabase
+      .from("members")
+      .select("id, roles")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    if (memberError) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("Could not verify your access. Please try again.");
+      return;
+    }
+
+    let execTitle: string | null = null;
+
+    if (member && activeSeason?.label) {
+      const { data: membership, error: membershipError } = await supabase
+        .from("season_memberships")
+        .select("exec_title")
+        .eq("member_id", member.id)
+        .eq("season", activeSeason.label)
+        .maybeSingle();
+
+      if (membershipError) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("Could not verify your access. Please try again.");
+        return;
+      }
+
+      execTitle = membership?.exec_title ?? null;
+    }
+
+    const userMember = member
+      ? {
+          id: member.id,
+          roles: Array.isArray(member.roles) ? member.roles : [],
+          exec_title: normalizeMembershipExecTitle(execTitle),
+        }
+      : null;
+
+    if (!hasAppAccess(userMember)) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError(
+        "Your account is waiting for access. A Captain or Team Manager must assign your role before you can sign in.",
+      );
+      return;
+    }
+
+    setLoading(false);
     router.push("/dashboard");
     router.refresh();
   }

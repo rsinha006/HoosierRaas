@@ -30,4 +30,9 @@ export const APP_MODULES: AppModule[] = [
     href: "/members",
     description: "Roster management",
   },
+  {
+    name: "Users",
+    href: "/users",
+    description: "Login accounts and access",
+  },
 ];

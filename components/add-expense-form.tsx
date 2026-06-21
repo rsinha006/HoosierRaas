@@ -21,6 +21,7 @@ const requiredMark = <span className="text-[#990000]">*</span>;
 
 type AddExpenseFormProps = {
   requesterMemberId: string;
+  season: string;
   competitions: Pick<Competition, "id" | "name" | "competition_date">[];
   generalPoolCategories: PopulatedGeneralPoolCategory[];
   iufbLineItems: PopulatedIufbLineItemOption[];
@@ -29,6 +30,7 @@ type AddExpenseFormProps = {
 
 export default function AddExpenseForm({
   requesterMemberId,
+  season,
   competitions,
   generalPoolCategories,
   iufbLineItems,
@@ -108,6 +110,7 @@ export default function AddExpenseForm({
     const supabase = createClient();
 
     const { error } = await supabase.from("expense_requests").insert({
+      season,
       description: description.trim(),
       amount: Number(amount),
       category: fundingPool === "general_pool" ? category : null,

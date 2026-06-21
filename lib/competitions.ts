@@ -3,6 +3,7 @@ export type CompetitionStatus = "upcoming" | "active" | "complete";
 export type Competition = {
   id: string;
   created_at: string;
+  season: string;
   name: string;
   competition_date: string;
   venue: string | null;

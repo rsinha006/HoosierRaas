@@ -3,7 +3,6 @@ import BudgetSetupForm from "@/components/budget-setup-form";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   EXPENSE_CATEGORIES,
-  getCurrentSeason,
   getSeasonDateRange,
   getSeasonTimestampBounds,
   sumGeneralPoolIncome,
@@ -15,10 +14,16 @@ import {
   type IufbLineItem,
 } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function BudgetSetupPage() {
-  const season = getCurrentSeason();
+type BudgetSetupPageProps = {
+  searchParams: Promise<{ season?: string }>;
+};
+
+export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageProps) {
+  const params = await searchParams;
+  const { label: season } = await getViewingSeason(params.season);
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 

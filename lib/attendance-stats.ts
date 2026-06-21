@@ -1,4 +1,3 @@
-import { getCurrentSeason, isDateInSeason } from "@/lib/finance";
 import { formatMemberName, type Member } from "@/lib/members";
 import {
   type AttendanceRecord,
@@ -11,7 +10,10 @@ import {
 export type MemberSummary = Pick<Member, "id" | "first_name" | "last_name" | "email" | "roles">;
 
 export type AttendanceRecordWithSession = AttendanceRecord & {
-  session: Pick<PracticeSession, "id" | "session_date" | "session_time" | "type" | "status">;
+  session: Pick<
+    PracticeSession,
+    "id" | "season" | "session_date" | "session_time" | "type" | "status"
+  >;
 };
 
 export function getExpectedAudienceRole(sessionType: PracticeSessionType) {
@@ -88,15 +90,11 @@ export function isPositiveAttendance(status: AttendanceStatus) {
   return status === "present" || status === "late";
 }
 
-export function getSeasonSessions(sessions: PracticeSession[], season?: string) {
-  const activeSeason = season ?? getCurrentSeason();
-
-  return sessions.filter((session) =>
-    isDateInSeason(session.session_date, activeSeason),
-  );
+export function getSeasonSessions(sessions: PracticeSession[], season: string) {
+  return sessions.filter((session) => session.season === season);
 }
 
-export function getClosedSeasonSessions(sessions: PracticeSession[], season?: string) {
+export function getClosedSeasonSessions(sessions: PracticeSession[], season: string) {
   return getSeasonSessions(sessions, season).filter(
     (session) => session.status === "closed",
   );
@@ -107,19 +105,15 @@ export type DancerAttendanceSummary = {
   name: string;
   excusedAbsences: number;
   unexcusedAbsences: number;
-  hasUnexcusedAbsence: boolean;
-  approachingExcusedLimit: boolean;
+  approachingUnexcusedLimit: boolean;
 };
 
 export function summarizeDancerAttendance(
   members: MemberSummary[],
   records: AttendanceRecordWithSession[],
-  season?: string,
+  season: string,
 ) {
-  const activeSeason = season ?? getCurrentSeason();
-  const seasonRecords = records.filter((record) =>
-    isDateInSeason(record.session.session_date, activeSeason),
-  );
+  const seasonRecords = records.filter((record) => record.session.season === season);
 
   const summaries = new Map<string, DancerAttendanceSummary>();
 
@@ -129,8 +123,7 @@ export function summarizeDancerAttendance(
       name: formatMemberName(member),
       excusedAbsences: 0,
       unexcusedAbsences: 0,
-      hasUnexcusedAbsence: false,
-      approachingExcusedLimit: false,
+      approachingUnexcusedLimit: false,
     });
   }
 
@@ -150,12 +143,11 @@ export function summarizeDancerAttendance(
 
     if (record.attendance_status === "absent_unexcused") {
       summary.unexcusedAbsences += 1;
-      summary.hasUnexcusedAbsence = true;
     }
   }
 
   for (const summary of summaries.values()) {
-    summary.approachingExcusedLimit = summary.excusedAbsences >= 2;
+    summary.approachingUnexcusedLimit = summary.unexcusedAbsences >= 2;
   }
 
   return Array.from(summaries.values()).sort((left, right) =>
@@ -167,7 +159,7 @@ export function getTeamAttendancePercentage(
   members: MemberSummary[],
   sessions: PracticeSession[],
   records: AttendanceRecord[],
-  season?: string,
+  season: string,
 ) {
   const closedSessions = getClosedSeasonSessions(sessions, season);
 

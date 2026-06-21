@@ -16,9 +16,12 @@ import {
   toUserFacingStorageError,
 } from "@/lib/user-facing-errors";
 
+import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
+
 type OnboardingReviewCardProps = {
   member: Member;
   canWrite: boolean;
+  activeSeason: string;
 };
 
 const inputClassName =
@@ -110,6 +113,7 @@ function DocumentLink({
 export default function OnboardingReviewCard({
   member,
   canWrite,
+  activeSeason,
 }: OnboardingReviewCardProps) {
   const router = useRouter();
 
@@ -223,10 +227,26 @@ export default function OnboardingReviewCard({
       })
       .eq("id", member.id);
 
-    setLoading(false);
-
     if (error) {
       setSaveError(toUserFacingMemberSaveError(error));
+      setLoading(false);
+      return;
+    }
+
+    const { error: membershipError } = await supabase.from("season_memberships").upsert(
+      {
+        member_id: member.id,
+        season: activeSeason,
+        status: "active",
+        exec_title: hasExecRole ? normalizeMembershipExecTitle(execTitle) : null,
+      },
+      { onConflict: "member_id,season" },
+    );
+
+    setLoading(false);
+
+    if (membershipError) {
+      setSaveError(toUserFacingMemberSaveError(membershipError));
       return;
     }
 

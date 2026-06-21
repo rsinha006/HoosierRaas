@@ -29,7 +29,11 @@ function parseOptionalInteger(value: string) {
   return Number.isNaN(parsed) ? Number.NaN : parsed;
 }
 
-export default function CompetitionCreateForm() {
+type CompetitionCreateFormProps = {
+  season: string;
+};
+
+export default function CompetitionCreateForm({ season }: CompetitionCreateFormProps) {
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -130,6 +134,7 @@ export default function CompetitionCreateForm() {
     const { data: competition, error } = await supabase
       .from("competitions")
       .insert({
+        season,
         name: name.trim(),
         competition_date: competitionDate,
         venue: venue.trim() || null,

@@ -3,9 +3,17 @@ import PressingDeadlinesSection from "@/components/pressing-deadlines-section";
 import { getUserMember } from "@/lib/get-user-member";
 import { buildPressingDeadlineGroups } from "@/lib/pressing-deadlines";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function TeamManagerPage() {
+type TeamManagerPageProps = {
+  searchParams: Promise<{ season?: string }>;
+};
+
+export default async function TeamManagerPage({ searchParams }: TeamManagerPageProps) {
+  const params = await searchParams;
+  const { label: season } = await getViewingSeason(params.season);
+
   const [supabase, userMember] = await Promise.all([
     createClient(),
     getUserMember(),
@@ -14,7 +22,10 @@ export default async function TeamManagerPage() {
   const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "team-manager");
 
   const [{ count: competitionCount }, { data: deadlinesData }] = await Promise.all([
-    supabase.from("competitions").select("*", { count: "exact", head: true }),
+    supabase
+      .from("competitions")
+      .select("*", { count: "exact", head: true })
+      .eq("season", season),
     supabase
       .from("deadlines")
       .select(
@@ -28,13 +39,14 @@ export default async function TeamManagerPage() {
         status,
         completed_at,
         created_at,
-        competitions (
+        competitions!inner (
           id,
           name
         )
       `,
       )
-      .eq("status", "pending"),
+      .eq("status", "pending")
+      .eq("competitions.season", season),
   ]);
 
   const pressingDeadlineGroups = buildPressingDeadlineGroups(deadlinesData ?? []);

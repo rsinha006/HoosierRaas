@@ -4,17 +4,22 @@ import DancerAttendanceHistory, {
   buildMemberAttendanceRecords,
 } from "@/components/dancer-attendance-history";
 import { summarizeDancerAttendance, type AttendanceRecordWithSession } from "@/lib/attendance-stats";
-import { getCurrentSeason } from "@/lib/finance";
 import { formatMemberName, type Member } from "@/lib/members";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type MemberAttendancePageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ season?: string }>;
 };
 
-export default async function MemberAttendancePage({ params }: MemberAttendancePageProps) {
+export default async function MemberAttendancePage({
+  params,
+  searchParams,
+}: MemberAttendancePageProps) {
   const { id } = await params;
-  const season = getCurrentSeason();
+  const query = await searchParams;
+  const { label: season } = await getViewingSeason(query.season);
   const supabase = await createClient();
 
   const [{ data: memberData }, { data: recordData }] = await Promise.all([
@@ -28,8 +33,9 @@ export default async function MemberAttendancePage({ params }: MemberAttendanceP
       .select(
         `
         *,
-        session:practice_sessions (
+        session:practice_sessions!inner (
           id,
+          season,
           session_date,
           session_time,
           type,
@@ -37,6 +43,7 @@ export default async function MemberAttendancePage({ params }: MemberAttendanceP
         )
       `,
       )
+      .eq("practice_sessions.season", season)
       .order("response_timestamp", { ascending: false }),
   ]);
 

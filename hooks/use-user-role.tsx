@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ExecTitle } from "@/lib/members";
+import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
 
 type UserRoleState = {
   roles: string[];
@@ -41,9 +42,21 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      const { data: activeSeason, error: activeSeasonError } = await supabase
+        .from("seasons")
+        .select("label")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (activeSeasonError) {
+        setError(activeSeasonError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: member, error: fetchError } = await supabase
         .from("members")
-        .select("roles, exec_title")
+        .select("id, roles")
         .eq("email", user.email.toLowerCase())
         .maybeSingle();
 
@@ -57,8 +70,31 @@ export function UserRoleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setRoles(Array.isArray(data?.roles) ? data.roles : []);
-      setExecTitle((data?.exec_title as ExecTitle | null) ?? null);
+      let execTitle: ExecTitle | null = null;
+
+      if (member && activeSeason?.label) {
+        const { data: membership, error: membershipError } = await supabase
+          .from("season_memberships")
+          .select("exec_title")
+          .eq("member_id", member.id)
+          .eq("season", activeSeason.label)
+          .maybeSingle();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (membershipError) {
+          setError(membershipError.message);
+          setLoading(false);
+          return;
+        }
+
+        execTitle = (membership?.exec_title as ExecTitle | null) ?? null;
+      }
+
+      setRoles(Array.isArray(member?.roles) ? member.roles : []);
+      setExecTitle(normalizeMembershipExecTitle(execTitle));
       setLoading(false);
     }
 

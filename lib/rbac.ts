@@ -5,7 +5,8 @@ export type AppModuleId =
   | "team-manager"
   | "finance"
   | "attendance"
-  | "members";
+  | "members"
+  | "users";
 
 const FULL_WRITE_TITLES: ExecTitle[] = ["captain", "team_manager"];
 

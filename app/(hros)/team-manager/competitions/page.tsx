@@ -2,11 +2,12 @@ import Link from "next/link";
 import CompetitionsList from "@/components/competitions-list";
 import { getUserMember } from "@/lib/get-user-member";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
 type CompetitionsPageProps = {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; season?: string }>;
 };
 
 export default async function CompetitionsPage({
@@ -14,6 +15,7 @@ export default async function CompetitionsPage({
 }: CompetitionsPageProps) {
   const params = await searchParams;
   const showSuccess = params.created === "1";
+  const { label: season } = await getViewingSeason(params.season);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
@@ -25,6 +27,7 @@ export default async function CompetitionsPage({
   const { data, error } = await supabase
     .from("competitions")
     .select("*")
+    .eq("season", season)
     .order("competition_date", { ascending: true });
 
   const competitions = (data ?? []) as Competition[];

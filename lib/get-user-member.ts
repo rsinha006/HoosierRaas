@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ExecTitle } from "@/lib/members";
+import { getActiveSeasonMembershipExecTitle } from "@/lib/season-memberships";
+import { getActiveSeason } from "@/lib/seasons";
 
 export type UserMember = {
   id: string;
@@ -17,19 +19,31 @@ export async function getUserMember(): Promise<UserMember | null> {
     return null;
   }
 
-  const { data } = await supabase
+  const { label: activeSeason } = await getActiveSeason();
+
+  const { data, error } = await supabase
     .from("members")
-    .select("id, roles, exec_title")
+    .select("id, roles")
     .eq("email", user.email.toLowerCase())
     .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
 
   if (!data) {
     return null;
   }
 
+  const exec_title = await getActiveSeasonMembershipExecTitle(
+    supabase,
+    data.id,
+    activeSeason,
+  );
+
   return {
     id: data.id,
     roles: Array.isArray(data.roles) ? data.roles : [],
-    exec_title: data.exec_title,
+    exec_title,
   };
 }

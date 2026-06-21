@@ -1,39 +1,27 @@
 import Link from "next/link";
-import { getCurrentSeason } from "@/lib/finance";
 import type { DancerAttendanceSummary } from "@/lib/attendance-stats";
 
 type AttendanceAlertPanelsProps = {
-  approachingLimit: DancerAttendanceSummary[];
-  unexcusedAbsences: DancerAttendanceSummary[];
+  approachingUnexcusedLimit: DancerAttendanceSummary[];
   season: string;
 };
 
-function AlertList({
-  title,
-  description,
-  items,
-  tone,
-}: {
-  title: string;
-  description: string;
-  items: DancerAttendanceSummary[];
-  tone: "amber" | "red";
-}) {
-  const styles =
-    tone === "amber"
-      ? "border-amber-200 bg-amber-50 text-amber-950"
-      : "border-red-200 bg-red-50 text-red-950";
-
+export default function AttendanceAlertPanels({
+  approachingUnexcusedLimit,
+  season,
+}: AttendanceAlertPanelsProps) {
   return (
-    <div className={`rounded-2xl border p-6 shadow-sm ${styles}`}>
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-1 text-sm opacity-80">{description}</p>
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-950 shadow-sm">
+      <h2 className="text-lg font-semibold">Approaching unexcused absence limit</h2>
+      <p className="mt-1 text-sm opacity-80">
+        Dancers with 2 or more unexcused absences this semester ({season}).
+      </p>
 
-      {items.length === 0 ? (
+      {approachingUnexcusedLimit.length === 0 ? (
         <p className="mt-4 text-sm opacity-80">No dancers in this alert group.</p>
       ) : (
         <ul className="mt-4 space-y-2">
-          {items.map((dancer) => (
+          {approachingUnexcusedLimit.map((dancer) => (
             <li key={dancer.memberId}>
               <Link
                 href={`/attendance/members/${dancer.memberId}`}
@@ -41,43 +29,14 @@ function AlertList({
               >
                 {dancer.name}
               </Link>
-              {tone === "amber" ? (
-                <span className="ml-2 text-xs opacity-80">
-                  {dancer.excusedAbsences} excused absences
-                </span>
-              ) : (
-                <span className="ml-2 text-xs opacity-80">
-                  {dancer.unexcusedAbsences} unexcused absence
-                  {dancer.unexcusedAbsences === 1 ? "" : "s"}
-                </span>
-              )}
+              <span className="ml-2 text-xs opacity-80">
+                {dancer.unexcusedAbsences} unexcused absence
+                {dancer.unexcusedAbsences === 1 ? "" : "s"}
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-export default function AttendanceAlertPanels({
-  approachingLimit,
-  unexcusedAbsences,
-  season,
-}: AttendanceAlertPanelsProps) {
-  return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <AlertList
-        title="Approaching excused absence limit"
-        description={`Dancers with 2 or more excused absences this semester (${season}).`}
-        items={approachingLimit}
-        tone="amber"
-      />
-      <AlertList
-        title="Unexcused absences"
-        description={`Dancers with any unexcused absence this semester (${season}).`}
-        items={unexcusedAbsences}
-        tone="red"
-      />
     </div>
   );
 }
@@ -104,10 +63,10 @@ export function AttendanceTeamSummary({
   );
 }
 
-export function AttendanceSeasonLabel() {
+export function AttendanceSeasonLabel({ season }: { season: string }) {
   return (
     <p className="text-sm text-zinc-500">
-      Semester stats use the current academic season ({getCurrentSeason()}).
+      Semester stats use the {season} season.
     </p>
   );
 }

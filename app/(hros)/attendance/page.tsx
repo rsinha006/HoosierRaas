@@ -13,18 +13,18 @@ import {
   type AttendanceRecordWithSession,
   type MemberSummary,
 } from "@/lib/attendance-stats";
-import { getCurrentSeason } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type AttendancePageProps = {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; season?: string }>;
 };
 
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
   const params = await searchParams;
   const showCreated = params.created === "1";
-  const season = getCurrentSeason();
+  const { label: season } = await getViewingSeason(params.season);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
@@ -41,6 +41,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     supabase
       .from("practice_sessions")
       .select("*")
+      .eq("season", season)
       .order("session_date", { ascending: false })
       .order("session_time", { ascending: false }),
     supabase
@@ -48,8 +49,9 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
       .select(
         `
         *,
-        session:practice_sessions (
+        session:practice_sessions!inner (
           id,
+          season,
           session_date,
           session_time,
           type,
@@ -57,6 +59,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
         )
       `,
       )
+      .eq("practice_sessions.season", season)
       .order("response_timestamp", { ascending: false }),
     supabase
       .from("members")
@@ -73,11 +76,8 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
 
   const sessionRates = buildSessionRates(members, sessions, plainRecords);
   const dancerSummaries = summarizeDancerAttendance(dancerMembers, records, season);
-  const approachingLimit = dancerSummaries.filter(
-    (summary) => summary.approachingExcusedLimit,
-  );
-  const unexcusedAbsences = dancerSummaries.filter(
-    (summary) => summary.hasUnexcusedAbsence,
+  const approachingUnexcusedLimit = dancerSummaries.filter(
+    (summary) => summary.approachingUnexcusedLimit,
   );
   const teamAttendancePercentage = getTeamAttendancePercentage(
     members,
@@ -98,7 +98,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
               Practice sessions, response tracking, and team attendance insights.
             </p>
             <div className="mt-3">
-              <AttendanceSeasonLabel />
+              <AttendanceSeasonLabel season={season} />
             </div>
           </div>
 
@@ -135,8 +135,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
           />
 
           <AttendanceAlertPanels
-            approachingLimit={approachingLimit}
-            unexcusedAbsences={unexcusedAbsences}
+            approachingUnexcusedLimit={approachingUnexcusedLimit}
             season={season}
           />
 

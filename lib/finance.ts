@@ -7,6 +7,7 @@ export const INCOME_CATEGORIES = [
   { value: "garba", label: "Garba" },
   { value: "donations", label: "Donations" },
   { value: "costume_rental", label: "Costume Rental" },
+  { value: "previous_year_carryover", label: "Previous Year Carryover" },
 ] as const;
 
 export type IncomeCategory = (typeof INCOME_CATEGORIES)[number]["value"];
@@ -14,6 +15,7 @@ export type IncomeCategory = (typeof INCOME_CATEGORIES)[number]["value"];
 export type IncomeEntry = {
   id: string;
   created_at: string;
+  season: string;
   source: string;
   amount: number;
   category: IncomeCategory;
@@ -63,6 +65,7 @@ export type ExpenseRequestStatus = "pending" | "approved" | "denied";
 export type ExpenseRequest = {
   id: string;
   created_at: string;
+  season: string;
   description: string;
   amount: number;
   category: ExpenseCategory | null;

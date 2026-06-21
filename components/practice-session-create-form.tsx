@@ -13,7 +13,11 @@ const inputClassName =
 
 const requiredMark = <span className="text-[#990000]">*</span>;
 
-export default function PracticeSessionCreateForm() {
+type PracticeSessionCreateFormProps = {
+  season: string;
+};
+
+export default function PracticeSessionCreateForm({ season }: PracticeSessionCreateFormProps) {
   const router = useRouter();
 
   const [sessionDate, setSessionDate] = useState("");
@@ -52,6 +56,7 @@ export default function PracticeSessionCreateForm() {
     const { data: session, error } = await supabase
       .from("practice_sessions")
       .insert({
+        season,
         session_date: sessionDate,
         session_time: sessionTime,
         type,

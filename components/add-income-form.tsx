@@ -17,9 +17,10 @@ const requiredMark = <span className="text-[#990000]">*</span>;
 
 type AddIncomeFormProps = {
   activeMembers: ActiveMemberOption[];
+  season: string;
 };
 
-export default function AddIncomeForm({ activeMembers }: AddIncomeFormProps) {
+export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormProps) {
   const router = useRouter();
 
   const [source, setSource] = useState("");
@@ -73,6 +74,7 @@ export default function AddIncomeForm({ activeMembers }: AddIncomeFormProps) {
 
     const supabase = createClient();
     const { error } = await supabase.from("income_entries").insert({
+      season,
       source: source.trim(),
       amount: Number(amount),
       category,

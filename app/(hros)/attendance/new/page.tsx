@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import PracticeSessionCreateForm from "@/components/practice-session-create-form";
 import { getUserProfile } from "@/lib/get-user-profile";
 import { getUserMember } from "@/lib/get-user-member";
+import { getActiveSeason } from "@/lib/seasons";
 import { hasWriteAccess } from "@/lib/rbac";
 
 export default async function NewPracticeSessionPage() {
@@ -14,6 +15,7 @@ export default async function NewPracticeSessionPage() {
 
   const member = await getUserMember();
   const canWrite = hasWriteAccess(member?.exec_title ?? null, "attendance");
+  const { label: season } = await getActiveSeason();
 
   if (!canWrite) {
     return (
@@ -48,7 +50,7 @@ export default async function NewPracticeSessionPage() {
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <PracticeSessionCreateForm />
+        <PracticeSessionCreateForm season={season} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ export const PROTECTED_ROUTE_PREFIXES = [
   "/finance",
   "/attendance",
   "/members",
+  "/users",
 ];
 
 export const AUTH_ROUTES = ["/login"];

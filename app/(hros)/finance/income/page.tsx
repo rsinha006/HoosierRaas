@@ -3,16 +3,26 @@ import AddIncomeForm from "@/components/add-income-form";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   formatCurrency,
-  getCurrentSeason,
   getSeasonDateRange,
   sumIncomeByCategory,
   type IncomeEntry,
 } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getActiveSeason, getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function FinanceIncomePage() {
-  const season = getCurrentSeason();
+type FinanceIncomePageProps = {
+  searchParams: Promise<{ season?: string }>;
+};
+
+export default async function FinanceIncomePage({
+  searchParams,
+}: FinanceIncomePageProps) {
+  const params = await searchParams;
+  const [{ label: season }, { label: activeSeason }] = await Promise.all([
+    getViewingSeason(params.season),
+    getActiveSeason(),
+  ]);
   const { start, end } = getSeasonDateRange(season);
 
   const [supabase, userMember] = await Promise.all([
@@ -140,7 +150,7 @@ export default async function FinanceIncomePage() {
             </div>
           ) : (
             <div className="mt-6">
-              <AddIncomeForm activeMembers={membersData ?? []} />
+              <AddIncomeForm activeMembers={membersData ?? []} season={activeSeason} />
             </div>
           )}
         </section>

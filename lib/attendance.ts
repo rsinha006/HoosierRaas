@@ -22,6 +22,7 @@ export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 export type PracticeSession = {
   id: string;
   created_at: string;
+  season: string;
   session_date: string;
   session_time: string;
   type: PracticeSessionType;

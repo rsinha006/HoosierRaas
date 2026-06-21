@@ -12,13 +12,18 @@ import {
   type MemberStatus,
   isValidEmail,
 } from "@/lib/members";
+import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-3 text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
 
 const requiredMark = <span className="text-[#990000]">*</span>;
 
-export default function MemberCreateForm() {
+type MemberCreateFormProps = {
+  activeSeason: string;
+};
+
+export default function MemberCreateForm({ activeSeason }: MemberCreateFormProps) {
   const router = useRouter();
 
   const [firstName, setFirstName] = useState("");
@@ -106,25 +111,44 @@ export default function MemberCreateForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.from("members").insert({
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      graduation_year: Number(graduationYear),
+    const { data: createdMember, error } = await supabase
+      .from("members")
+      .insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        graduation_year: Number(graduationYear),
+        status,
+        roles,
+        exec_title: hasExecRole ? execTitle : null,
+      })
+      .select("id")
+      .single();
+
+    if (error || !createdMember) {
+      setLoading(false);
+      if (error?.code === "23505") {
+        setSaveError("A member with this email already exists.");
+      } else {
+        setSaveError(error?.message ?? "Could not create member.");
+      }
+      return;
+    }
+
+    const { error: membershipError } = await supabase.from("season_memberships").insert({
+      member_id: createdMember.id,
+      season: activeSeason,
       status,
-      roles,
-      exec_title: hasExecRole ? execTitle : null,
+      exec_title: hasExecRole
+        ? normalizeMembershipExecTitle(execTitle)
+        : null,
     });
 
     setLoading(false);
 
-    if (error) {
-      if (error.code === "23505") {
-        setSaveError("A member with this email already exists.");
-      } else {
-        setSaveError(error.message);
-      }
+    if (membershipError) {
+      setSaveError(membershipError.message);
       return;
     }
 

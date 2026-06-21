@@ -7,7 +7,6 @@ import {
 } from "@/lib/budget-donut";
 import {
   formatCurrency,
-  getCurrentSeason,
   getSeasonDateRange,
   getSeasonTimestampBounds,
   sumApprovedExpenses,
@@ -17,10 +16,16 @@ import {
   type IufbLineItem,
 } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function FinancePage() {
-  const season = getCurrentSeason();
+type FinancePageProps = {
+  searchParams: Promise<{ season?: string }>;
+};
+
+export default async function FinancePage({ searchParams }: FinancePageProps) {
+  const params = await searchParams;
+  const { label: season } = await getViewingSeason(params.season);
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 
