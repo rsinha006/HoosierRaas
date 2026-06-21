@@ -12,18 +12,18 @@ declare
   v_old_amount numeric(12, 2) := 0;
   v_new_amount numeric(12, 2) := 0;
 begin
-  if tg_op in ('UPDATE', 'DELETE')
-    and old.status = 'approved'
-    and old.iufb_line_item_id is not null then
-    v_old_iufb_line_item_id := old.iufb_line_item_id;
-    v_old_amount := old.amount;
+  if tg_op in ('UPDATE', 'DELETE') then
+    if old.status = 'approved' and old.iufb_line_item_id is not null then
+      v_old_iufb_line_item_id := old.iufb_line_item_id;
+      v_old_amount := old.amount;
+    end if;
   end if;
 
-  if tg_op in ('INSERT', 'UPDATE')
-    and new.status = 'approved'
-    and new.iufb_line_item_id is not null then
-    v_new_iufb_line_item_id := new.iufb_line_item_id;
-    v_new_amount := new.amount;
+  if tg_op in ('INSERT', 'UPDATE') then
+    if new.status = 'approved' and new.iufb_line_item_id is not null then
+      v_new_iufb_line_item_id := new.iufb_line_item_id;
+      v_new_amount := new.amount;
+    end if;
   end if;
 
   if v_old_iufb_line_item_id is not null then
@@ -46,7 +46,11 @@ begin
     end if;
   end if;
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
 end;
 $$;
 
