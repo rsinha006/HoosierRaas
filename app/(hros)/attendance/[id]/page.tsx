@@ -62,26 +62,39 @@ export default async function PracticeSessionDetailPage({
   const userMember = await getUserMember();
   const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "attendance");
 
-  const [{ data: sessionData, error }, { data: attendanceData }, { data: memberData }] =
-    await Promise.all([
-      supabase.from("practice_sessions").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("attendance_records")
-        .select("*")
-        .eq("session_id", id)
-        .order("respondent_name", { ascending: true }),
-      supabase
-        .from("members")
-        .select("id, first_name, last_name, email, roles")
-        .eq("status", "active")
-        .order("last_name", { ascending: true }),
-    ]);
+  const [{ data: sessionData, error }, { data: attendanceData }] = await Promise.all([
+    supabase.from("practice_sessions").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("session_id", id)
+      .order("respondent_name", { ascending: true }),
+  ]);
 
   if (error || !sessionData) {
     notFound();
   }
 
   const session = sessionData as PracticeSession;
+  const { data: memberData } = await supabase
+    .from("members")
+    .select(
+      `
+      id,
+      first_name,
+      last_name,
+      email,
+      roles,
+      season_memberships!inner (
+        season,
+        status
+      )
+    `,
+    )
+    .eq("season_memberships.season", session.season)
+    .eq("season_memberships.status", "active")
+    .order("last_name", { ascending: true });
+
   const records = (attendanceData ?? []) as AttendanceRecord[];
   const members = (memberData ?? []) as MemberSummary[];
   const audienceLabel = getAudienceLabel(session.type);

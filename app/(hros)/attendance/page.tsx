@@ -63,8 +63,21 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
       .order("response_timestamp", { ascending: false }),
     supabase
       .from("members")
-      .select("id, first_name, last_name, email, roles")
-      .eq("status", "active")
+      .select(
+        `
+        id,
+        first_name,
+        last_name,
+        email,
+        roles,
+        season_memberships!inner (
+          season,
+          status
+        )
+      `,
+      )
+      .eq("season_memberships.season", season)
+      .eq("season_memberships.status", "active")
       .order("last_name", { ascending: true }),
   ]);
 
