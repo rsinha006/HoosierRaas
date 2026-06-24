@@ -20,6 +20,7 @@ const requiredMark = <span className="text-[#990000]">*</span>;
 
 type AttendanceResponseFormProps = {
   session: PublicAttendanceSession;
+  attendanceToken: string;
 };
 
 type FormView = "form" | "success" | "duplicate";
@@ -83,7 +84,10 @@ function RadioOption({
   );
 }
 
-export default function AttendanceResponseForm({ session }: AttendanceResponseFormProps) {
+export default function AttendanceResponseForm({
+  session,
+  attendanceToken,
+}: AttendanceResponseFormProps) {
   const showVideoSection = useMemo(() => isVideoDeadlineDay(), []);
 
   const [view, setView] = useState<FormView>("form");
@@ -177,6 +181,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
 
     const { error } = await supabase.rpc("submit_attendance_response", {
       p_session_id: session.id,
+      p_token: attendanceToken,
       p_respondent_name: `${firstName.trim()} ${lastName.trim()}`,
       p_respondent_email: normalizedEmail,
       p_attendance_status: attendanceStatus,

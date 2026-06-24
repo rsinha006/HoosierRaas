@@ -140,7 +140,7 @@ export default async function PublicAttendPage({ params }: PublicAttendPageProps
             </p>
           </div>
 
-          <AttendanceResponseForm session={session} />
+          <AttendanceResponseForm session={session} attendanceToken={token} />
         </div>
       </div>
     </main>
