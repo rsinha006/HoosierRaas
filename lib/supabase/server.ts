@@ -1,19 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabasePublicEnv } from "@/lib/supabase/env";
+
+const CONFIG_ERROR =
+  "Supabase is not configured. In Vercel, set NEXT_PUBLIC_SUPABASE_URL to your Project URL (https://YOUR-PROJECT.supabase.co) and NEXT_PUBLIC_SUPABASE_ANON_KEY to your publishable or anon key.";
 
 export async function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    throw new Error(
-      "Missing Supabase environment variables. Check .env.local for NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
+  const env = getSupabasePublicEnv();
+  if (!env) {
+    throw new Error(CONFIG_ERROR);
   }
 
   const cookieStore = await cookies();
 
-  return createServerClient(url, key, {
+  return createServerClient(env.url, env.key, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -25,7 +25,7 @@ export async function createClient() {
           });
         } catch {
           // setAll is called from Server Components where cookies cannot be set.
-          // Middleware handles session refresh instead.
+          // Proxy handles session refresh instead.
         }
       },
     },
