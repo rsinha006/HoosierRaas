@@ -1,0 +1,5 @@
+# Minimal config for edge function deployment.
+# Cron/scheduler invokes drive-sync with a shared secret, not a user JWT.
+
+[functions.drive-sync]
+verify_jwt = false

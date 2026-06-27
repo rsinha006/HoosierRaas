@@ -1,25 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAuthRoute, isProtectedRoute } from "@/lib/auth/routes";
+import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-export async function middleware(request: NextRequest) {
+export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
+  const env = getSupabasePublicEnv();
+  if (!env) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(url, key, {
+  const supabase = createServerClient(env.url, env.key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, cacheHeaders) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
@@ -29,13 +28,24 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value, options }) => {
           supabaseResponse.cookies.set(name, value, options);
         });
+        Object.entries(cacheHeaders).forEach(([key, value]) => {
+          supabaseResponse.headers.set(key, value);
+        });
       },
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { id: string } | null = null;
+
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch {
+    // Bad env vars or transient Supabase/network errors should not 500 the site.
+    return supabaseResponse;
+  }
 
   const { pathname } = request.nextUrl;
 
@@ -53,9 +63,3 @@ export async function middleware(request: NextRequest) {
 
   return supabaseResponse;
 }
-
-export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
