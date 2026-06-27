@@ -23,13 +23,22 @@ export default function PacketReviewPageClient({
   const [formState, setFormState] = useState<PacketReviewFormState | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const draft = loadPacketReviewDraft(competitionId);
     if (!draft) {
       router.replace(`/team-manager/competitions/${competitionId}`);
-      return;
+      return undefined;
     }
 
-    setFormState(draft);
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setFormState(draft);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [competitionId, router]);
 
   if (!formState) {

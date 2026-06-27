@@ -66,7 +66,17 @@ export function buildPressingDeadlineGroups(
       deadlines: [],
     };
 
-    const { competitions: _competitions, ...deadline } = row;
+    const deadline: DeadlineRow = {
+      id: row.id,
+      competition_id: row.competition_id,
+      name: row.name,
+      due_date: row.due_date,
+      fine_amount: row.fine_amount,
+      is_hard_cutoff: row.is_hard_cutoff,
+      status: row.status,
+      completed_at: row.completed_at,
+      created_at: row.created_at,
+    };
     existing.deadlines.push(deadline);
     byCompetition.set(row.competition_id, existing);
   }

@@ -111,12 +111,16 @@ export async function deleteMemberLoginsByEmail(
   return failures;
 }
 
+export function shouldDeleteLoginForArchiveDecision(member: ArchiveMemberDecision) {
+  return member.status === "alumni" || member.delete_login;
+}
+
 export async function resolveLoginDeletionEmails(
   supabase: Awaited<ReturnType<typeof createClient>>,
   members: ArchiveMemberDecision[],
 ): Promise<string[]> {
   const memberIds = members
-    .filter((member) => member.delete_login)
+    .filter(shouldDeleteLoginForArchiveDecision)
     .map((member) => member.member_id);
 
   if (memberIds.length === 0) {

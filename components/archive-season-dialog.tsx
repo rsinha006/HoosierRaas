@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { archiveSeason } from "@/app/actions/archive-season";
 import {
@@ -34,28 +34,39 @@ export default function ArchiveSeasonDialog({
   roster,
   financePreview,
 }: ArchiveSeasonDialogProps) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <ArchiveSeasonDialogContent
+      key={activeSeasonLabel}
+      onClose={onClose}
+      activeSeasonLabel={activeSeasonLabel}
+      roster={roster}
+      financePreview={financePreview}
+    />
+  );
+}
+
+type ArchiveSeasonDialogContentProps = Omit<ArchiveSeasonDialogProps, "open">;
+
+function ArchiveSeasonDialogContent({
+  onClose,
+  activeSeasonLabel,
+  roster,
+  financePreview,
+}: ArchiveSeasonDialogContentProps) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [statusByMemberId, setStatusByMemberId] = useState<Record<string, MemberStatus>>(
-    {},
+    () => buildInitialStatusChoices(roster),
   );
   const [accessChoices, setAccessChoices] = useState<
     Record<string, { nextExecTitle: (typeof ASSIGNABLE_EXEC_TITLES)[number]["value"] | "none"; deleteLogin: boolean }>
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setStep(1);
-    setStatusByMemberId(buildInitialStatusChoices(roster));
-    setAccessChoices({});
-    setSubmitting(false);
-    setErrorMessage(null);
-  }, [open, roster]);
 
   const accessEligible = useMemo(
     () => getAccessEligibleMembers(roster, statusByMemberId),
@@ -72,10 +83,6 @@ export default function ArchiveSeasonDialog({
       ),
     [roster, statusByMemberId, accessChoices, financePreview],
   );
-
-  if (!open) {
-    return null;
-  }
 
   function goToAccessStep() {
     setAccessChoices(buildInitialAccessChoices(accessEligible));
