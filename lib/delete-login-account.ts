@@ -20,14 +20,45 @@ export async function deleteLoginAccount(
     return { error: deleteAuthError.message ?? "Could not delete this user." };
   }
 
-  const { error: deleteProfileError } = await admin.from("profiles").delete().eq("id", userId);
-
-  if (deleteProfileError) {
-    return { error: deleteProfileError.message };
-  }
+  await admin.from("profiles").delete().eq("id", userId);
 
   if (normalizedEmail) {
     await admin.from("profiles").delete().eq("email", normalizedEmail);
+  }
+
+  return { error: null };
+}
+
+export async function deleteLoginByEmail(
+  admin: AdminClient,
+  email: string,
+): Promise<{ error: string | null }> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (profile?.id) {
+    return deleteLoginAccount(admin, profile.id);
+  }
+
+  const { data: authData, error: listUsersError } = await admin.auth.admin.listUsers({
+    perPage: 1000,
+  });
+
+  if (listUsersError) {
+    return { error: listUsersError.message ?? "Could not look up login accounts." };
+  }
+
+  const authUser = (authData.users ?? []).find(
+    (user) => user.email?.trim().toLowerCase() === normalizedEmail,
+  );
+
+  if (authUser) {
+    return deleteLoginAccount(admin, authUser.id);
   }
 
   return { error: null };

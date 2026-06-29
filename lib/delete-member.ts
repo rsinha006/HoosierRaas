@@ -1,4 +1,3 @@
-import { deleteLoginAccount } from "@/lib/delete-login-account";
 import { ONBOARDING_STORAGE_BUCKET } from "@/lib/onboarding";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -42,27 +41,20 @@ export async function deleteMemberAccount(
     return { error: "Member not found." };
   }
 
-  const normalizedEmail = member.email.trim().toLowerCase();
+  const documentPaths = getMemberDocumentPaths(member);
+  if (documentPaths.length > 0) {
+    const { error: storageError } = await admin.storage
+      .from(ONBOARDING_STORAGE_BUCKET)
+      .remove(documentPaths);
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (profile?.id) {
-    const { error: loginDeleteError } = await deleteLoginAccount(admin, profile.id);
-    if (loginDeleteError) {
-      return { error: loginDeleteError };
+    if (storageError) {
+      return { error: storageError.message };
     }
   }
 
-  const documentPaths = getMemberDocumentPaths(member);
-  if (documentPaths.length > 0) {
-    await admin.storage.from(ONBOARDING_STORAGE_BUCKET).remove(documentPaths);
-  }
-
-  const { error: deleteMemberError } = await admin.from("members").delete().eq("id", memberId);
+  const { error: deleteMemberError } = await admin.rpc("admin_delete_member", {
+    p_member_id: memberId,
+  });
 
   if (deleteMemberError) {
     return { error: deleteMemberError.message };

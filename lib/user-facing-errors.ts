@@ -108,12 +108,26 @@ export function toUserFacingMemberDeleteError(error: unknown): string {
   }
 
   if (
+    message.includes("invalid api key") ||
+    message.includes("jwt") ||
+    message.includes("permission denied") ||
+    message.includes("row-level security")
+  ) {
+    return "Member deletion is not configured correctly on the server. Ask your admin to verify SUPABASE_SERVICE_ROLE_KEY.";
+  }
+
+  if (
     message.includes("expense_requests") ||
     message.includes("reimbursements") ||
     message.includes("foreign key") ||
-    message.includes("violates foreign key")
+    message.includes("violates foreign key") ||
+    message.includes("still referenced")
   ) {
     return "This member cannot be deleted because they have expense requests or reimbursements on record.";
+  }
+
+  if (message.includes("admin_delete_member")) {
+    return "Member deletion is not available yet. Ask your admin to apply the latest database migration.";
   }
 
   return "We could not delete this member. Please try again.";

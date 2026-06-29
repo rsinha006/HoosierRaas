@@ -29,6 +29,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const { error } = await deleteMemberAccount(admin, id);
 
     if (error) {
+      console.error("Failed to delete member", { memberId: id, error });
       return NextResponse.json({ error: toUserFacingMemberDeleteError(error) }, { status: 500 });
     }
 
