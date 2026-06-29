@@ -150,6 +150,7 @@ export default function OnboardingReviewCard({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const hasExecRole = roles.includes("exec");
   const submittedAt = new Date(member.created_at).toLocaleString();
@@ -251,6 +252,41 @@ export default function OnboardingReviewCard({
     }
 
     router.refresh();
+  }
+
+  async function handleReject() {
+    if (!canWrite) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Reject this submission for ${member.email}? They will be able to submit onboarding again with the same email.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSaveError(null);
+    setRejecting(true);
+
+    try {
+      const response = await fetch(`/api/members/${member.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setSaveError(body?.error ?? "Could not reject this submission.");
+        setRejecting(false);
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setSaveError("Could not reject this submission.");
+      setRejecting(false);
+    }
   }
 
   return (
@@ -559,14 +595,24 @@ export default function OnboardingReviewCard({
       ) : null}
 
       {canWrite ? (
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={loading}
-          className="mt-5 w-full rounded-lg bg-[#990000] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-        >
-          {loading ? "Confirming..." : "Confirm member"}
-        </button>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={loading || rejecting}
+            className="rounded-lg bg-[#990000] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Confirming..." : "Confirm member"}
+          </button>
+          <button
+            type="button"
+            onClick={handleReject}
+            disabled={loading || rejecting}
+            className="rounded-lg border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {rejecting ? "Rejecting..." : "Reject submission"}
+          </button>
+        </div>
       ) : (
         <p className="mt-5 text-sm text-zinc-500">
           You have read-only access. Only Captain and Team Manager can confirm members.

@@ -3,6 +3,7 @@ import {
   type ArchiveFinancePreview,
   type ArchiveMemberDecision,
 } from "@/lib/archive-season";
+import { deleteLoginAccount } from "@/lib/delete-login-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getSeasonDateRange,
@@ -101,10 +102,10 @@ export async function deleteMemberLoginsByEmail(
       continue;
     }
 
-    const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+    const { error: deleteError } = await deleteLoginAccount(admin, userId);
 
     if (deleteError) {
-      failures.push(`${email}: ${deleteError.message}`);
+      failures.push(`${email}: ${deleteError}`);
     }
   }
 

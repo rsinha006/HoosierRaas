@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import RegistrationPacketInfo from "@/components/registration-packet-info";
 import DeadlinesChecklist from "@/components/deadlines-checklist";
 import type { DeadlineRow } from "@/lib/deadline-types";
+import { getUserMember } from "@/lib/get-user-member";
+import { hasWriteAccess } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatCompetitionDate,
@@ -17,7 +20,11 @@ export default async function CompetitionDetailPage({
   params,
 }: CompetitionDetailPageProps) {
   const { id } = await params;
-  const supabase = await createClient();
+  const [supabase, userMember] = await Promise.all([
+    createClient(),
+    getUserMember(),
+  ]);
+  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "team-manager");
 
   const { data, error } = await supabase
     .from("competitions")
@@ -75,6 +82,7 @@ export default async function CompetitionDetailPage({
       <DeadlinesChecklist
         competitionId={competition.id}
         deadlines={deadlines}
+        canWrite={canWrite}
       />
 
       <RegistrationPacketInfo
@@ -82,6 +90,7 @@ export default async function CompetitionDetailPage({
         competitionName={competition.name}
         packetUrl={competition.packet_url}
         packetUploadedAt={competition.packet_uploaded_at}
+        canWrite={canWrite}
       />
     </div>
   );

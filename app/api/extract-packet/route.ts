@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { getUserMember } from "@/lib/get-user-member";
+import { hasWriteAccess } from "@/lib/rbac";
 import { parseExtractedPacketResponse } from "@/lib/packet-extraction-parse";
 import { PACKET_EXTRACTION_PROMPT } from "@/lib/packet-extraction-prompt";
 import {
@@ -25,6 +27,11 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: toUserFacingAuthError() }, { status: 401 });
+  }
+
+  const member = await getUserMember();
+  if (!hasWriteAccess(member?.exec_title ?? null, "team-manager")) {
+    return NextResponse.json({ error: toUserFacingAuthError() }, { status: 403 });
   }
 
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;

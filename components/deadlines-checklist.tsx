@@ -10,6 +10,7 @@ import { toUserFacingDeadlineError } from "@/lib/user-facing-errors";
 type DeadlinesChecklistProps = {
   competitionId: string;
   deadlines: DeadlineRow[];
+  canWrite: boolean;
 };
 
 type ManualDeadlineDraft = {
@@ -44,6 +45,7 @@ function parseOptionalNumber(value: string) {
 export default function DeadlinesChecklist({
   competitionId,
   deadlines,
+  canWrite,
 }: DeadlinesChecklistProps) {
   const supabase = useMemo(() => createClient(), []);
   const [rows, setRows] = useState(deadlines);
@@ -98,6 +100,10 @@ export default function DeadlinesChecklist({
   }
 
   function handleCheckboxChange(deadline: DeadlineRow) {
+    if (!canWrite) {
+      return;
+    }
+
     setError(null);
 
     if (deadline.status === "complete") {
@@ -139,6 +145,10 @@ export default function DeadlinesChecklist({
   }
 
   async function handleAddManualItem() {
+    if (!canWrite) {
+      return;
+    }
+
     if (!manualDraft.name.trim()) {
       setError("Name is required to add a manual deadline.");
       return;
@@ -226,21 +236,23 @@ export default function DeadlinesChecklist({
                 : `Show all ${sortedRows.length} deadlines`}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              setShowManualForm((current) => {
-                const next = !current;
-                if (next) {
-                  setExpanded(true);
-                }
-                return next;
-              });
-            }}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            {showManualForm ? "Close form" : "Add Manual Item"}
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowManualForm((current) => {
+                  const next = !current;
+                  if (next) {
+                    setExpanded(true);
+                  }
+                  return next;
+                });
+              }}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              {showManualForm ? "Close form" : "Add Manual Item"}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -259,7 +271,7 @@ export default function DeadlinesChecklist({
         </div>
       </div>
 
-      {showManualForm ? (
+      {showManualForm && canWrite ? (
         <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
           <h3 className="text-sm font-semibold text-zinc-900">Add manual deadline</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -365,6 +377,7 @@ export default function DeadlinesChecklist({
               compact={!expanded && !showManualForm && hasMoreThanPreview}
               showCompletedTimestamp={expanded || showManualForm || !hasMoreThanPreview}
               syncing={syncingId === deadline.id}
+              readOnly={!canWrite}
             />
           ))}
 
@@ -383,6 +396,12 @@ export default function DeadlinesChecklist({
       {error ? (
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </p>
+      ) : null}
+
+      {!canWrite ? (
+        <p className="mt-4 text-sm text-amber-800">
+          You have read-only access. Only Captain and Team Manager can update deadlines.
         </p>
       ) : null}
     </section>

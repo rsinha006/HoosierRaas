@@ -23,6 +23,7 @@ type RegistrationPacketInfoProps = {
   competitionName: string;
   packetUrl: string | null;
   packetUploadedAt: string | null;
+  canWrite: boolean;
 };
 
 type ExtractPacketApiResponse = {
@@ -76,6 +77,7 @@ export default function RegistrationPacketInfo({
   competitionName,
   packetUrl,
   packetUploadedAt,
+  canWrite,
 }: RegistrationPacketInfoProps) {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
@@ -106,6 +108,10 @@ export default function RegistrationPacketInfo({
   }
 
   async function extractData() {
+    if (!canWrite) {
+      return;
+    }
+
     setExtracting(true);
     setError(null);
 
@@ -168,14 +174,16 @@ export default function RegistrationPacketInfo({
         >
           {opening ? "Opening PDF..." : "View PDF"}
         </button>
-        <button
-          type="button"
-          onClick={extractData}
-          disabled={opening || extracting}
-          className="rounded-lg bg-[#990000] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#7a0000] disabled:opacity-60"
-        >
-          {extracting ? "Reading packet..." : "Extract Data"}
-        </button>
+        {canWrite ? (
+          <button
+            type="button"
+            onClick={extractData}
+            disabled={opening || extracting}
+            className="rounded-lg bg-[#990000] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#7a0000] disabled:opacity-60"
+          >
+            {extracting ? "Reading packet..." : "Extract Data"}
+          </button>
+        ) : null}
       </div>
       {extracting ? (
         <p className="mt-2 text-sm text-zinc-600">

@@ -12,6 +12,7 @@ type DeadlineChecklistItemProps = {
   compact?: boolean;
   showCompletedTimestamp?: boolean;
   syncing?: boolean;
+  readOnly?: boolean;
 };
 
 function CheckIcon() {
@@ -37,6 +38,7 @@ export default function DeadlineChecklistItem({
   compact = false,
   showCompletedTimestamp = true,
   syncing = false,
+  readOnly = false,
 }: DeadlineChecklistItemProps) {
   const tone = getRowTone(deadline);
   const fine = formatCurrency(deadline.fine_amount);
@@ -49,25 +51,38 @@ export default function DeadlineChecklistItem({
       } ${tone}`}
     >
       <div className="flex items-start gap-2.5">
-        <button
-          type="button"
-          onClick={() => onToggle(deadline)}
-          disabled={syncing}
-          aria-label={
-            syncing
-              ? `Saving ${deadline.name}`
-              : isComplete
-                ? `Mark ${deadline.name} as pending`
-                : `Mark ${deadline.name} as complete`
-          }
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition disabled:cursor-wait disabled:opacity-60 ${
-            isComplete
-              ? "border-green-500 bg-green-100"
-              : "border-zinc-300 bg-white hover:border-[#990000]"
-          }`}
-        >
-          {isComplete ? <CheckIcon /> : null}
-        </button>
+        {readOnly ? (
+          <div
+            aria-hidden="true"
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+              isComplete
+                ? "border-green-500 bg-green-100"
+                : "border-zinc-300 bg-zinc-50"
+            }`}
+          >
+            {isComplete ? <CheckIcon /> : null}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onToggle(deadline)}
+            disabled={syncing}
+            aria-label={
+              syncing
+                ? `Saving ${deadline.name}`
+                : isComplete
+                  ? `Mark ${deadline.name} as pending`
+                  : `Mark ${deadline.name} as complete`
+            }
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition disabled:cursor-wait disabled:opacity-60 ${
+              isComplete
+                ? "border-green-500 bg-green-100"
+                : "border-zinc-300 bg-white hover:border-[#990000]"
+            }`}
+          >
+            {isComplete ? <CheckIcon /> : null}
+          </button>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

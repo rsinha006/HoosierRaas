@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatExecTitle } from "@/lib/members";
-import type { UserRow } from "@/lib/users";
+import { createClient } from "@/lib/supabase/client";
+import { buildUserRowFromProfile, type UserRow } from "@/lib/users";
 import UserDeleteButton from "@/components/user-delete-button";
 import UserRoleAssign from "@/components/user-role-assign";
 
@@ -11,6 +12,15 @@ type UsersTableProps = {
   canManage: boolean;
   currentUserId: string;
 };
+
+type ProfileInsertRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  created_at: string;
+};
+
+const HIGHLIGHT_DURATION_MS = 8_000;
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -23,8 +33,131 @@ function formatDate(value: string) {
   });
 }
 
-export default function UsersTable({ users, canManage, currentUserId }: UsersTableProps) {
+function sortUsersByCreatedAt(users: UserRow[]) {
+  return [...users].sort(
+    (left, right) =>
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+  );
+}
+
+function isProfileInsertRow(value: unknown): value is ProfileInsertRow {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const row = value as ProfileInsertRow;
+  return (
+    typeof row.id === "string" &&
+    typeof row.created_at === "string" &&
+    (typeof row.email === "string" || row.email === null) &&
+    (typeof row.full_name === "string" || row.full_name === null)
+  );
+}
+
+export default function UsersTable({
+  users: initialUsers,
+  canManage,
+  currentUserId,
+}: UsersTableProps) {
+  const [users, setUsers] = useState(initialUsers);
+  const [highlightedUserIds, setHighlightedUserIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [searchQuery, setSearchQuery] = useState("");
+  const highlightTimeoutsRef = useRef<Map<string, number>>(new Map());
+  const knownUserIdsRef = useRef(new Set(initialUsers.map((user) => user.id)));
+
+  function highlightUser(userId: string) {
+    setHighlightedUserIds((current) => {
+      const next = new Set(current);
+      next.add(userId);
+      return next;
+    });
+
+    const existingTimeout = highlightTimeoutsRef.current.get(userId);
+    if (existingTimeout) {
+      window.clearTimeout(existingTimeout);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedUserIds((current) => {
+        const next = new Set(current);
+        next.delete(userId);
+        return next;
+      });
+      highlightTimeoutsRef.current.delete(userId);
+    }, HIGHLIGHT_DURATION_MS);
+
+    highlightTimeoutsRef.current.set(userId, timeoutId);
+  }
+
+  const handleRealtimeProfileInsert = useCallback(
+    (profile: ProfileInsertRow) => {
+      if (!profile.email) {
+        return;
+      }
+
+      const newUser = buildUserRowFromProfile({
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        created_at: profile.created_at,
+      });
+
+      setUsers((current) => {
+        if (current.some((user) => user.id === newUser.id)) {
+          return current;
+        }
+
+        knownUserIdsRef.current.add(newUser.id);
+        return sortUsersByCreatedAt([newUser, ...current]);
+      });
+
+      highlightUser(newUser.id);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setUsers(initialUsers);
+
+    const newUserIds = initialUsers
+      .map((user) => user.id)
+      .filter((userId) => !knownUserIdsRef.current.has(userId));
+
+    for (const userId of newUserIds) {
+      highlightUser(userId);
+    }
+
+    knownUserIdsRef.current = new Set(initialUsers.map((user) => user.id));
+  }, [initialUsers]);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("users-page-profiles")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "profiles" },
+        (payload) => {
+          if (!isProfileInsertRow(payload.new)) {
+            return;
+          }
+
+          handleRealtimeProfileInsert(payload.new);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      for (const timeoutId of highlightTimeoutsRef.current.values()) {
+        window.clearTimeout(timeoutId);
+      }
+      highlightTimeoutsRef.current.clear();
+      void supabase.removeChannel(channel);
+    };
+  }, [handleRealtimeProfileInsert]);
 
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -85,51 +218,69 @@ export default function UsersTable({ users, canManage, currentUserId }: UsersTab
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 bg-white">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="align-top">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-zinc-900">
-                      {user.full_name?.trim() || "—"}
-                    </div>
-                    {user.on_roster ? (
-                      <span className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                        On roster
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{user.email}</td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {formatExecTitle(user.exec_title) ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        user.access_status === "active"
-                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                          : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                      }`}
-                    >
-                      {user.access_status === "active" ? "Active" : "Pending"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{formatDate(user.created_at)}</td>
-                  {canManage ? (
+              {filteredUsers.map((user) => {
+                const isHighlighted = highlightedUserIds.has(user.id);
+
+                return (
+                  <tr
+                    key={user.id}
+                    className={`align-top transition-colors duration-700 ${
+                      isHighlighted
+                        ? "bg-amber-50 ring-2 ring-inset ring-amber-300"
+                        : ""
+                    }`}
+                  >
                     <td className="px-4 py-3">
-                      <div className="flex flex-col gap-3">
-                        <UserRoleAssign
-                          userId={user.id}
-                          currentExecTitle={user.exec_title}
-                        />
-                        <UserDeleteButton
-                          userId={user.id}
-                          email={user.email}
-                          currentUserId={currentUserId}
-                        />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium text-zinc-900">
+                          {user.full_name?.trim() || "—"}
+                        </div>
+                        {isHighlighted ? (
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                            New
+                          </span>
+                        ) : null}
                       </div>
+                      {user.on_roster ? (
+                        <span className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                          On roster
+                        </span>
+                      ) : null}
                     </td>
-                  ) : null}
-                </tr>
-              ))}
+                    <td className="px-4 py-3 text-zinc-600">{user.email}</td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {formatExecTitle(user.exec_title) ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          user.access_status === "active"
+                            ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                        }`}
+                      >
+                        {user.access_status === "active" ? "Active" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">{formatDate(user.created_at)}</td>
+                    {canManage ? (
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-3">
+                          <UserRoleAssign
+                            userId={user.id}
+                            currentExecTitle={user.exec_title}
+                          />
+                          <UserDeleteButton
+                            userId={user.id}
+                            email={user.email}
+                            currentUserId={currentUserId}
+                          />
+                        </div>
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

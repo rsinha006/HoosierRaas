@@ -4,9 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Member, MemberRole, MemberStatus } from "@/lib/members";
 import { formatExecTitle, formatMemberName, formatRole } from "@/lib/members";
+import MemberDeleteButton from "@/components/member-delete-button";
 
 type MembersTableProps = {
   members: Member[];
+  canDelete: boolean;
+  currentMemberId: string;
 };
 
 type StatusFilter = "all" | MemberStatus;
@@ -15,7 +18,11 @@ type RoleFilter = "all" | MemberRole;
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
 
-export default function MembersTable({ members }: MembersTableProps) {
+export default function MembersTable({
+  members,
+  canDelete,
+  currentMemberId,
+}: MembersTableProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
@@ -124,6 +131,9 @@ export default function MembersTable({ members }: MembersTableProps) {
                 <th className="px-4 py-3 font-medium text-zinc-700">Graduation Year</th>
                 <th className="px-4 py-3 font-medium text-zinc-700">Roles</th>
                 <th className="px-4 py-3 font-medium text-zinc-700">Exec Title</th>
+                {canDelete ? (
+                  <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 bg-white">
@@ -153,6 +163,14 @@ export default function MembersTable({ members }: MembersTableProps) {
                   <td className="px-4 py-3 text-zinc-600">
                     {formatExecTitle(member.exec_title) ?? "—"}
                   </td>
+                  {canDelete ? (
+                    <td className="px-4 py-3">
+                      <MemberDeleteButton
+                        member={member}
+                        currentMemberId={currentMemberId}
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

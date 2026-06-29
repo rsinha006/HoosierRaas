@@ -8,6 +8,7 @@ import {
   ONBOARDING_STORAGE_BUCKET,
   getGraduationYearOptions,
   isValidIuEmail,
+  mergeOnboardingRoles,
   normalizeOptionalText,
   validateUploadFile,
   type ClothingSize,
@@ -228,13 +229,13 @@ export default function DancerOnboardingForm() {
         }
       }
 
-      const { error } = await supabase.from("members").insert({
+      const memberPayload = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: normalizedEmail,
         phone: phone.trim(),
         graduation_year: Number(graduationYear),
-        status: "active",
+        status: "active" as const,
         roles,
         exec_title: null,
         pending_review: true,
@@ -249,15 +250,83 @@ export default function DancerOnboardingForm() {
         drinks_alcohol: drinksAlcohol === "yes",
         emergency_contact_name: emergencyContactName.trim(),
         emergency_contact_phone: emergencyContactPhone.trim(),
-      });
+      };
 
-      if (error) {
-        if (error.code === "23505") {
-          setView("duplicate");
-          return;
+      const { data: existingMember, error: existingMemberError } = await supabase
+        .from("members")
+        .select("id, roles, pending_review, government_id_path")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (existingMemberError) {
+        throw new Error(existingMemberError.message);
+      }
+
+      if (
+        existingMember &&
+        !existingMember.pending_review &&
+        existingMember.government_id_path
+      ) {
+        setView("duplicate");
+        return;
+      }
+
+      if (existingMember) {
+        const { error } = await supabase
+          .from("members")
+          .update({
+            ...memberPayload,
+            roles: mergeOnboardingRoles(existingMember.roles, roles),
+          })
+          .eq("id", existingMember.id);
+
+        if (error) {
+          throw new Error(error.message);
         }
+      } else {
+        const { error } = await supabase.from("members").insert(memberPayload);
 
-        throw new Error(error.message);
+        if (error) {
+          if (error.code === "23505") {
+            const { data: racedMember, error: racedMemberError } = await supabase
+              .from("members")
+              .select("id, roles, pending_review, government_id_path")
+              .eq("email", normalizedEmail)
+              .maybeSingle();
+
+            if (racedMemberError) {
+              throw new Error(racedMemberError.message);
+            }
+
+            if (
+              racedMember &&
+              !racedMember.pending_review &&
+              racedMember.government_id_path
+            ) {
+              setView("duplicate");
+              return;
+            }
+
+            if (racedMember) {
+              const { error: updateError } = await supabase
+                .from("members")
+                .update({
+                  ...memberPayload,
+                  roles: mergeOnboardingRoles(racedMember.roles, roles),
+                })
+                .eq("id", racedMember.id);
+
+              if (updateError) {
+                throw new Error(updateError.message);
+              }
+            } else {
+              setView("duplicate");
+              return;
+            }
+          } else {
+            throw new Error(error.message);
+          }
+        }
       }
 
       setView("success");
@@ -298,8 +367,8 @@ export default function DancerOnboardingForm() {
         </h2>
         <p className="text-zinc-600">
           A record with <span className="font-medium">{email.trim().toLowerCase()}</span>{" "}
-          already exists. If something looks wrong, reach out to your captain or
-          team manager.
+          already exists. Ask your captain or team manager to reject the previous
+          submission from Members if you need to submit again.
         </p>
         <button
           type="button"

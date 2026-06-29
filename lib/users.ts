@@ -43,6 +43,31 @@ export function isAssignableExecTitle(value: string): value is AssignableExecTit
   return ASSIGNABLE_EXEC_TITLES.some((title) => title.value === value);
 }
 
+export function buildUserRowFromProfile(
+  profile: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    created_at: string;
+  },
+  member?: { id: string; exec_title: string | null; roles: string[] } | null,
+): UserRow {
+  const execTitle = (member?.exec_title as ExecTitle | null) ?? null;
+  const hasAccess =
+    !!execTitle && Array.isArray(member?.roles) && member.roles.includes("exec");
+
+  return {
+    id: profile.id,
+    email: profile.email.toLowerCase(),
+    full_name: profile.full_name,
+    created_at: profile.created_at,
+    exec_title: execTitle,
+    member_id: member?.id ?? null,
+    on_roster: !!member,
+    access_status: hasAccess ? "active" : "pending",
+  };
+}
+
 export function buildUserRows(
   profiles: Array<{
     id: string;
@@ -55,21 +80,7 @@ export function buildUserRows(
     { id: string; exec_title: string | null; roles: string[] }
   >,
 ): UserRow[] {
-  return profiles.map((profile) => {
-    const member = membersByEmail.get(profile.email.toLowerCase());
-    const execTitle = (member?.exec_title as ExecTitle | null) ?? null;
-    const hasAccess =
-      !!execTitle && Array.isArray(member?.roles) && member.roles.includes("exec");
-
-    return {
-      id: profile.id,
-      email: profile.email,
-      full_name: profile.full_name,
-      created_at: profile.created_at,
-      exec_title: execTitle,
-      member_id: member?.id ?? null,
-      on_roster: !!member,
-      access_status: hasAccess ? "active" : "pending",
-    };
-  });
+  return profiles.map((profile) =>
+    buildUserRowFromProfile(profile, membersByEmail.get(profile.email.toLowerCase())),
+  );
 }

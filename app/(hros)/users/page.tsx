@@ -1,4 +1,5 @@
 import UsersTable from "@/components/users-table";
+import UsersLiveRefresh from "@/components/users-live-refresh";
 import UserSignupLinkGenerator from "@/components/user-signup-link-generator";
 import { listAuthUsersForPage } from "@/lib/get-auth-users";
 import { getUserMember } from "@/lib/get-user-member";
@@ -40,13 +41,15 @@ export default async function UsersPage() {
           <p className="mt-1 text-sm">{error}</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <UsersTable
-            users={users}
-            canManage={canManageUsers}
-            currentUserId={currentUser?.id ?? ""}
-          />
-        </div>
+        <UsersLiveRefresh>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <UsersTable
+              users={users}
+              canManage={canManageUsers}
+              currentUserId={currentUser?.id ?? ""}
+            />
+          </div>
+        </UsersLiveRefresh>
       )}
     </div>
   );

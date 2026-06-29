@@ -1,5 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import PacketReviewPageClient from "@/components/packet-review-page-client";
+import { getUserMember } from "@/lib/get-user-member";
+import { hasWriteAccess } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
@@ -9,7 +11,14 @@ type ReviewPacketPageProps = {
 
 export default async function ReviewPacketPage({ params }: ReviewPacketPageProps) {
   const { id } = await params;
-  const supabase = await createClient();
+  const [supabase, userMember] = await Promise.all([
+    createClient(),
+    getUserMember(),
+  ]);
+
+  if (!hasWriteAccess(userMember?.exec_title ?? null, "team-manager")) {
+    redirect(`/team-manager/competitions/${id}`);
+  }
 
   const { data, error } = await supabase
     .from("competitions")

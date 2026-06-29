@@ -135,7 +135,11 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
         </div>
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <MembersTable members={members} />
+          <MembersTable
+            members={members}
+            canDelete={canManageOnboarding}
+            currentMemberId={userMember?.id ?? ""}
+          />
         </div>
       )}
     </div>

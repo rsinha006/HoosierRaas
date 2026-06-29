@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deleteLoginAccount } from "@/lib/delete-login-account";
 import { getUserMember } from "@/lib/get-user-member";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasWriteAccess } from "@/lib/rbac";
@@ -30,13 +31,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   try {
     const admin = createAdminClient();
-    const { error } = await admin.auth.admin.deleteUser(id);
+    const { error } = await deleteLoginAccount(admin, id);
 
     if (error) {
-      return NextResponse.json(
-        { error: error.message ?? "Could not delete this user." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error }, { status: 500 });
     }
 
     return new NextResponse(null, { status: 204 });

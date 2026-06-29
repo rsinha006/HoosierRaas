@@ -99,3 +99,22 @@ export function toUserFacingMemberSaveError(error: unknown): string {
 
   return "We could not confirm this member. Please try again.";
 }
+
+export function toUserFacingMemberDeleteError(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  if (message.includes("not found")) {
+    return "This member could not be found.";
+  }
+
+  if (
+    message.includes("expense_requests") ||
+    message.includes("reimbursements") ||
+    message.includes("foreign key") ||
+    message.includes("violates foreign key")
+  ) {
+    return "This member cannot be deleted because they have expense requests or reimbursements on record.";
+  }
+
+  return "We could not delete this member. Please try again.";
+}
