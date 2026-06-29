@@ -18,6 +18,7 @@ begin
     raise exception 'Member not found';
   end if;
 
+  delete from public.income_entries where member_id = p_member_id;
   delete from auth.users where lower(email) = v_email;
   delete from public.profiles where lower(email) = v_email;
   delete from public.members where id = p_member_id;

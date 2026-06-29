@@ -119,10 +119,17 @@ export function toUserFacingMemberDeleteError(error: unknown): string {
   if (
     message.includes("expense_requests") ||
     message.includes("reimbursements") ||
+    message.includes("income_entries") ||
+    message.includes("dues_requires_member") ||
+    message.includes("check constraint") ||
     message.includes("foreign key") ||
     message.includes("violates foreign key") ||
     message.includes("still referenced")
   ) {
+    if (message.includes("income_entries") || message.includes("dues_requires_member")) {
+      return "This member cannot be deleted because they have linked income records that could not be removed.";
+    }
+
     return "This member cannot be deleted because they have expense requests or reimbursements on record.";
   }
 
