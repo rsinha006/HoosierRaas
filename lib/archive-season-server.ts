@@ -6,8 +6,6 @@ import {
 import { deleteLoginAccount } from "@/lib/delete-login-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  getSeasonDateRange,
-  getSeasonTimestampBounds,
   type ExpenseRequest,
   type IncomeEntry,
 } from "@/lib/finance";
@@ -18,9 +16,6 @@ export async function loadArchiveFinancePreview(
   activeSeasonLabel: string,
 ): Promise<ArchiveFinancePreview> {
   const supabase = await createClient();
-  const { start, end } = getSeasonDateRange(activeSeasonLabel);
-  const { start: expenseStart, end: expenseEnd } =
-    getSeasonTimestampBounds(activeSeasonLabel);
 
   const [
     { data: incomeData },
@@ -31,14 +26,12 @@ export async function loadArchiveFinancePreview(
     supabase
       .from("income_entries")
       .select("amount")
-      .gte("date_received", start)
-      .lte("date_received", end),
+      .eq("season", activeSeasonLabel),
     supabase
       .from("expense_requests")
       .select("amount")
       .eq("status", "approved")
-      .gte("created_at", expenseStart)
-      .lte("created_at", expenseEnd),
+      .eq("season", activeSeasonLabel),
     supabase
       .from("budgets")
       .select("*", { count: "exact", head: true })
