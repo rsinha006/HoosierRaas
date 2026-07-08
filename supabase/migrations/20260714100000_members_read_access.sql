@@ -17,6 +17,7 @@
 -- Run this in the Supabase SQL Editor.
 
 drop policy if exists "Allow anonymous onboarding member lookup" on public.members;
+drop policy if exists "Exec users can read members" on public.members;
 
 create policy "Exec users can read members"
 on public.members
