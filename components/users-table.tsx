@@ -40,6 +40,33 @@ function sortUsersByCreatedAt(users: UserRow[]) {
   );
 }
 
+/** router.refresh() (from the 10s polling wrapper) gives us a brand new array
+ *  reference every time even when nothing changed, which would otherwise cause
+ *  the whole table to visibly flicker every poll. Only replace state when the
+ *  actual displayed data differs. */
+function haveUsersChanged(previous: UserRow[], next: UserRow[]) {
+  if (previous.length !== next.length) {
+    return true;
+  }
+
+  const previousById = new Map(previous.map((user) => [user.id, user]));
+
+  return next.some((user) => {
+    const match = previousById.get(user.id);
+    if (!match) {
+      return true;
+    }
+
+    return (
+      match.full_name !== user.full_name ||
+      match.email !== user.email ||
+      match.exec_title !== user.exec_title ||
+      match.on_roster !== user.on_roster ||
+      match.access_status !== user.access_status
+    );
+  });
+}
+
 function isProfileInsertRow(value: unknown): value is ProfileInsertRow {
   if (!value || typeof value !== "object") {
     return false;
@@ -119,8 +146,6 @@ export default function UsersTable({
   );
 
   useEffect(() => {
-    setUsers(initialUsers);
-
     const newUserIds = initialUsers
       .map((user) => user.id)
       .filter((userId) => !knownUserIdsRef.current.has(userId));
@@ -130,6 +155,10 @@ export default function UsersTable({
     }
 
     knownUserIdsRef.current = new Set(initialUsers.map((user) => user.id));
+
+    setUsers((current) =>
+      haveUsersChanged(current, initialUsers) ? initialUsers : current,
+    );
   }, [initialUsers]);
 
   useEffect(() => {

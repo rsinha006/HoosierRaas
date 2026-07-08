@@ -2,10 +2,13 @@ import Link from "next/link";
 import AttendanceRecordOverride from "@/components/attendance-record-override";
 import {
   formatAttendanceStatus,
+  formatAttendanceStatusForDisplay,
   formatResponseTimestamp,
-  getAttendanceStatusStyle,
+  getAttendanceStatusStyleForDisplay,
+  isDisplayedAsNoResponse,
   type AttendanceRecord,
   type AttendanceStatus,
+  type PracticeSessionType,
 } from "@/lib/attendance";
 
 export type SessionResponseRow = AttendanceRecord & {
@@ -15,6 +18,7 @@ export type SessionResponseRow = AttendanceRecord & {
 type SessionResponsesTableProps = {
   responses: SessionResponseRow[];
   canOverride: boolean;
+  sessionType: PracticeSessionType;
 };
 
 function OverrideDetails({
@@ -39,7 +43,10 @@ function OverrideDetails({
 export default function SessionResponsesTable({
   responses,
   canOverride,
+  sessionType,
 }: SessionResponsesTableProps) {
+  const personLabel = sessionType === "exec meeting" ? "Exec Member" : "Dancer";
+
   if (responses.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
@@ -60,7 +67,7 @@ export default function SessionResponsesTable({
           <thead className="bg-zinc-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Dancer
+                {personLabel}
               </th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 Status
@@ -95,9 +102,9 @@ export default function SessionResponsesTable({
                 </td>
                 <td className="px-6 py-4 text-sm">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyle(response.attendance_status)}`}
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyleForDisplay(response.attendance_status, isDisplayedAsNoResponse(response.auto_flagged, response.overridden))}`}
                   >
-                    {formatAttendanceStatus(response.attendance_status)}
+                    {formatAttendanceStatusForDisplay(response.attendance_status, isDisplayedAsNoResponse(response.auto_flagged, response.overridden))}
                   </span>
                   {response.overridden && response.original_attendance_status ? (
                     <OverrideDetails
@@ -141,9 +148,9 @@ export default function SessionResponsesTable({
                 <p className="text-base font-medium text-zinc-900">{response.respondent_name}</p>
               )}
               <span
-                className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyle(response.attendance_status)}`}
+                className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyleForDisplay(response.attendance_status, isDisplayedAsNoResponse(response.auto_flagged, response.overridden))}`}
               >
-                {formatAttendanceStatus(response.attendance_status)}
+                {formatAttendanceStatusForDisplay(response.attendance_status, isDisplayedAsNoResponse(response.auto_flagged, response.overridden))}
               </span>
             </div>
             <p className="text-sm text-zinc-600">

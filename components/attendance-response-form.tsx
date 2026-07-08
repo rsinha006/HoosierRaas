@@ -354,6 +354,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
               <textarea
                 id="excuse-text"
                 rows={4}
+                maxLength={500}
                 value={excuseText}
                 onChange={(event) => setExcuseText(event.target.value)}
                 className={inputClassName}
@@ -427,6 +428,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
               <textarea
                 id="video-excuse"
                 rows={4}
+                maxLength={500}
                 value={practiceVideoExcuse}
                 onChange={(event) => setPracticeVideoExcuse(event.target.value)}
                 className={inputClassName}

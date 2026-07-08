@@ -199,7 +199,11 @@ export default async function PracticeSessionDetailPage({
         </div>
       )}
 
-      <SessionResponsesTable responses={responses} canOverride={canWrite} />
+      <SessionResponsesTable
+        responses={responses}
+        canOverride={canWrite}
+        sessionType={session.type}
+      />
 
       <SessionNonResponders
         nonResponders={nonResponders}

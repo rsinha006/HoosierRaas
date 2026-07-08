@@ -41,6 +41,26 @@ export function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/** Accepts a 10-digit US number (or 11 with a leading 1), any punctuation —
+ *  "317-555-0100", "(317) 555-0100", "3175550100" all pass. */
+export function isValidPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));
+}
+
+/** Normalizes any accepted phone format to "(317) 555-0100" so the roster is
+ *  consistent regardless of how it was typed in. */
+export function formatPhoneForStorage(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const tenDigits = digits.length === 11 ? digits.slice(1) : digits;
+
+  if (tenDigits.length !== 10) {
+    return phone.trim();
+  }
+
+  return `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6)}`;
+}
+
 export function formatMemberName(member: Pick<Member, "first_name" | "last_name">) {
   return `${member.first_name} ${member.last_name}`;
 }

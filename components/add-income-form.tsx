@@ -47,8 +47,8 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
 
     if (!amount.trim()) {
       errors.amount = "Amount is required.";
-    } else if (Number.isNaN(Number(amount)) || Number(amount) < 0) {
-      errors.amount = "Enter a valid amount.";
+    } else if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+      errors.amount = "Enter a valid amount greater than zero.";
     }
 
     if (!dateApplied) {
@@ -139,7 +139,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
           <input
             id="amount"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}

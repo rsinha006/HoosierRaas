@@ -103,6 +103,29 @@ export function getAttendanceStatusStyle(status: AttendanceStatus) {
   return ATTENDANCE_STATUS_STYLES[status];
 }
 
+/** There's no distinct "no response" status in the database — a no-show gets
+ *  stored as absent_unexcused with auto_flagged=true, which is correct for
+ *  contract scoring (a no-show should count against the limit) but looks
+ *  identical to a dancer who explicitly said "I didn't attend, no excuse."
+ *  Overriding doesn't clear auto_flagged, so also check overridden. */
+export function isDisplayedAsNoResponse(autoFlagged: boolean, overridden: boolean) {
+  return autoFlagged && !overridden;
+}
+
+export function formatAttendanceStatusForDisplay(
+  status: AttendanceStatus,
+  isNoResponse: boolean,
+) {
+  return isNoResponse ? "No Response" : formatAttendanceStatus(status);
+}
+
+export function getAttendanceStatusStyleForDisplay(
+  status: AttendanceStatus,
+  isNoResponse: boolean,
+) {
+  return isNoResponse ? "bg-zinc-200 text-zinc-700" : getAttendanceStatusStyle(status);
+}
+
 export function formatResponseTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",

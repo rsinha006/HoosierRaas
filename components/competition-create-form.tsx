@@ -131,6 +131,29 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
     setUploadProgress(0);
 
     const supabase = createClient();
+
+    const trimmedName = name.trim();
+    const { data: existingCompetitions, error: duplicateCheckError } = await supabase
+      .from("competitions")
+      .select("id")
+      .eq("season", season)
+      .ilike("name", trimmedName);
+
+    if (duplicateCheckError) {
+      setLoading(false);
+      setSaveError(duplicateCheckError.message);
+      return;
+    }
+
+    if (existingCompetitions && existingCompetitions.length > 0) {
+      setLoading(false);
+      setFieldErrors((current) => ({
+        ...current,
+        name: `A competition named "${trimmedName}" already exists this season.`,
+      }));
+      return;
+    }
+
     const { data: competition, error } = await supabase
       .from("competitions")
       .insert({

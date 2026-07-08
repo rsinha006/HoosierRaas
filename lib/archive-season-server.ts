@@ -12,11 +12,13 @@ import {
   type IncomeEntry,
 } from "@/lib/finance";
 import { getNextSeasonLabel } from "@/lib/season-label";
+import type { Season } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 export async function loadArchiveFinancePreview(
-  activeSeasonLabel: string,
+  activeSeason: Pick<Season, "label" | "starts_on" | "ends_on">,
 ): Promise<ArchiveFinancePreview> {
+  const activeSeasonLabel = activeSeason.label;
   const supabase = await createClient();
   const { start, end } = getSeasonDateRange(activeSeasonLabel);
   const { start: expenseStart, end: expenseEnd } =
@@ -66,7 +68,7 @@ export async function loadArchiveFinancePreview(
     budgetCount: budgetCount ?? 0,
     lineItemCount: lineItemCount ?? 0,
     endingBalance,
-    nextSeasonLabel: getNextSeasonLabel(activeSeasonLabel),
+    nextSeasonLabel: getNextSeasonLabel(activeSeason.starts_on, activeSeason.ends_on),
   };
 }
 

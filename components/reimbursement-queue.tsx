@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -301,6 +302,8 @@ type ReimbursementQueueProps = {
   deniedReimbursements: ReimbursementQueueItem[];
   canReview: boolean;
   reviewerMemberId: string | null;
+  hasMorePaid: boolean;
+  loadMorePaidHref: string;
 };
 
 export default function ReimbursementQueue({
@@ -309,6 +312,8 @@ export default function ReimbursementQueue({
   deniedReimbursements,
   canReview,
   reviewerMemberId,
+  hasMorePaid,
+  loadMorePaidHref,
 }: ReimbursementQueueProps) {
   return (
     <div className="space-y-6">
@@ -392,6 +397,17 @@ export default function ReimbursementQueue({
               </tbody>
             </table>
           </div>
+
+          {hasMorePaid ? (
+            <div className="mt-4 text-center">
+              <Link
+                href={loadMorePaidHref}
+                className="text-sm font-medium text-[#990000] hover:underline"
+              >
+                Load more
+              </Link>
+            </div>
+          ) : null}
         </section>
       ) : null}
 

@@ -2,7 +2,9 @@ import Link from "next/link";
 import AttendanceRecordOverride from "@/components/attendance-record-override";
 import {
   formatAttendanceStatus,
-  getAttendanceStatusStyle,
+  formatAttendanceStatusForDisplay,
+  getAttendanceStatusStyleForDisplay,
+  isDisplayedAsNoResponse,
   type AttendanceStatus,
 } from "@/lib/attendance";
 
@@ -67,9 +69,9 @@ export default function SessionNonResponders({
 
               {sessionClosed && person.attendanceStatus ? (
                 <span
-                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyle(person.attendanceStatus)}`}
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyleForDisplay(person.attendanceStatus, isDisplayedAsNoResponse(true, person.overridden ?? false))}`}
                 >
-                  {formatAttendanceStatus(person.attendanceStatus)}
+                  {formatAttendanceStatusForDisplay(person.attendanceStatus, isDisplayedAsNoResponse(true, person.overridden ?? false))}
                 </span>
               ) : (
                 <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">

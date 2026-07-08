@@ -38,7 +38,11 @@ export async function archiveSeason(
   }
 
   if (!payload.members.length) {
-    return { ok: false, error: "No member decisions were submitted." };
+    return {
+      ok: false,
+      error:
+        "This season has no roster members, so there's nothing to carry over. Add at least one member to the roster before archiving.",
+    };
   }
 
   const supabase = await createClient();
