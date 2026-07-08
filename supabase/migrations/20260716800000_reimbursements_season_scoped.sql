@@ -22,6 +22,32 @@ $$;
 
 grant execute on function public.is_season_archived(text) to anon, authenticated;
 
+-- Same defensive backfill for the public-submitter columns from the original
+-- public-reimbursements migration — the submit_public_reimbursement function
+-- below writes to submitter_name/submitter_email and needs them to exist.
+alter table public.reimbursements
+  alter column submitted_by_member_id drop not null;
+
+alter table public.reimbursements
+  add column if not exists submitter_name text,
+  add column if not exists submitter_email text;
+
+alter table public.reimbursements drop constraint if exists reimbursement_submitter_identity;
+
+alter table public.reimbursements
+  add constraint reimbursement_submitter_identity check (
+    (
+      submitted_by_member_id is not null
+      and submitter_name is null
+      and submitter_email is null
+    )
+    or (
+      submitted_by_member_id is null
+      and submitter_name is not null
+      and submitter_email is not null
+    )
+  );
+
 alter table public.reimbursements
   add column if not exists season text;
 
