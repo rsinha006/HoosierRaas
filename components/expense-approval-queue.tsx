@@ -8,13 +8,13 @@ import {
   getBudgetOverage,
   getCategoryBudgetSummary,
   getExpenseRequestFundingLabel,
+  getExpenseRequesterLabel,
   getIufbLineItemSummary,
   type Budget,
   type CategoryReimbursement,
   type ExpenseRequest,
   type ExpenseRequestWithRelations,
 } from "@/lib/finance";
-import { formatMemberName } from "@/lib/members";
 
 type PendingRequestCardProps = {
   request: ExpenseRequestWithRelations;
@@ -58,9 +58,7 @@ function PendingRequestCard({
 
   const fundingLabel = getExpenseRequestFundingLabel(request);
   const overage = getBudgetOverage(Number(request.amount), budgetSummary.remaining);
-  const requesterName = request.requester
-    ? formatMemberName(request.requester)
-    : "Unknown member";
+  const requesterName = getExpenseRequesterLabel(request);
 
   async function handleApprove() {
     setActionError(null);
@@ -430,9 +428,7 @@ export default function ExpenseApprovalQueue({
                 </thead>
                 <tbody>
                   {historyRequests.map((request) => {
-                    const requesterName = request.requester
-                      ? formatMemberName(request.requester)
-                      : "Unknown";
+                    const requesterName = getExpenseRequesterLabel(request);
 
                     return (
                       <tr key={request.id} className="border-b border-zinc-100">
@@ -533,9 +529,7 @@ export default function ExpenseApprovalQueue({
               </thead>
               <tbody>
                 {historyRequests.map((request) => {
-                  const requesterName = request.requester
-                    ? formatMemberName(request.requester)
-                    : "Unknown member";
+                  const requesterName = getExpenseRequesterLabel(request);
 
                   return (
                     <tr key={request.id} className="border-b border-zinc-100">

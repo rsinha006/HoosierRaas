@@ -71,7 +71,9 @@ export type ExpenseRequest = {
   category: ExpenseCategory | null;
   iufb_line_item_id: string | null;
   competition_id: string | null;
-  requester_member_id: string;
+  requester_member_id: string | null;
+  submitter_name: string | null;
+  submitter_email: string | null;
   justification: string;
   status: ExpenseRequestStatus;
   denial_reason: string | null;
@@ -100,6 +102,30 @@ export type PopulatedIufbLineItemOption = Pick<
   IufbLineItem,
   "id" | "description" | "approved_amount" | "spent_amount"
 >;
+
+/** For the public expense request form — category/line-item names only, no
+ *  allocated-amount figures, since that page has no login and shouldn't leak
+ *  budget dollar amounts to anyone with the link. */
+export type PublicExpenseCategoryOption = {
+  value: ExpenseCategory;
+  label: string;
+};
+
+export type PublicIufbLineItemOption = {
+  id: string;
+  description: string;
+};
+
+export function buildPublicExpenseCategories(
+  rows: { category: string }[],
+): PublicExpenseCategoryOption[] {
+  return rows
+    .map((row) => ({
+      value: row.category as ExpenseCategory,
+      label: getExpenseCategoryLabel(row.category as ExpenseCategory),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
 
 export function buildPopulatedGeneralPoolCategories(
   budgets: Pick<Budget, "category" | "allocated_amount">[],
@@ -133,6 +159,22 @@ export function getIufbLineItemSummary(
     spent,
     remaining: allocated - spent,
   };
+}
+
+export function getExpenseRequesterLabel(
+  request: Pick<ExpenseRequest, "submitter_name" | "requester_member_id"> & {
+    requester?: { first_name: string; last_name: string } | null;
+  },
+) {
+  if (request.requester) {
+    return `${request.requester.first_name} ${request.requester.last_name}`;
+  }
+
+  if (request.submitter_name) {
+    return request.submitter_name;
+  }
+
+  return "Unknown member";
 }
 
 export function getExpenseRequestFundingLabel(
