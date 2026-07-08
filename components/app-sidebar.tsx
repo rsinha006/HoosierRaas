@@ -5,15 +5,11 @@ import SidebarNav from "@/components/sidebar-nav";
 import LogoutButton from "@/components/logout-button";
 import { useUserRole } from "@/hooks/use-user-role";
 import type { UserProfile } from "@/lib/get-user-profile";
-import { formatExecTitle, type ExecTitle } from "@/lib/members";
+import { formatExecTitle } from "@/lib/members";
 
 type AppSidebarProps = {
   user: UserProfile;
 };
-
-function isReadOnlyRole(execTitle: ExecTitle | null) {
-  return execTitle === "marketing" || execTitle === "social";
-}
 
 function RoleBadge() {
   const { execTitle, loading } = useUserRole();
@@ -35,18 +31,10 @@ function RoleBadge() {
   }
 
   const label = formatExecTitle(execTitle) ?? "Executive Board";
-  const isReadOnly = isReadOnlyRole(execTitle);
 
   return (
-    <span
-      className={`mt-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        isReadOnly
-          ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-          : "bg-[#990000]/10 text-[#990000]"
-      }`}
-    >
+    <span className="mt-2 inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]">
       {label}
-      {isReadOnly ? " · Read only" : ""}
     </span>
   );
 }

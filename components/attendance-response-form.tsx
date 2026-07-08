@@ -8,6 +8,7 @@ import {
   mapAttendanceChoiceToStatus,
   requiresExcuseForChoice,
   type AttendanceChoice,
+  type PracticeVideoStatus,
   type PublicAttendanceSession,
 } from "@/lib/attendance";
 
@@ -97,7 +98,9 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
   const [excuseText, setExcuseText] = useState("");
   const [advanceNotice, setAdvanceNotice] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
-  const [practiceVideoSubmitted, setPracticeVideoSubmitted] = useState<boolean | null>(null);
+  const [practiceVideoStatus, setPracticeVideoStatus] = useState<PracticeVideoStatus | null>(
+    null,
+  );
   const [practiceVideoExcuse, setPracticeVideoExcuse] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -127,10 +130,10 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
     }
 
     if (showVideoSection) {
-      if (practiceVideoSubmitted === null) {
-        errors.practiceVideoSubmitted =
+      if (practiceVideoStatus === null) {
+        errors.practiceVideoStatus =
           "Please indicate whether you submitted your practice video.";
-      } else if (practiceVideoSubmitted === false && !practiceVideoExcuse.trim()) {
+      } else if (practiceVideoStatus === "missing" && !practiceVideoExcuse.trim()) {
         errors.practiceVideoExcuse = "Please explain why your video was not submitted.";
       }
     }
@@ -186,9 +189,9 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
       p_excuse_text: showExcuseFields ? excuseText.trim() : null,
       p_advance_notice: showExcuseFields ? advanceNotice : false,
       p_is_emergency: showExcuseFields ? isEmergency : false,
-      p_practice_video_submitted: showVideoSection ? practiceVideoSubmitted : null,
+      p_practice_video_status: showVideoSection ? practiceVideoStatus : null,
       p_practice_video_excuse:
-        showVideoSection && practiceVideoSubmitted === false
+        showVideoSection && practiceVideoStatus === "missing"
           ? practiceVideoExcuse.trim()
           : null,
     });
@@ -373,22 +376,29 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
             </legend>
             <RadioOption
               name="practice-video"
-              value="yes"
-              checked={practiceVideoSubmitted === true}
-              onChange={() => setPracticeVideoSubmitted(true)}
-              label="Yes"
+              value="on_time"
+              checked={practiceVideoStatus === "on_time"}
+              onChange={() => setPracticeVideoStatus("on_time")}
+              label="Yes, on time"
             />
             <RadioOption
               name="practice-video"
-              value="no"
-              checked={practiceVideoSubmitted === false}
-              onChange={() => setPracticeVideoSubmitted(false)}
-              label="No"
+              value="late"
+              checked={practiceVideoStatus === "late"}
+              onChange={() => setPracticeVideoStatus("late")}
+              label="Submitted late"
+            />
+            <RadioOption
+              name="practice-video"
+              value="missing"
+              checked={practiceVideoStatus === "missing"}
+              onChange={() => setPracticeVideoStatus("missing")}
+              label="Did not submit"
             />
           </fieldset>
-          <FieldError message={fieldErrors.practiceVideoSubmitted} />
+          <FieldError message={fieldErrors.practiceVideoStatus} />
 
-          {practiceVideoSubmitted === false ? (
+          {practiceVideoStatus === "missing" ? (
             <div className="space-y-2">
               <label htmlFor="video-excuse" className={labelClassName}>
                 Please explain {requiredMark}

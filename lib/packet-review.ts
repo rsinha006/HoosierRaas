@@ -240,6 +240,123 @@ export function createEmptyContactRow(): ReviewContactRow {
   };
 }
 
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
+export type PacketReviewValidationErrors = {
+  deadlines: Record<string, string>;
+  fees: Record<string, string>;
+  contacts: Record<string, string>;
+  rosterRules: Record<string, string>;
+  performanceRules: Record<string, string>;
+};
+
+export function validatePacketReviewFormState(
+  state: PacketReviewFormState,
+): PacketReviewValidationErrors {
+  const errors: PacketReviewValidationErrors = {
+    deadlines: {},
+    fees: {},
+    contacts: {},
+    rosterRules: {},
+    performanceRules: {},
+  };
+
+  for (const deadline of state.deadlines) {
+    if (!deadline.name.trim()) {
+      errors.deadlines[deadline.id] = "Every deadline needs a name.";
+      continue;
+    }
+
+    const fine = parseOptionalNumber(deadline.fine_amount);
+    if (Number.isNaN(fine) || (fine != null && fine < 0)) {
+      errors.deadlines[deadline.id] = "Fine amount can't be negative.";
+    }
+  }
+
+  for (const fee of state.fees) {
+    if (!fee.name.trim()) {
+      errors.fees[fee.id] = "Every fee needs a name.";
+      continue;
+    }
+
+    const amount = parseOptionalNumber(fee.amount);
+    if (amount == null || Number.isNaN(amount) || amount < 0) {
+      errors.fees[fee.id] = "Enter a valid amount of $0 or more.";
+    }
+  }
+
+  for (const contact of state.contacts) {
+    if (!contact.name.trim()) {
+      errors.contacts[contact.id] = "Every contact needs a name.";
+    }
+  }
+
+  const rosterMin = parseOptionalNumber(state.roster_rules.min_size);
+  const rosterMax = parseOptionalNumber(state.roster_rules.max_size);
+  const perPersonCost = parseOptionalNumber(
+    state.roster_rules.per_person_registration_cost,
+  );
+
+  if (Number.isNaN(rosterMin) || (rosterMin != null && rosterMin < 0)) {
+    errors.rosterRules.min_size = "Roster min can't be negative.";
+  }
+  if (Number.isNaN(rosterMax) || (rosterMax != null && rosterMax < 0)) {
+    errors.rosterRules.max_size = "Roster max can't be negative.";
+  }
+  if (
+    rosterMin != null &&
+    rosterMax != null &&
+    !Number.isNaN(rosterMin) &&
+    !Number.isNaN(rosterMax) &&
+    rosterMin > rosterMax
+  ) {
+    errors.rosterRules.max_size = "Roster max must be greater than or equal to roster min.";
+  }
+  if (Number.isNaN(perPersonCost) || (perPersonCost != null && perPersonCost < 0)) {
+    errors.rosterRules.per_person_registration_cost = "Enter a valid cost of $0 or more.";
+  }
+
+  const minDuration = parseOptionalNumber(
+    state.performance_rules.min_duration_minutes,
+  );
+  const maxDuration = parseOptionalNumber(
+    state.performance_rules.max_duration_minutes,
+  );
+
+  if (Number.isNaN(minDuration) || (minDuration != null && minDuration < 0)) {
+    errors.performanceRules.min_duration_minutes = "Min duration can't be negative.";
+  }
+  if (Number.isNaN(maxDuration) || (maxDuration != null && maxDuration < 0)) {
+    errors.performanceRules.max_duration_minutes = "Max duration can't be negative.";
+  }
+  if (
+    minDuration != null &&
+    maxDuration != null &&
+    !Number.isNaN(minDuration) &&
+    !Number.isNaN(maxDuration) &&
+    minDuration > maxDuration
+  ) {
+    errors.performanceRules.max_duration_minutes =
+      "Max duration must be greater than or equal to min duration.";
+  }
+
+  return errors;
+}
+
+export function hasPacketReviewValidationErrors(
+  errors: PacketReviewValidationErrors,
+): boolean {
+  return Object.values(errors).some((group) => Object.keys(group).length > 0);
+}
+
 export function savePacketReviewDraft(state: PacketReviewFormState) {
   sessionStorage.setItem(PACKET_REVIEW_STORAGE_KEY, JSON.stringify(state));
 }

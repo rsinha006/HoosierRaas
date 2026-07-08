@@ -235,6 +235,7 @@ export default function ArchiveSeasonDialog({
                             <td className="px-4 py-3">
                               <select
                                 value={choice.nextExecTitle}
+                                disabled={choice.deleteLogin}
                                 onChange={(event) =>
                                   setAccessChoices((current) => ({
                                     ...current,
@@ -245,7 +246,9 @@ export default function ArchiveSeasonDialog({
                                     },
                                   }))
                                 }
-                                className={selectClassName}
+                                className={`${selectClassName} ${
+                                  choice.deleteLogin ? "opacity-50" : ""
+                                }`}
                               >
                                 {ASSIGNABLE_EXEC_TITLES.map((title) => (
                                   <option key={title.value} value={title.value}>
@@ -254,21 +257,32 @@ export default function ArchiveSeasonDialog({
                                 ))}
                                 <option value="none">None</option>
                               </select>
+                              {choice.deleteLogin ? (
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  Login is being deleted — access will be None.
+                                </p>
+                              ) : null}
                             </td>
                             <td className="px-4 py-3">
                               <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
                                 <input
                                   type="checkbox"
                                   checked={choice.deleteLogin}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    const deleteLogin = event.target.checked;
                                     setAccessChoices((current) => ({
                                       ...current,
                                       [member.memberId]: {
-                                        ...choice,
-                                        deleteLogin: event.target.checked,
+                                        // Checking "delete login" always resets access to
+                                        // None — you can't grant access and delete the
+                                        // login in the same step.
+                                        nextExecTitle: deleteLogin
+                                          ? "none"
+                                          : choice.nextExecTitle,
+                                        deleteLogin,
                                       },
-                                    }))
-                                  }
+                                    }));
+                                  }}
                                   className="rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
                                 />
                                 Delete login

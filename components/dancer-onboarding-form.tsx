@@ -263,11 +263,7 @@ export default function DancerOnboardingForm() {
 
       const existingMember = existingMemberRows?.[0] ?? null;
 
-      if (
-        existingMember &&
-        !existingMember.pending_review &&
-        existingMember.government_id_path
-      ) {
+      if (existingMember && !existingMember.pending_review) {
         setView("duplicate");
         return;
       }
@@ -300,11 +296,7 @@ export default function DancerOnboardingForm() {
 
             const racedMember = racedMemberRows?.[0] ?? null;
 
-            if (
-              racedMember &&
-              !racedMember.pending_review &&
-              racedMember.government_id_path
-            ) {
+            if (racedMember && !racedMember.pending_review) {
               setView("duplicate");
               return;
             }

@@ -5,6 +5,7 @@ import {
   formatSessionTime,
   formatSessionType,
   getAttendanceStatusStyle,
+  getPracticeVideoStatusLabel,
 } from "@/lib/attendance";
 import type { AttendanceRecordWithSession } from "@/lib/attendance-stats";
 
@@ -91,8 +92,13 @@ export default function DancerAttendanceHistory({
                 </td>
                 <td className="max-w-sm px-6 py-4 text-sm text-zinc-700">
                   {record.excuse_text || "—"}
-                  {record.practice_video_excuse ? (
+                  {record.practice_video_status ? (
                     <p className="mt-2 text-xs text-zinc-500">
+                      Video: {getPracticeVideoStatusLabel(record.practice_video_status)}
+                    </p>
+                  ) : null}
+                  {record.practice_video_excuse ? (
+                    <p className="mt-1 text-xs text-zinc-500">
                       Video excuse: {record.practice_video_excuse}
                     </p>
                   ) : null}
@@ -143,6 +149,12 @@ export default function DancerAttendanceHistory({
             {record.excuse_text ? (
               <p className="text-sm text-zinc-700">
                 <span className="font-medium text-zinc-900">Excuse:</span> {record.excuse_text}
+              </p>
+            ) : null}
+            {record.practice_video_status ? (
+              <p className="text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">Video:</span>{" "}
+                {getPracticeVideoStatusLabel(record.practice_video_status)}
               </p>
             ) : null}
             {record.practice_video_excuse ? (

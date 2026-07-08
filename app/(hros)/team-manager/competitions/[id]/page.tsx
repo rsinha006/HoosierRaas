@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import RegistrationPacketInfo from "@/components/registration-packet-info";
+import RegistrationDetails, {
+  type ContactRow,
+  type FeeRow,
+} from "@/components/registration-details";
 import DeadlinesChecklist from "@/components/deadlines-checklist";
 import type { DeadlineRow } from "@/lib/deadline-types";
 import { getUserMember } from "@/lib/get-user-member";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatCompetitionDate,
@@ -20,11 +24,11 @@ export default async function CompetitionDetailPage({
   params,
 }: CompetitionDetailPageProps) {
   const { id } = await params;
-  const [supabase, userMember] = await Promise.all([
+  const [supabase, userMember, activeSeason] = await Promise.all([
     createClient(),
     getUserMember(),
+    getActiveSeason(),
   ]);
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "team-manager");
 
   const { data, error } = await supabase
     .from("competitions")
@@ -53,13 +57,31 @@ export default async function CompetitionDetailPage({
     );
   }
 
-  const { data: deadlinesData } = await supabase
-    .from("deadlines")
-    .select("*")
-    .eq("competition_id", competition.id)
-    .order("due_date", { ascending: true, nullsFirst: false });
+  const [{ data: deadlinesData }, { data: feesData }, { data: contactsData }] =
+    await Promise.all([
+      supabase
+        .from("deadlines")
+        .select("*")
+        .eq("competition_id", competition.id)
+        .order("due_date", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("fees")
+        .select("id, name, amount, is_per_person, is_refundable, due_date")
+        .eq("competition_id", competition.id)
+        .order("due_date", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("competition_contacts")
+        .select("id, name, role, email, phone")
+        .eq("competition_id", competition.id)
+        .order("sort_order", { ascending: true }),
+    ]);
 
   const deadlines = (deadlinesData ?? []) as DeadlineRow[];
+  const fees = (feesData ?? []) as FeeRow[];
+  const contacts = (contactsData ?? []) as ContactRow[];
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "team-manager") &&
+    competition.season === activeSeason.label;
 
   return (
     <div className="space-y-4">
@@ -78,6 +100,8 @@ export default async function CompetitionDetailPage({
           {formatCompetitionStatus(competition.status)}
         </p>
       </div>
+
+      <RegistrationDetails competition={competition} fees={fees} contacts={contacts} />
 
       <DeadlinesChecklist
         competitionId={competition.id}

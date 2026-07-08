@@ -58,6 +58,11 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
       errors.dateReceived = "Date received is required.";
     }
 
+    if (showMemberSelector && !memberId) {
+      errors.memberId =
+        "Select which member this dues payment is for, so the team can track who's paid.";
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -169,7 +174,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
         {showMemberSelector ? (
           <div>
             <label htmlFor="memberId" className="mb-1.5 block text-sm font-medium text-zinc-700">
-              Member
+              Member {requiredMark}
             </label>
             <select
               id="memberId"
@@ -177,13 +182,16 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
               onChange={(event) => setMemberId(event.target.value)}
               className={inputClassName}
             >
-              <option value="">No member selected</option>
+              <option value="">Select a member</option>
               {activeMembers.map((member) => (
                 <option key={member.id} value={member.id}>
                   {formatMemberName(member)}
                 </option>
               ))}
             </select>
+            {fieldErrors.memberId ? (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.memberId}</p>
+            ) : null}
           </div>
         ) : null}
 

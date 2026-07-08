@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const redirectTo = url.searchParams.get("redirect") ?? "/dashboard";
 
   if (!season) {
+    const cookieStore = await cookies();
+    cookieStore.delete(VIEWING_SEASON_COOKIE);
     return NextResponse.redirect(new URL(redirectTo, url.origin));
   }
 

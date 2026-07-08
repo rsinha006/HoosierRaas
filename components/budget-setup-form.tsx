@@ -15,6 +15,8 @@ import {
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
 
+const requiredMark = <span className="text-[#990000]">*</span>;
+
 type EditableIufbLineItem = {
   clientId: string;
   id: string | null;
@@ -31,6 +33,7 @@ type BudgetSetupFormProps = {
   initialLineItems: IufbLineItem[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount">[];
   paidReimbursements: CategoryReimbursement[];
+  reviewerMemberId: string | null;
 };
 
 function createEditableLineItem(
@@ -63,11 +66,13 @@ export default function BudgetSetupForm({
   initialLineItems,
   approvedRequests,
   paidReimbursements,
+  reviewerMemberId,
 }: BudgetSetupFormProps) {
   const router = useRouter();
 
   const [allocations, setAllocations] =
     useState<Record<ExpenseCategory, string>>(initialAllocations);
+  const [changeReason, setChangeReason] = useState("");
   const [lineItems, setLineItems] = useState<EditableIufbLineItem[]>(() =>
     initialLineItems.length > 0
       ? initialLineItems.map((item) => createEditableLineItem(item))
@@ -111,6 +116,18 @@ export default function BudgetSetupForm({
   }, 0);
 
   const iufbRemaining = iufbAvailable - totalIufbApproved;
+
+  // Initial setup (going from unset to a value) isn't logged as an "adjustment" —
+  // only changing an allocation that was already set requires a reason.
+  const changedCategories = EXPENSE_CATEGORIES.filter((category) => {
+    const initial = initialAllocations[category.value];
+    if (!initial || !initial.trim()) {
+      return false;
+    }
+    const previousAmount = parseAmount(initial) || 0;
+    const currentAmount = parseAmount(allocations[category.value]) || 0;
+    return previousAmount !== currentAmount;
+  });
 
   function updateAllocation(category: ExpenseCategory, value: string) {
     setAllocations((current) => ({
@@ -183,6 +200,13 @@ export default function BudgetSetupForm({
       return;
     }
 
+    if (changedCategories.length > 0 && !changeReason.trim()) {
+      setSaveError(
+        "You're changing a budget that's already been set — enter a reason for the change before saving.",
+      );
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
 
@@ -200,6 +224,27 @@ export default function BudgetSetupForm({
       setLoading(false);
       setSaveError(budgetError.message);
       return;
+    }
+
+    if (changedCategories.length > 0) {
+      const logRows = changedCategories.map((category) => ({
+        season,
+        category: category.value,
+        previous_allocated_amount: parseAmount(initialAllocations[category.value]) || 0,
+        new_allocated_amount: parseAmount(allocations[category.value]) || 0,
+        reason: changeReason.trim(),
+        changed_by_member_id: reviewerMemberId,
+      }));
+
+      const { error: logError } = await supabase
+        .from("budget_change_log")
+        .insert(logRows);
+
+      if (logError) {
+        setLoading(false);
+        setSaveError(`Budget saved, but the change log entry failed: ${logError.message}`);
+        return;
+      }
     }
 
     const currentExistingIds = lineItems
@@ -257,6 +302,7 @@ export default function BudgetSetupForm({
 
     setLoading(false);
     setSaveSuccess(true);
+    setChangeReason("");
     router.refresh();
   }
 
@@ -453,6 +499,26 @@ export default function BudgetSetupForm({
           ) : null}
         </div>
       </section>
+
+      {canWrite && changedCategories.length > 0 ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <h2 className="text-sm font-semibold text-amber-900">
+            Reason for change {requiredMark}
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            You&apos;re changing an already-set budget for:{" "}
+            {changedCategories.map((category) => category.label).join(", ")}. This will
+            be logged with your reason.
+          </p>
+          <textarea
+            value={changeReason}
+            onChange={(event) => setChangeReason(event.target.value)}
+            rows={2}
+            className={`mt-3 ${inputClassName}`}
+            placeholder="Why is this budget changing mid-season?"
+          />
+        </section>
+      ) : null}
 
       {saveError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

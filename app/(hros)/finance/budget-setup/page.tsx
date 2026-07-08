@@ -24,7 +24,8 @@ type BudgetSetupPageProps = {
 
 export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageProps) {
   const params = await searchParams;
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 
@@ -33,7 +34,8 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
 
   const [
     { data: budgetData, error: budgetError },
@@ -127,6 +129,7 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
           initialLineItems={lineItems}
           approvedRequests={approvedRequests}
           paidReimbursements={paidReimbursements}
+          reviewerMemberId={userMember?.id ?? null}
         />
       )}
     </div>

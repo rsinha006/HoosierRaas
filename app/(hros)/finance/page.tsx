@@ -27,7 +27,8 @@ type FinancePageProps = {
 
 export default async function FinancePage({ searchParams }: FinancePageProps) {
   const params = await searchParams;
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 
@@ -36,7 +37,8 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
 
   const [
     { data: incomeData, error: incomeError },

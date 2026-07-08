@@ -8,6 +8,16 @@ export const ASSIGNABLE_EXEC_TITLES = [
 
 export type AssignableExecTitle = (typeof ASSIGNABLE_EXEC_TITLES)[number]["value"];
 
+/** Sentinel value for the role dropdown meaning "remove exec access, keep the login." */
+export const NONE_ROLE_VALUE = "none" as const;
+
+export const ROLE_SELECT_OPTIONS = [
+  { value: NONE_ROLE_VALUE, label: "No access" },
+  ...ASSIGNABLE_EXEC_TITLES,
+] as const;
+
+export type RoleSelectValue = (typeof ROLE_SELECT_OPTIONS)[number]["value"];
+
 export type UserRow = {
   id: string;
   email: string;

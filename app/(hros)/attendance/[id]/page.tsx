@@ -24,6 +24,7 @@ import {
   type MemberSummary,
 } from "@/lib/attendance-stats";
 import { hasWriteAccess } from "@/lib/rbac";
+import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type PracticeSessionDetailPageProps = {
@@ -58,9 +59,11 @@ export default async function PracticeSessionDetailPage({
   const { created } = await searchParams;
   const showCreated = created === "1";
 
-  const supabase = await createClient();
-  const userMember = await getUserMember();
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "attendance");
+  const [supabase, userMember, activeSeason] = await Promise.all([
+    createClient(),
+    getUserMember(),
+    getActiveSeason(),
+  ]);
 
   const [{ data: sessionData, error }, { data: attendanceData }, { data: memberData }] =
     await Promise.all([
@@ -82,6 +85,9 @@ export default async function PracticeSessionDetailPage({
   }
 
   const session = sessionData as PracticeSession;
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "attendance") &&
+    session.season === activeSeason.label;
   const records = (attendanceData ?? []) as AttendanceRecord[];
   const members = (memberData ?? []) as MemberSummary[];
   const audienceLabel = getAudienceLabel(session.type);

@@ -25,12 +25,7 @@ export type Member = {
 
 export type MemberStatus = Member["status"];
 export type MemberRole = "dancer" | "exec" | "production";
-export type ExecTitle =
-  | "captain"
-  | "team_manager"
-  | "finance"
-  | "marketing"
-  | "social";
+export type ExecTitle = "captain" | "team_manager" | "finance";
 
 export const MEMBER_STATUSES: MemberStatus[] = ["active", "inactive", "alumni"];
 
@@ -40,8 +35,6 @@ export const EXEC_TITLES: { value: ExecTitle; label: string }[] = [
   { value: "captain", label: "Captain" },
   { value: "team_manager", label: "Team Manager" },
   { value: "finance", label: "Finance" },
-  { value: "marketing", label: "Marketing" },
-  { value: "social", label: "Social" },
 ];
 
 export function isValidEmail(email: string) {

@@ -124,8 +124,11 @@ export function buildArchivePayload(
       };
     }
 
+    const deleteLogin = access?.deleteLogin ?? false;
+    // A login being deleted can never also be granted access — enforce this
+    // regardless of what the UI state happens to hold.
     const nextExecTitle =
-      access?.nextExecTitle && access.nextExecTitle !== "none"
+      !deleteLogin && access?.nextExecTitle && access.nextExecTitle !== "none"
         ? access.nextExecTitle
         : null;
 
@@ -133,7 +136,7 @@ export function buildArchivePayload(
       member_id: member.memberId,
       status,
       next_exec_title: nextExecTitle,
-      delete_login: access?.deleteLogin ?? false,
+      delete_login: deleteLogin,
     };
   });
 
@@ -166,7 +169,8 @@ export function buildArchiveReviewSummary(
   const accessChanges = eligible
     .map((member) => {
       const choice = accessChoices[member.memberId];
-      const nextValue = choice?.nextExecTitle ?? "none";
+      // Mirror buildArchivePayload: a login being deleted can never also keep access.
+      const nextValue = choice?.deleteLogin ? "none" : (choice?.nextExecTitle ?? "none");
       const currentValue = member.execTitle ?? "none";
 
       if (currentValue === nextValue) {

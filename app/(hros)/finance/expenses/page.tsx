@@ -40,7 +40,8 @@ const expenseRequestSelect = `
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
   const showSubmitted = params.submitted === "1";
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonTimestampBounds(season);
 
   const [supabase, userMember] = await Promise.all([
@@ -48,7 +49,9 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     getUserMember(),
   ]);
 
-  const canReview = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canReview =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
+  const canSubmit = Boolean(userMember?.id) && viewingSeason.is_active;
 
   const [
     { data: budgetData, error: budgetError },
@@ -142,12 +145,12 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
       ) : (
         <div
           className={`grid min-h-0 flex-1 gap-3 ${
-            userMember?.id
+            canSubmit
               ? "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
               : "grid-cols-1"
           }`}
         >
-          {userMember?.id ? (
+          {userMember?.id && viewingSeason.is_active ? (
             <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
               <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">Add Expense</h2>

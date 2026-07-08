@@ -117,7 +117,10 @@ export function summarizeDancerAttendance(
   records: AttendanceRecordWithSession[],
   season: string,
 ) {
-  const seasonRecords = records.filter((record) => record.session.season === season);
+  const seasonRecords = records.filter(
+    (record) =>
+      record.session.season === season && getExpectedAudienceRole(record.session.type) === "dancer",
+  );
 
   const summaries = new Map<string, DancerAttendanceSummary>();
 

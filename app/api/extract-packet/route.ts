@@ -5,9 +5,12 @@ import { hasWriteAccess } from "@/lib/rbac";
 import { parseExtractedPacketResponse } from "@/lib/packet-extraction-parse";
 import { PACKET_EXTRACTION_PROMPT } from "@/lib/packet-extraction-prompt";
 import {
+  MAX_PACKET_BYTES,
+  MAX_PACKET_MB,
   PACKET_MIME_TYPE,
   REGISTRATION_PACKETS_BUCKET,
 } from "@/lib/registration-packets";
+import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import {
   toUserFacingAuthError,
@@ -63,6 +66,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const competitionId = storagePath.split("/")[0];
+  const [activeSeason, { data: competitionRow }] = await Promise.all([
+    getActiveSeason(),
+    supabase.from("competitions").select("season").eq("id", competitionId).maybeSingle(),
+  ]);
+
+  if (!competitionRow || competitionRow.season !== activeSeason.label) {
+    return NextResponse.json(
+      {
+        error:
+          "This competition belongs to a past, archived season and can't be edited.",
+      },
+      { status: 403 },
+    );
+  }
+
   const { data: fileData, error: downloadError } = await supabase.storage
     .from(REGISTRATION_PACKETS_BUCKET)
     .download(storagePath);
@@ -71,6 +90,27 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: toUserFacingStorageError(downloadError ?? new Error("not found")) },
       { status: 404 },
+    );
+  }
+
+  if (fileData.type && fileData.type !== PACKET_MIME_TYPE) {
+    return NextResponse.json(
+      { error: "That file isn't a PDF. Upload a PDF registration packet and try again." },
+      { status: 415 },
+    );
+  }
+
+  if (fileData.size > MAX_PACKET_BYTES) {
+    return NextResponse.json(
+      { error: `That file is too large. Registration packets must be ${MAX_PACKET_MB} MB or smaller.` },
+      { status: 413 },
+    );
+  }
+
+  if (fileData.size === 0) {
+    return NextResponse.json(
+      { error: "That file is empty. Upload a valid PDF registration packet." },
+      { status: 422 },
     );
   }
 

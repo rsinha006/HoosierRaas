@@ -24,14 +24,16 @@ type AttendancePageProps = {
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
   const params = await searchParams;
   const showCreated = params.created === "1";
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "attendance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "attendance") && viewingSeason.is_active;
 
   const [
     { data: sessionData, error: sessionError },

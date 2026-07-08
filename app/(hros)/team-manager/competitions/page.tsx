@@ -15,14 +15,16 @@ export default async function CompetitionsPage({
 }: CompetitionsPageProps) {
   const params = await searchParams;
   const showSuccess = params.created === "1";
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "team-manager");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "team-manager") && viewingSeason.is_active;
 
   const { data, error } = await supabase
     .from("competitions")

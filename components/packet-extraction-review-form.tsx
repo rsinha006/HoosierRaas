@@ -7,8 +7,11 @@ import {
   createEmptyContactRow,
   createEmptyDeadlineRow,
   createEmptyFeeRow,
+  hasPacketReviewValidationErrors,
   type PacketReviewFormState,
+  type PacketReviewValidationErrors,
   savePacketReviewDraft,
+  validatePacketReviewFormState,
 } from "@/lib/packet-review";
 import { saveCompetitionPacketData } from "@/lib/save-competition-packet-data";
 import { toUserFacingSaveError } from "@/lib/user-facing-errors";
@@ -39,6 +42,9 @@ export default function PacketExtractionReviewForm({
   const router = useRouter();
   const [formState, setFormState] = useState(initialState);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<PacketReviewValidationErrors | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
 
   function handleCancel() {
@@ -47,8 +53,17 @@ export default function PacketExtractionReviewForm({
   }
 
   async function handleSave() {
-    setSaving(true);
     setSaveError(null);
+
+    const errors = validatePacketReviewFormState(formState);
+    if (hasPacketReviewValidationErrors(errors)) {
+      setValidationErrors(errors);
+      setSaveError("Fix the highlighted fields before saving.");
+      return;
+    }
+
+    setValidationErrors(null);
+    setSaving(true);
 
     try {
       await saveCompetitionPacketData(formState);
@@ -227,6 +242,11 @@ export default function PacketExtractionReviewForm({
                     <span className="text-sm text-zinc-700">Hard cutoff</span>
                   </label>
                 </div>
+                {validationErrors?.deadlines[deadline.id] ? (
+                  <p className="mt-2 text-sm text-red-600">
+                    {validationErrors.deadlines[deadline.id]}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>
@@ -377,6 +397,9 @@ export default function PacketExtractionReviewForm({
                     <span className="text-sm text-zinc-700">Refundable</span>
                   </label>
                 </div>
+                {validationErrors?.fees[fee.id] ? (
+                  <p className="mt-2 text-sm text-red-600">{validationErrors.fees[fee.id]}</p>
+                ) : null}
               </div>
             ))}
           </div>
@@ -412,6 +435,11 @@ export default function PacketExtractionReviewForm({
                   Boolean(formState.roster_rules.aiFields.min_size),
                 )}
               />
+              {validationErrors?.rosterRules.min_size ? (
+                <p className="mt-1 text-sm text-red-600">
+                  {validationErrors.rosterRules.min_size}
+                </p>
+              ) : null}
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -438,6 +466,11 @@ export default function PacketExtractionReviewForm({
                   Boolean(formState.roster_rules.aiFields.max_size),
                 )}
               />
+              {validationErrors?.rosterRules.max_size ? (
+                <p className="mt-1 text-sm text-red-600">
+                  {validationErrors.rosterRules.max_size}
+                </p>
+              ) : null}
             </label>
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -467,6 +500,11 @@ export default function PacketExtractionReviewForm({
                   ),
                 )}
               />
+              {validationErrors?.rosterRules.per_person_registration_cost ? (
+                <p className="mt-1 text-sm text-red-600">
+                  {validationErrors.rosterRules.per_person_registration_cost}
+                </p>
+              ) : null}
             </label>
           </div>
         </section>
@@ -499,6 +537,11 @@ export default function PacketExtractionReviewForm({
                   Boolean(formState.performance_rules.aiFields.min_duration_minutes),
                 )}
               />
+              {validationErrors?.performanceRules.min_duration_minutes ? (
+                <p className="mt-1 text-sm text-red-600">
+                  {validationErrors.performanceRules.min_duration_minutes}
+                </p>
+              ) : null}
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -525,6 +568,11 @@ export default function PacketExtractionReviewForm({
                   Boolean(formState.performance_rules.aiFields.max_duration_minutes),
                 )}
               />
+              {validationErrors?.performanceRules.max_duration_minutes ? (
+                <p className="mt-1 text-sm text-red-600">
+                  {validationErrors.performanceRules.max_duration_minutes}
+                </p>
+              ) : null}
             </label>
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -705,6 +753,11 @@ export default function PacketExtractionReviewForm({
                     />
                   </label>
                 </div>
+                {validationErrors?.contacts[contact.id] ? (
+                  <p className="mt-2 text-sm text-red-600">
+                    {validationErrors.contacts[contact.id]}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>
