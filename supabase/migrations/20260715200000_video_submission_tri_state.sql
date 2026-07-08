@@ -7,13 +7,25 @@
 alter table public.attendance_records
   add column if not exists practice_video_status text;
 
-update public.attendance_records
-set practice_video_status = case
-  when practice_video_submitted = true then 'on_time'
-  when practice_video_submitted = false then 'missing'
-  else null
-end
-where practice_video_status is null;
+-- Guarded so this migration can be re-run safely: the backfill only runs if the old
+-- boolean column is still there (it gets dropped further down).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'attendance_records'
+      and column_name = 'practice_video_submitted'
+  ) then
+    update public.attendance_records
+    set practice_video_status = case
+      when practice_video_submitted = true then 'on_time'
+      when practice_video_submitted = false then 'missing'
+      else null
+    end
+    where practice_video_status is null;
+  end if;
+end $$;
 
 alter table public.attendance_records drop constraint if exists practice_video_status_check;
 alter table public.attendance_records
