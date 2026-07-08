@@ -3,8 +3,10 @@ import { dayDiff, sortDeadlines } from "@/lib/deadline-checklist";
 
 const MAX_COMPETITIONS = 4;
 const MAX_DEADLINES_PER_COMPETITION = 4;
-/** "Pressing" means due soon — a deadline five months out shouldn't crowd out one
- *  actually coming up just because nothing closer happens to exist yet. */
+/** "Pressing" means due soon (or recently overdue) — a deadline five months out
+ *  shouldn't crowd out one actually coming up just because nothing closer exists
+ *  yet, and a deadline seven months overdue has effectively gone stale rather
+ *  than staying "pressing" forever. */
 const PRESSING_WINDOW_DAYS = 30;
 
 type DeadlineWithCompetition = DeadlineRow & {
@@ -30,7 +32,7 @@ function isWithinPressingWindow(deadline: DeadlineRow, today: Date) {
   }
 
   const due = new Date(`${deadline.due_date}T00:00:00`);
-  return dayDiff(today, due) <= PRESSING_WINDOW_DAYS;
+  return Math.abs(dayDiff(today, due)) <= PRESSING_WINDOW_DAYS;
 }
 
 function mostUrgentDueDate(deadlines: DeadlineRow[]) {
