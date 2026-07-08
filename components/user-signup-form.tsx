@@ -5,6 +5,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isValidEmail } from "@/lib/members";
 import { isValidIuEmail } from "@/lib/onboarding";
+import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
+import { hasAppAccess } from "@/lib/user-access";
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-3 text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -88,18 +90,42 @@ export default function UserSignupForm() {
       return;
     }
 
+    const { data: activeSeason } = await supabase
+      .from("seasons")
+      .select("label")
+      .eq("is_active", true)
+      .maybeSingle();
+
     const { data: existingMember } = await supabase
       .from("members")
-      .select("exec_title, roles")
+      .select("id, roles")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
+    let execTitle: string | null = null;
+
+    if (existingMember && activeSeason?.label) {
+      const { data: membership } = await supabase
+        .from("season_memberships")
+        .select("exec_title")
+        .eq("member_id", existingMember.id)
+        .eq("season", activeSeason.label)
+        .maybeSingle();
+
+      execTitle = membership?.exec_title ?? null;
+    }
+
     await supabase.auth.signOut();
 
-    const hasExecAccess =
-      !!existingMember?.exec_title &&
-      Array.isArray(existingMember.roles) &&
-      existingMember.roles.includes("exec");
+    const hasExecAccess = hasAppAccess(
+      existingMember
+        ? {
+            id: existingMember.id,
+            roles: Array.isArray(existingMember.roles) ? existingMember.roles : [],
+            exec_title: normalizeMembershipExecTitle(execTitle),
+          }
+        : null,
+    );
 
     setCanSignInNow(hasExecAccess);
     setView("success");

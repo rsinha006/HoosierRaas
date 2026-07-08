@@ -9,6 +9,7 @@ import {
   formatCurrency,
   getSeasonDateRange,
   getSeasonTimestampBounds,
+  sumAmounts,
   sumGeneralPoolApprovedExpenses,
   sumGeneralPoolIncome,
   sumPaidReimbursements,
@@ -46,6 +47,8 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     { data: budgetData, error: budgetError },
     { data: lineItemData, error: lineItemError },
     { data: paidReimbursementData },
+    { data: pendingExpenseData },
+    { data: pendingReimbursementData },
   ] = await Promise.all([
     supabase
       .from("income_entries")
@@ -72,6 +75,17 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .eq("status", "paid")
       .gte("payment_timestamp", expenseStart)
       .lte("payment_timestamp", expenseEnd),
+    supabase
+      .from("expense_requests")
+      .select("amount")
+      .eq("status", "pending")
+      .gte("created_at", expenseStart)
+      .lte("created_at", expenseEnd),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "pending")
+      .eq("season", season),
   ]);
 
   const incomeEntries = (incomeData ?? []) as Pick<
@@ -93,6 +107,10 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     IufbLineItem,
     "description" | "approved_amount" | "spent_amount"
   >[];
+  const pendingExpenses = (pendingExpenseData ?? []) as { amount: number | string }[];
+  const pendingReimbursements = (pendingReimbursementData ?? []) as {
+    amount: number | string;
+  }[];
 
   // The general pool and the IUFB envelope are walled off from each other —
   // IUFB income/spend never counts toward the team's own spendable balance.
@@ -110,6 +128,11 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
   );
   const iufbSegments = buildIufbDonutSegments(lineItems);
   const budgetLoadError = budgetError ?? lineItemError;
+
+  const pendingApprovalsCount = pendingExpenses.length;
+  const pendingApprovalsTotal = sumAmounts(pendingExpenses);
+  const outstandingReimbursementsCount = pendingReimbursements.length;
+  const outstandingReimbursementsTotal = sumAmounts(pendingReimbursements);
 
   return (
     <div className="space-y-6">
@@ -192,6 +215,38 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
                 Income minus approved expenses
               </p>
             </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <Link
+              href="/finance/expenses"
+              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-[#990000]/30 hover:bg-[#990000]/[0.02]"
+            >
+              <p className="text-sm font-medium text-zinc-500">Pending Approvals</p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-900">
+                {formatCurrency(pendingApprovalsTotal)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {pendingApprovalsCount} expense{" "}
+                {pendingApprovalsCount === 1 ? "request" : "requests"} awaiting review
+              </p>
+            </Link>
+
+            <Link
+              href="/finance/reimbursements"
+              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-[#990000]/30 hover:bg-[#990000]/[0.02]"
+            >
+              <p className="text-sm font-medium text-zinc-500">
+                Outstanding Reimbursements
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-900">
+                {formatCurrency(outstandingReimbursementsTotal)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {outstandingReimbursementsCount} request
+                {outstandingReimbursementsCount === 1 ? "" : "s"} awaiting payment
+              </p>
+            </Link>
           </section>
 
           {budgetLoadError ? (

@@ -91,6 +91,9 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
   );
 
   const [view, setView] = useState<FormView>("form");
+  // Honeypot: real users never see or fill this field. A non-empty value means the
+  // submission came from a script, not a person — we quietly pretend it succeeded.
+  const [website, setWebsite] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -125,10 +128,6 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
       errors.email = "Enter a valid email address.";
     }
 
-    if (showExcuseFields && !excuseText.trim()) {
-      errors.excuseText = "Please describe the reason.";
-    }
-
     if (showVideoSection) {
       if (practiceVideoStatus === null) {
         errors.practiceVideoStatus =
@@ -145,6 +144,12 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError(null);
+
+    if (website.trim()) {
+      // Honeypot tripped — pretend success without touching the database.
+      setView("success");
+      return;
+    }
 
     if (!validateForm()) {
       return;
@@ -241,6 +246,22 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+      >
+        <label htmlFor="website">Leave this field blank</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(event) => setWebsite(event.target.value)}
+        />
+      </div>
+
       <section className="space-y-4">
         <SectionHeading
           title="Section 1 — Identity"
@@ -328,7 +349,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
           <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
             <div className="space-y-2">
               <label htmlFor="excuse-text" className={labelClassName}>
-                Please describe the reason {requiredMark}
+                Please describe the reason (optional)
               </label>
               <textarea
                 id="excuse-text"

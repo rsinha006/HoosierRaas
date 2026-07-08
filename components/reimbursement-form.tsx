@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   EXPENSE_CATEGORIES,
@@ -73,6 +73,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const submitLockRef = useRef(false);
 
   const showSubmissionWindowWarning = useMemo(() => {
     if (!dateOfPurchase) {
@@ -113,6 +114,9 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
 
     if (!dateOfPurchase) {
       errors.dateOfPurchase = "Date of purchase is required.";
+    } else if (isOutsideSubmissionWindow(dateOfPurchase)) {
+      errors.dateOfPurchase =
+        "Reimbursements must be submitted within 24 hours of the purchase date. This purchase is outside that window and can't be submitted — contact your finance chair directly.";
     }
 
     const receiptError = validateReceiptFile(receiptFile);
@@ -128,10 +132,11 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
     event.preventDefault();
     setSaveError(null);
 
-    if (!validateForm() || !receiptFile) {
+    if (!validateForm() || !receiptFile || submitLockRef.current) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
     setUploadProgress(0);
 
@@ -140,7 +145,6 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
       const normalizedEmail = email.trim().toLowerCase();
       const submitterName = `${firstName.trim()} ${lastName.trim()}`;
       const reimbursementId = crypto.randomUUID();
-      const submissionTimestamp = new Date().toISOString();
       const receiptPath = getReceiptStoragePath(
         getSubmitterStorageKey(normalizedEmail),
         reimbursementId,
@@ -154,20 +158,17 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         onProgress: setUploadProgress,
       });
 
-      const { error } = await supabase.from("reimbursements").insert({
-        id: reimbursementId,
-        description: description.trim(),
-        amount: Number(amount),
-        category,
-        competition_id: competitionId || null,
-        submitted_by_member_id: null,
-        submitter_name: submitterName,
-        submitter_email: normalizedEmail,
-        date_of_purchase: dateOfPurchase,
-        submission_timestamp: submissionTimestamp,
-        receipt_url: receiptPath,
-        notes: notes.trim() || null,
-        status: "pending",
+      const { error } = await supabase.rpc("submit_public_reimbursement", {
+        p_id: reimbursementId,
+        p_description: description.trim(),
+        p_amount: Number(amount),
+        p_category: category,
+        p_competition_id: competitionId || null,
+        p_submitter_name: submitterName,
+        p_submitter_email: normalizedEmail,
+        p_date_of_purchase: dateOfPurchase,
+        p_receipt_url: receiptPath,
+        p_notes: notes.trim() || null,
       });
 
       if (error) {
@@ -181,6 +182,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
       );
     } finally {
       setLoading(false);
+      submitLockRef.current = false;
     }
   }
 
@@ -312,9 +314,9 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         </div>
 
         {showSubmissionWindowWarning ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            This purchase is outside the 24-hour submission window. Reimbursement
-            may not be approved.
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            This purchase is outside the 24-hour submission window and can&apos;t be
+            submitted here. Contact your finance chair directly.
           </div>
         ) : null}
 

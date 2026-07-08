@@ -26,7 +26,7 @@ export const REIMBURSEMENT_PAYMENT_METHODS = [
 export type ReimbursementPaymentMethod =
   (typeof REIMBURSEMENT_PAYMENT_METHODS)[number]["value"];
 
-export type ReimbursementStatus = "pending" | "paid";
+export type ReimbursementStatus = "pending" | "paid" | "denied";
 
 export type Reimbursement = {
   id: string;
@@ -46,6 +46,10 @@ export type Reimbursement = {
   payment_method: ReimbursementPaymentMethod | null;
   payment_timestamp: string | null;
   paid_by_member_id: string | null;
+  denial_reason: string | null;
+  denied_at: string | null;
+  denied_by_member_id: string | null;
+  season: string;
 };
 
 export type ReimbursementWithRelations = Reimbursement & {

@@ -194,6 +194,10 @@ export function sumApprovedExpenses(
   return requests.reduce((sum, request) => sum + Number(request.amount), 0);
 }
 
+export function sumAmounts(items: { amount: number | string }[]) {
+  return items.reduce((sum, item) => sum + Number(item.amount), 0);
+}
+
 /** Approved expenses charged to the general pool — excludes anything funded by an IUFB line item. */
 export function sumGeneralPoolApprovedExpenses(
   requests: Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],

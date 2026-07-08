@@ -4,6 +4,7 @@ import {
   formatCurrency,
   formatDueDate,
   getRowTone,
+  isBlockedByHardCutoff,
 } from "@/lib/deadline-checklist";
 
 type DeadlineChecklistItemProps = {
@@ -43,6 +44,7 @@ export default function DeadlineChecklistItem({
   const tone = getRowTone(deadline);
   const fine = formatCurrency(deadline.fine_amount);
   const isComplete = deadline.status === "complete";
+  const blockedByHardCutoff = isBlockedByHardCutoff(deadline);
 
   return (
     <div
@@ -66,15 +68,24 @@ export default function DeadlineChecklistItem({
           <button
             type="button"
             onClick={() => onToggle(deadline)}
-            disabled={syncing}
+            disabled={syncing || blockedByHardCutoff}
+            title={
+              blockedByHardCutoff
+                ? "This hard cutoff has passed and can no longer be marked complete."
+                : undefined
+            }
             aria-label={
               syncing
                 ? `Saving ${deadline.name}`
-                : isComplete
-                  ? `Mark ${deadline.name} as pending`
-                  : `Mark ${deadline.name} as complete`
+                : blockedByHardCutoff
+                  ? `${deadline.name} is past its hard cutoff and can no longer be completed`
+                  : isComplete
+                    ? `Mark ${deadline.name} as pending`
+                    : `Mark ${deadline.name} as complete`
             }
-            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition disabled:cursor-wait disabled:opacity-60 ${
+            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              syncing ? "disabled:cursor-wait" : ""
+            } ${
               isComplete
                 ? "border-green-500 bg-green-100"
                 : "border-zinc-300 bg-white hover:border-[#990000]"
@@ -106,6 +117,16 @@ export default function DeadlineChecklistItem({
             Due {formatDueDate(deadline.due_date)}
             {fine ? ` · Fine ${fine}` : ""}
           </p>
+
+          {blockedByHardCutoff ? (
+            <p
+              className={`mt-1.5 font-medium text-red-700 ${
+                compact ? "text-xs" : "text-sm"
+              }`}
+            >
+              Cutoff passed — can no longer be completed
+            </p>
+          ) : null}
 
           {isComplete && deadline.completed_at && showCompletedTimestamp ? (
             <p

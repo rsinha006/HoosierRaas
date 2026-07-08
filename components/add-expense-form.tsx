@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -64,6 +64,7 @@ export default function AddExpenseForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   const hasGeneralPool = generalPoolCategories.length > 0;
   const hasIufb = iufbLineItems.length > 0;
@@ -102,10 +103,11 @@ export default function AddExpenseForm({
     event.preventDefault();
     setSaveError(null);
 
-    if (!canSubmit || !validateForm()) {
+    if (!canSubmit || !validateForm() || submitLockRef.current) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
     const supabase = createClient();
 
@@ -122,6 +124,7 @@ export default function AddExpenseForm({
     });
 
     setLoading(false);
+    submitLockRef.current = false;
 
     if (error) {
       setSaveError(error.message);

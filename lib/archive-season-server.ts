@@ -25,20 +25,27 @@ export async function loadArchiveFinancePreview(
   const [
     { data: incomeData },
     { data: approvedExpenseData },
+    { data: paidReimbursementData },
     { count: budgetCount },
     { count: lineItemCount },
   ] = await Promise.all([
     supabase
       .from("income_entries")
-      .select("amount")
+      .select("amount, category")
       .gte("date_received", start)
       .lte("date_received", end),
     supabase
       .from("expense_requests")
-      .select("amount")
+      .select("amount, iufb_line_item_id")
       .eq("status", "approved")
       .gte("created_at", expenseStart)
       .lte("created_at", expenseEnd),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", expenseStart)
+      .lte("payment_timestamp", expenseEnd),
     supabase
       .from("budgets")
       .select("*", { count: "exact", head: true })
@@ -50,8 +57,9 @@ export async function loadArchiveFinancePreview(
   ]);
 
   const endingBalance = computeSeasonEndingBalance(
-    (incomeData ?? []) as Pick<IncomeEntry, "amount">[],
-    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount">[],
+    (incomeData ?? []) as Pick<IncomeEntry, "amount" | "category">[],
+    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],
+    (paidReimbursementData ?? []) as { amount: number | string }[],
   );
 
   return {

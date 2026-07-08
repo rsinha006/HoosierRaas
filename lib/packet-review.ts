@@ -3,6 +3,8 @@ import type {
   ExtractedDeadline,
   ExtractedFee,
   ExtractedPacketData,
+  ExtractedPerformanceRules,
+  ExtractedRosterRules,
 } from "@/lib/packet-extraction-types";
 
 export type AiFieldFlags<T extends string> = Partial<Record<T, boolean>>;
@@ -149,60 +151,220 @@ function createContactRow(contact: ExtractedContact): ReviewContactRow {
   };
 }
 
-export function buildPacketReviewFormState(
+
+export type ExistingDeadlineRow = {
+  name: string;
+  due_date: string | null;
+  fine_amount: number | null;
+  is_hard_cutoff: boolean;
+};
+
+export type ExistingFeeRow = {
+  name: string;
+  amount: number;
+  is_per_person: boolean;
+  is_refundable: boolean;
+  due_date: string | null;
+};
+
+export type ExistingContactRow = {
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+export type ExistingRosterRules = {
+  min_size: number | null;
+  max_size: number | null;
+  per_person_registration_cost: number | null;
+};
+
+export type ExistingPerformanceRules = {
+  min_duration_minutes: number | null;
+  max_duration_minutes: number | null;
+  mix_format: string | null;
+  tech_rehearsal_required: boolean | null;
+};
+
+export type ExistingCompetitionPacketData = {
+  deadlines: ExistingDeadlineRow[];
+  fees: ExistingFeeRow[];
+  contacts: ExistingContactRow[];
+  roster_rules: ExistingRosterRules;
+  performance_rules: ExistingPerformanceRules;
+};
+
+function normalizeRowName(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Existing saved rows are already human-reviewed, so they're kept as-is and never
+ *  AI-highlighted. Newly extracted rows are only appended when their name doesn't
+ *  already match something saved, so re-extraction can't silently drop or duplicate
+ *  data a reviewer already confirmed. */
+function mergeDeadlines(
+  existing: ExistingDeadlineRow[],
+  extracted: ExtractedDeadline[],
+): ReviewDeadlineRow[] {
+  const existingRows = existing.map((deadline) => ({
+    id: createId(),
+    name: deadline.name,
+    due_date: deadline.due_date ?? "",
+    fine_amount:
+      deadline.fine_amount != null ? String(deadline.fine_amount) : "",
+    is_hard_cutoff: deadline.is_hard_cutoff,
+    aiFields: {},
+  }));
+
+  const existingNames = new Set(
+    existing.map((deadline) => normalizeRowName(deadline.name)),
+  );
+
+  const newRows = extracted
+    .filter(
+      (deadline) =>
+        valueWasExtracted(deadline.name) &&
+        !existingNames.has(normalizeRowName(deadline.name ?? "")),
+    )
+    .map(createDeadlineRow);
+
+  return [...existingRows, ...newRows];
+}
+
+function mergeFees(
+  existing: ExistingFeeRow[],
+  extracted: ExtractedFee[],
+): ReviewFeeRow[] {
+  const existingRows = existing.map((fee) => ({
+    id: createId(),
+    name: fee.name,
+    amount: String(fee.amount),
+    is_per_person: fee.is_per_person,
+    is_refundable: fee.is_refundable,
+    due_date: fee.due_date ?? "",
+    aiFields: {},
+  }));
+
+  const existingNames = new Set(
+    existing.map((fee) => normalizeRowName(fee.name)),
+  );
+
+  const newRows = extracted
+    .filter(
+      (fee) =>
+        valueWasExtracted(fee.name) &&
+        !existingNames.has(normalizeRowName(fee.name ?? "")),
+    )
+    .map(createFeeRow);
+
+  return [...existingRows, ...newRows];
+}
+
+function mergeContacts(
+  existing: ExistingContactRow[],
+  extracted: ExtractedContact[],
+): ReviewContactRow[] {
+  const existingRows = existing.map((contact) => ({
+    id: createId(),
+    name: contact.name,
+    role: contact.role ?? "",
+    email: contact.email ?? "",
+    phone: contact.phone ?? "",
+    aiFields: {},
+  }));
+
+  const existingNames = new Set(
+    existing.map((contact) => normalizeRowName(contact.name)),
+  );
+
+  const newRows = extracted
+    .filter(
+      (contact) =>
+        valueWasExtracted(contact.name) &&
+        !existingNames.has(normalizeRowName(contact.name ?? "")),
+    )
+    .map(createContactRow);
+
+  return [...existingRows, ...newRows];
+}
+
+/** A saved value takes precedence over the new extraction — it's already been
+ *  reviewed once. The AI only fills in fields that are still blank. */
+function mergeRosterRules(
+  existing: ExistingRosterRules,
+  extracted: ExtractedRosterRules,
+): ReviewRosterRules {
+  const minSize = existing.min_size ?? extracted.min_size;
+  const maxSize = existing.max_size ?? extracted.max_size;
+  const perPersonCost =
+    existing.per_person_registration_cost ??
+    extracted.per_person_registration_cost;
+
+  return {
+    min_size: minSize != null ? String(minSize) : "",
+    max_size: maxSize != null ? String(maxSize) : "",
+    per_person_registration_cost:
+      perPersonCost != null ? String(perPersonCost) : "",
+    aiFields: {
+      min_size: existing.min_size == null && extracted.min_size != null,
+      max_size: existing.max_size == null && extracted.max_size != null,
+      per_person_registration_cost:
+        existing.per_person_registration_cost == null &&
+        extracted.per_person_registration_cost != null,
+    },
+  };
+}
+
+function mergePerformanceRules(
+  existing: ExistingPerformanceRules,
+  extracted: ExtractedPerformanceRules,
+): ReviewPerformanceRules {
+  const minDuration = existing.min_duration_minutes ?? extracted.min_duration_minutes;
+  const maxDuration = existing.max_duration_minutes ?? extracted.max_duration_minutes;
+  const mixFormat = existing.mix_format ?? extracted.mix_format;
+  const techRehearsalRequired =
+    existing.tech_rehearsal_required ?? extracted.tech_rehearsal_required;
+
+  return {
+    min_duration_minutes: minDuration != null ? String(minDuration) : "",
+    max_duration_minutes: maxDuration != null ? String(maxDuration) : "",
+    mix_format: mixFormat ?? "",
+    tech_rehearsal_required: techRehearsalRequired,
+    aiFields: {
+      min_duration_minutes:
+        existing.min_duration_minutes == null &&
+        extracted.min_duration_minutes != null,
+      max_duration_minutes:
+        existing.max_duration_minutes == null &&
+        extracted.max_duration_minutes != null,
+      mix_format: !valueWasExtracted(existing.mix_format) && valueWasExtracted(extracted.mix_format),
+      tech_rehearsal_required:
+        existing.tech_rehearsal_required == null &&
+        extracted.tech_rehearsal_required != null,
+    },
+  };
+}
+
+export function buildMergedPacketReviewFormState(
   competitionId: string,
   competitionName: string,
-  data: ExtractedPacketData,
+  extracted: ExtractedPacketData,
+  existing: ExistingCompetitionPacketData,
   extractionWarnings: string[] = [],
 ): PacketReviewFormState {
   return {
     competitionId,
     competitionName,
     extractionWarnings,
-    deadlines: data.deadlines.map(createDeadlineRow),
-    fees: data.fees.map(createFeeRow),
-    contacts: data.contacts.map(createContactRow),
-    roster_rules: {
-      min_size:
-        data.roster_rules.min_size != null
-          ? String(data.roster_rules.min_size)
-          : "",
-      max_size:
-        data.roster_rules.max_size != null
-          ? String(data.roster_rules.max_size)
-          : "",
-      per_person_registration_cost:
-        data.roster_rules.per_person_registration_cost != null
-          ? String(data.roster_rules.per_person_registration_cost)
-          : "",
-      aiFields: {
-        min_size: data.roster_rules.min_size != null,
-        max_size: data.roster_rules.max_size != null,
-        per_person_registration_cost:
-          data.roster_rules.per_person_registration_cost != null,
-      },
-    },
-    performance_rules: {
-      min_duration_minutes:
-        data.performance_rules.min_duration_minutes != null
-          ? String(data.performance_rules.min_duration_minutes)
-          : "",
-      max_duration_minutes:
-        data.performance_rules.max_duration_minutes != null
-          ? String(data.performance_rules.max_duration_minutes)
-          : "",
-      mix_format: data.performance_rules.mix_format ?? "",
-      tech_rehearsal_required: data.performance_rules.tech_rehearsal_required,
-      aiFields: {
-        min_duration_minutes:
-          data.performance_rules.min_duration_minutes != null,
-        max_duration_minutes:
-          data.performance_rules.max_duration_minutes != null,
-        mix_format: valueWasExtracted(data.performance_rules.mix_format),
-        tech_rehearsal_required:
-          data.performance_rules.tech_rehearsal_required != null,
-      },
-    },
+    deadlines: mergeDeadlines(existing.deadlines, extracted.deadlines),
+    fees: mergeFees(existing.fees, extracted.fees),
+    contacts: mergeContacts(existing.contacts, extracted.contacts),
+    roster_rules: mergeRosterRules(existing.roster_rules, extracted.roster_rules),
+    performance_rules: mergePerformanceRules(
+      existing.performance_rules,
+      extracted.performance_rules,
+    ),
   };
 }
 

@@ -22,6 +22,8 @@ type ExtractPacketRequestBody = {
   storagePath?: string;
 };
 
+const EXTRACTION_COOLDOWN_MS = 2 * 60 * 1000;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -69,7 +71,11 @@ export async function POST(request: Request) {
   const competitionId = storagePath.split("/")[0];
   const [activeSeason, { data: competitionRow }] = await Promise.all([
     getActiveSeason(),
-    supabase.from("competitions").select("season").eq("id", competitionId).maybeSingle(),
+    supabase
+      .from("competitions")
+      .select("season, last_packet_extraction_at")
+      .eq("id", competitionId)
+      .maybeSingle(),
   ]);
 
   if (!competitionRow || competitionRow.season !== activeSeason.label) {
@@ -81,6 +87,27 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+
+  if (competitionRow.last_packet_extraction_at) {
+    const elapsedMs =
+      Date.now() - new Date(competitionRow.last_packet_extraction_at).getTime();
+    const remainingMs = EXTRACTION_COOLDOWN_MS - elapsedMs;
+
+    if (remainingMs > 0) {
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      return NextResponse.json(
+        {
+          error: `This competition's packet was just extracted. Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before trying again.`,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
+  await supabase
+    .from("competitions")
+    .update({ last_packet_extraction_at: new Date().toISOString() })
+    .eq("id", competitionId);
 
   const { data: fileData, error: downloadError } = await supabase.storage
     .from(REGISTRATION_PACKETS_BUCKET)

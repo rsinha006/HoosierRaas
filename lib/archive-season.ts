@@ -1,6 +1,8 @@
 import {
   formatCurrency,
-  sumApprovedExpenses,
+  sumGeneralPoolApprovedExpenses,
+  sumGeneralPoolIncome,
+  sumPaidReimbursements,
   type ExpenseRequest,
   type IncomeEntry,
 } from "@/lib/finance";
@@ -216,14 +218,17 @@ export function buildArchiveReviewSummary(
   };
 }
 
+/** Mirrors the same general-pool-only formula used on the finance dashboard
+ *  (sumGeneralPoolIncome / sumGeneralPoolApprovedExpenses / sumPaidReimbursements)
+ *  and the archive_season SQL function — IUFB income/expenses never touch the
+ *  general pool balance, and paid reimbursements come out of it. */
 export function computeSeasonEndingBalance(
-  incomeEntries: Pick<IncomeEntry, "amount">[],
-  approvedExpenses: Pick<ExpenseRequest, "amount">[],
+  incomeEntries: Pick<IncomeEntry, "amount" | "category">[],
+  approvedExpenses: Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],
+  paidReimbursements: { amount: number | string }[],
 ) {
-  const totalIncome = incomeEntries.reduce(
-    (sum, entry) => sum + Number(entry.amount),
-    0,
-  );
-  const approvedTotal = sumApprovedExpenses(approvedExpenses);
-  return totalIncome - approvedTotal;
+  const totalIncome = sumGeneralPoolIncome(incomeEntries);
+  const approvedTotal = sumGeneralPoolApprovedExpenses(approvedExpenses);
+  const reimbursementTotal = sumPaidReimbursements(paidReimbursements);
+  return totalIncome - approvedTotal - reimbursementTotal;
 }

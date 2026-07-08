@@ -66,10 +66,12 @@ export default async function ReimbursementsPage({
   const reimbursements = (reimbursementData ?? []) as ReimbursementWithRelations[];
   const pending = reimbursements.filter((item) => item.status === "pending");
   const paid = reimbursements.filter((item) => item.status === "paid");
+  const denied = reimbursements.filter((item) => item.status === "denied");
 
-  const [pendingWithReceipts, paidWithReceipts] = await Promise.all([
+  const [pendingWithReceipts, paidWithReceipts, deniedWithReceipts] = await Promise.all([
     attachReceiptSignedUrls(supabase, pending),
     attachReceiptSignedUrls(supabase, paid.slice(0, 25)),
+    attachReceiptSignedUrls(supabase, denied.slice(0, 25)),
   ]);
 
   return (
@@ -117,6 +119,7 @@ export default async function ReimbursementsPage({
         <ReimbursementQueue
           pendingReimbursements={pendingWithReceipts}
           paidReimbursements={paidWithReceipts}
+          deniedReimbursements={deniedWithReceipts}
           canReview={canReview}
           reviewerMemberId={userMember?.id ?? null}
         />

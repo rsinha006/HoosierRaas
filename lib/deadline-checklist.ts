@@ -27,6 +27,16 @@ export function isDueSoon(deadline: DeadlineRow, today = new Date()) {
   return daysUntilDue >= 0 && daysUntilDue <= 2;
 }
 
+/** A hard-cutoff deadline can't be marked complete once its due date has passed —
+ *  the requirement it represents (e.g. a registration window) is genuinely closed. */
+export function isBlockedByHardCutoff(deadline: DeadlineRow, today = new Date()) {
+  return (
+    deadline.is_hard_cutoff &&
+    deadline.status !== "complete" &&
+    isOverdue(deadline, today)
+  );
+}
+
 export function sortDeadlines(rows: DeadlineRow[]) {
   const today = new Date();
 

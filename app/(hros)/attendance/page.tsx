@@ -32,6 +32,11 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     getUserMember(),
   ]);
 
+  // Auto-flagging normally happens via a pg_cron schedule. Opportunistically call the
+  // same close function here too, so a dashboard visit closes any expired sessions
+  // even if the cron job didn't run — cheap and safe to call repeatedly.
+  await supabase.rpc("close_expired_practice_sessions");
+
   const canWrite =
     hasWriteAccess(userMember?.exec_title ?? null, "attendance") && viewingSeason.is_active;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -34,6 +34,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   const showMemberSelector = category === "dues";
 
@@ -71,10 +72,11 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
     event.preventDefault();
     setSaveError(null);
 
-    if (!validateForm()) {
+    if (!validateForm() || submitLockRef.current) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
 
     const supabase = createClient();
@@ -91,6 +93,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
     });
 
     setLoading(false);
+    submitLockRef.current = false;
 
     if (error) {
       setSaveError(error.message);

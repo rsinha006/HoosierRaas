@@ -30,6 +30,11 @@ export default async function CompetitionDetailPage({
     getActiveSeason(),
   ]);
 
+  // Auto-closing normally happens via a pg_cron schedule. Opportunistically call the
+  // same close function here too, so a page visit reflects a past competition_date
+  // even if the cron job didn't run — cheap and safe to call repeatedly.
+  await supabase.rpc("close_past_competitions");
+
   const { data, error } = await supabase
     .from("competitions")
     .select("*")

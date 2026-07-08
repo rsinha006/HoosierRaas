@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   clearPacketReviewDraft,
@@ -46,6 +46,7 @@ export default function PacketExtractionReviewForm({
     null,
   );
   const [saving, setSaving] = useState(false);
+  const submitLockRef = useRef(false);
 
   function handleCancel() {
     clearPacketReviewDraft();
@@ -53,6 +54,10 @@ export default function PacketExtractionReviewForm({
   }
 
   async function handleSave() {
+    if (submitLockRef.current) {
+      return;
+    }
+
     setSaveError(null);
 
     const errors = validatePacketReviewFormState(formState);
@@ -63,6 +68,7 @@ export default function PacketExtractionReviewForm({
     }
 
     setValidationErrors(null);
+    submitLockRef.current = true;
     setSaving(true);
 
     try {
@@ -74,6 +80,7 @@ export default function PacketExtractionReviewForm({
       setSaveError(toUserFacingSaveError(error));
     } finally {
       setSaving(false);
+      submitLockRef.current = false;
     }
   }
 
