@@ -9,6 +9,40 @@
 -- net is already in place before that permissive policy ever exists.
 -- Run this in the Supabase SQL Editor.
 
+-- Defined defensively here too (create or replace is a no-op if it already exists)
+-- in case the original archived-season-readonly migration was never applied.
+create or replace function public.is_season_archived(p_season text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.seasons s
+    where s.label = p_season
+      and s.is_archived = true
+  );
+$$;
+
+create or replace function public.is_practice_session_season_archived(p_session_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_season_archived((
+    select ps.season
+    from public.practice_sessions ps
+    where ps.id = p_session_id
+  ));
+$$;
+
+grant execute on function public.is_season_archived(text) to anon, authenticated;
+grant execute on function public.is_practice_session_season_archived(uuid) to anon, authenticated;
+
 -- practice_sessions
 drop policy if exists "Reject deletes from archived seasons" on public.practice_sessions;
 create policy "Reject deletes from archived seasons"
