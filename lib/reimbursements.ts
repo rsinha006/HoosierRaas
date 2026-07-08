@@ -1,5 +1,9 @@
 export const RECEIPTS_BUCKET = "receipts";
 
+/** Reimbursement is the out-of-pocket path for small purchases only.
+ *  Anything at or above this needs pre-approval through the Expenses flow instead. */
+export const MAX_REIMBURSEMENT_AMOUNT = 100;
+
 export const MAX_RECEIPT_MB = 10;
 
 export const MAX_RECEIPT_BYTES = MAX_RECEIPT_MB * 1024 * 1024;

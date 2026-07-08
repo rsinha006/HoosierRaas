@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   EXPENSE_CATEGORIES,
   formatCurrency,
+  type CategoryReimbursement,
   type ExpenseCategory,
   type ExpenseRequest,
   type IufbLineItem,
@@ -29,6 +30,7 @@ type BudgetSetupFormProps = {
   initialAllocations: Record<ExpenseCategory, string>;
   initialLineItems: IufbLineItem[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount">[];
+  paidReimbursements: CategoryReimbursement[];
 };
 
 function createEditableLineItem(
@@ -60,6 +62,7 @@ export default function BudgetSetupForm({
   initialAllocations,
   initialLineItems,
   approvedRequests,
+  paidReimbursements,
 }: BudgetSetupFormProps) {
   const router = useRouter();
 
@@ -81,9 +84,13 @@ export default function BudgetSetupForm({
 
   const categoryRows = EXPENSE_CATEGORIES.map((category) => {
     const allocated = parseAmount(allocations[category.value]) || 0;
-    const spent = approvedRequests
+    const spentOnExpenses = approvedRequests
       .filter((request) => request.category === category.value)
       .reduce((sum, request) => sum + Number(request.amount), 0);
+    const spentOnReimbursements = paidReimbursements
+      .filter((reimbursement) => reimbursement.category === category.value)
+      .reduce((sum, reimbursement) => sum + Number(reimbursement.amount), 0);
+    const spent = spentOnExpenses + spentOnReimbursements;
 
     return {
       ...category,

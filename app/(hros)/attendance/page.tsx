@@ -76,8 +76,10 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
 
   const sessionRates = buildSessionRates(members, sessions, plainRecords);
   const dancerSummaries = summarizeDancerAttendance(dancerMembers, records, season);
-  const approachingUnexcusedLimit = dancerSummaries.filter(
-    (summary) => summary.approachingUnexcusedLimit,
+  const unexcusedFlags = dancerSummaries.filter((summary) => summary.hasUnexcusedFlag);
+  const excusedWarnings = dancerSummaries.filter((summary) => summary.excusedWarning);
+  const excusedPolicyAlerts = dancerSummaries.filter(
+    (summary) => summary.excusedPolicyAlert,
   );
   const teamAttendancePercentage = getTeamAttendancePercentage(
     members,
@@ -135,7 +137,9 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
           />
 
           <AttendanceAlertPanels
-            approachingUnexcusedLimit={approachingUnexcusedLimit}
+            unexcusedFlags={unexcusedFlags}
+            excusedWarnings={excusedWarnings}
+            excusedPolicyAlerts={excusedPolicyAlerts}
             season={season}
           />
 

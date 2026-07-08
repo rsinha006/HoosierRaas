@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   EXPENSE_CATEGORIES,
+  formatCurrency,
   type ExpenseCategory,
 } from "@/lib/finance";
 import { isValidEmail } from "@/lib/members";
@@ -11,6 +12,7 @@ import {
   getReceiptStoragePath,
   getSubmitterStorageKey,
   isOutsideSubmissionWindow,
+  MAX_REIMBURSEMENT_AMOUNT,
   validateReceiptFile,
 } from "@/lib/reimbursements";
 import { uploadReceipt } from "@/lib/upload-receipt";
@@ -105,6 +107,8 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
       errors.amount = "Amount is required.";
     } else if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
       errors.amount = "Enter a valid amount greater than zero.";
+    } else if (Number(amount) >= MAX_REIMBURSEMENT_AMOUNT) {
+      errors.amount = `Reimbursement is only for purchases under ${formatCurrency(MAX_REIMBURSEMENT_AMOUNT)}. For anything ${formatCurrency(MAX_REIMBURSEMENT_AMOUNT)} or more, ask your finance chair to submit a pre-approval expense request instead.`;
     }
 
     if (!dateOfPurchase) {
@@ -279,6 +283,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
             id="amount"
             type="number"
             min="0.01"
+            max={MAX_REIMBURSEMENT_AMOUNT - 0.01}
             step="0.01"
             inputMode="decimal"
             value={amount}
@@ -286,6 +291,10 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
             className={inputClassName}
             placeholder="0.00"
           />
+          <p className="text-sm text-zinc-500">
+            Under {formatCurrency(MAX_REIMBURSEMENT_AMOUNT)} only. Bigger purchases need
+            pre-approval from finance first.
+          </p>
           <FieldError message={fieldErrors.amount} />
         </div>
 

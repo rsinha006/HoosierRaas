@@ -10,6 +10,7 @@ import {
   getExpenseRequestFundingLabel,
   getIufbLineItemSummary,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseRequest,
   type ExpenseRequestWithRelations,
 } from "@/lib/finance";
@@ -19,6 +20,7 @@ type PendingRequestCardProps = {
   request: ExpenseRequestWithRelations;
   budgets: Pick<Budget, "category" | "allocated_amount">[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[];
+  paidReimbursements: CategoryReimbursement[];
   canReview: boolean;
   reviewerMemberId: string;
   compact?: boolean;
@@ -28,6 +30,7 @@ function PendingRequestCard({
   request,
   budgets,
   approvedRequests,
+  paidReimbursements,
   canReview,
   reviewerMemberId,
   compact = false,
@@ -49,6 +52,7 @@ function PendingRequestCard({
           request.category,
           budgets,
           approvedRequests,
+          paidReimbursements,
         )
       : { allocated: 0, spent: 0, remaining: 0 };
 
@@ -342,6 +346,7 @@ type ExpenseApprovalQueueProps = {
   historyRequests: ExpenseRequestWithRelations[];
   budgets: Pick<Budget, "category" | "allocated_amount">[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[];
+  paidReimbursements: CategoryReimbursement[];
   canReview: boolean;
   reviewerMemberId: string | null;
   compact?: boolean;
@@ -359,6 +364,7 @@ export default function ExpenseApprovalQueue({
   historyRequests,
   budgets,
   approvedRequests,
+  paidReimbursements,
   canReview,
   reviewerMemberId,
   compact = false,
@@ -387,6 +393,7 @@ export default function ExpenseApprovalQueue({
                     request={request}
                     budgets={budgets}
                     approvedRequests={approvedRequests}
+                    paidReimbursements={paidReimbursements}
                     canReview={canReview && Boolean(reviewerMemberId)}
                     reviewerMemberId={reviewerMemberId ?? ""}
                     compact
@@ -491,6 +498,7 @@ export default function ExpenseApprovalQueue({
                 request={request}
                 budgets={budgets}
                 approvedRequests={approvedRequests}
+                paidReimbursements={paidReimbursements}
                 canReview={canReview && Boolean(reviewerMemberId)}
                 reviewerMemberId={reviewerMemberId ?? ""}
               />

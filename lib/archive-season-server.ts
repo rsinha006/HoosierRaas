@@ -99,6 +99,9 @@ export async function deleteMemberLoginsByEmail(
     const userId = profileIdByEmail.get(email);
 
     if (!userId) {
+      failures.push(
+        `${email}: no login account found with this exact email — if this member's login uses a different email, it was NOT deleted and still works. Delete it manually from the Users page if needed.`,
+      );
       continue;
     }
 

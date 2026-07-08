@@ -151,20 +151,27 @@ export function getExpenseRequestFundingLabel(
   return "Unknown category";
 }
 
+export type CategoryReimbursement = { category: string; amount: number | string };
+
 export function getCategoryBudgetSummary(
   category: ExpenseCategory,
   budgets: Pick<Budget, "category" | "allocated_amount">[],
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[],
+  paidReimbursements: CategoryReimbursement[] = [],
 ) {
   const allocated =
     Number(
       budgets.find((budget) => budget.category === category)?.allocated_amount,
     ) || 0;
-  const spent = approvedRequests
+  const spentOnExpenses = approvedRequests
     .filter(
       (request) => request.category === category && !request.iufb_line_item_id,
     )
     .reduce((sum, request) => sum + Number(request.amount), 0);
+  const spentOnReimbursements = paidReimbursements
+    .filter((reimbursement) => reimbursement.category === category)
+    .reduce((sum, reimbursement) => sum + Number(reimbursement.amount), 0);
+  const spent = spentOnExpenses + spentOnReimbursements;
 
   return {
     allocated,
@@ -185,6 +192,22 @@ export function sumApprovedExpenses(
   requests: Pick<ExpenseRequest, "amount">[],
 ) {
   return requests.reduce((sum, request) => sum + Number(request.amount), 0);
+}
+
+/** Approved expenses charged to the general pool — excludes anything funded by an IUFB line item. */
+export function sumGeneralPoolApprovedExpenses(
+  requests: Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],
+) {
+  return requests
+    .filter((request) => !request.iufb_line_item_id)
+    .reduce((sum, request) => sum + Number(request.amount), 0);
+}
+
+/** Paid reimbursements always come out of the general pool — there is no IUFB reimbursement path. */
+export function sumPaidReimbursements(
+  reimbursements: { amount: number | string }[],
+) {
+  return reimbursements.reduce((sum, item) => sum + Number(item.amount), 0);
 }
 
 /** Income categories that feed the general pool (everything except IUFB). */
@@ -219,12 +242,14 @@ export function sumIufbIncome(
 export function buildCategoryBudgetRows(
   budgets: Pick<Budget, "category" | "allocated_amount">[],
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[] = [],
+  paidReimbursements: CategoryReimbursement[] = [],
 ) {
   return EXPENSE_CATEGORIES.map((category) => {
     const summary = getCategoryBudgetSummary(
       category.value,
       budgets,
       approvedRequests,
+      paidReimbursements,
     );
 
     return {

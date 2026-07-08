@@ -105,7 +105,11 @@ export type DancerAttendanceSummary = {
   name: string;
   excusedAbsences: number;
   unexcusedAbsences: number;
-  approachingUnexcusedLimit: boolean;
+  /** Per the dancer contract, ANY unexcused absence is an immediate flag — no "2 or more" grace. */
+  hasUnexcusedFlag: boolean;
+  /** Excused absences: 2 is a warning, 3+ is the policy limit. */
+  excusedWarning: boolean;
+  excusedPolicyAlert: boolean;
 };
 
 export function summarizeDancerAttendance(
@@ -123,7 +127,9 @@ export function summarizeDancerAttendance(
       name: formatMemberName(member),
       excusedAbsences: 0,
       unexcusedAbsences: 0,
-      approachingUnexcusedLimit: false,
+      hasUnexcusedFlag: false,
+      excusedWarning: false,
+      excusedPolicyAlert: false,
     });
   }
 
@@ -147,7 +153,9 @@ export function summarizeDancerAttendance(
   }
 
   for (const summary of summaries.values()) {
-    summary.approachingUnexcusedLimit = summary.unexcusedAbsences >= 2;
+    summary.hasUnexcusedFlag = summary.unexcusedAbsences >= 1;
+    summary.excusedWarning = summary.excusedAbsences === 2;
+    summary.excusedPolicyAlert = summary.excusedAbsences >= 3;
   }
 
   return Array.from(summaries.values()).sort((left, right) =>

@@ -7,11 +7,12 @@ import {
   buildPopulatedIufbLineItems,
   getSeasonTimestampBounds,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseRequestWithRelations,
   type IufbLineItem,
 } from "@/lib/finance";
 import { hasWriteAccess } from "@/lib/rbac";
-import { getActiveSeason, getViewingSeason } from "@/lib/seasons";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
@@ -39,10 +40,7 @@ const expenseRequestSelect = `
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
   const showSubmitted = params.submitted === "1";
-  const [{ label: season }, { label: activeSeason }] = await Promise.all([
-    getViewingSeason(params.season),
-    getActiveSeason(),
-  ]);
+  const { label: season } = await getViewingSeason(params.season);
   const { start, end } = getSeasonTimestampBounds(season);
 
   const [supabase, userMember] = await Promise.all([
@@ -57,6 +55,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     { data: lineItemData, error: lineItemError },
     { data: competitionData, error: competitionError },
     { data: requestData, error: requestError },
+    { data: paidReimbursementData },
   ] = await Promise.all([
     supabase
       .from("budgets")
@@ -78,6 +77,12 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
       .gte("created_at", start)
       .lte("created_at", end)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("reimbursements")
+      .select("category, amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", start)
+      .lte("payment_timestamp", end),
   ]);
 
   const budgets = (budgetData ?? []) as Pick<Budget, "category" | "allocated_amount">[];
@@ -93,6 +98,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const approvedRequests = requests.filter(
     (request) => request.status === "approved",
   );
+  const paidReimbursements = (paidReimbursementData ?? []) as CategoryReimbursement[];
 
   const pendingRequests = requests.filter((request) => request.status === "pending");
   const historyRequests = requests.filter(
@@ -152,7 +158,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                 <AddExpenseForm
                   compact
-                  season={activeSeason}
+                  season={season}
                   requesterMemberId={userMember.id}
                   competitions={competitions}
                   generalPoolCategories={generalPoolCategories}
@@ -169,6 +175,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
               historyRequests={historyRequests}
               budgets={budgets}
               approvedRequests={approvedRequests}
+              paidReimbursements={paidReimbursements}
               canReview={canReview}
               reviewerMemberId={userMember?.id ?? null}
             />

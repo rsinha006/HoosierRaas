@@ -84,7 +84,10 @@ function RadioOption({
 }
 
 export default function AttendanceResponseForm({ session }: AttendanceResponseFormProps) {
-  const showVideoSection = useMemo(() => isVideoDeadlineDay(), []);
+  const showVideoSection = useMemo(
+    () => isVideoDeadlineDay(new Date(`${session.session_date}T12:00:00`)),
+    [session.session_date],
+  );
 
   const [view, setView] = useState<FormView>("form");
   const [firstName, setFirstName] = useState("");

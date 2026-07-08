@@ -20,7 +20,7 @@ create table if not exists public.income_entries (
   date_received date not null,
   payment_method text,
   notes text,
-  member_id uuid references public.members (id) on delete set null,
+  member_id uuid references public.members (id) on delete set null
 );
 
 create index if not exists income_entries_date_received_idx

@@ -252,15 +252,16 @@ export default function DancerOnboardingForm() {
         emergency_contact_phone: emergencyContactPhone.trim(),
       };
 
-      const { data: existingMember, error: existingMemberError } = await supabase
-        .from("members")
-        .select("id, roles, pending_review, government_id_path")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      const { data: existingMemberRows, error: existingMemberError } =
+        await supabase.rpc("get_onboarding_member_status", {
+          p_email: normalizedEmail,
+        });
 
       if (existingMemberError) {
         throw new Error(existingMemberError.message);
       }
+
+      const existingMember = existingMemberRows?.[0] ?? null;
 
       if (
         existingMember &&
@@ -288,15 +289,16 @@ export default function DancerOnboardingForm() {
 
         if (error) {
           if (error.code === "23505") {
-            const { data: racedMember, error: racedMemberError } = await supabase
-              .from("members")
-              .select("id, roles, pending_review, government_id_path")
-              .eq("email", normalizedEmail)
-              .maybeSingle();
+            const { data: racedMemberRows, error: racedMemberError } =
+              await supabase.rpc("get_onboarding_member_status", {
+                p_email: normalizedEmail,
+              });
 
             if (racedMemberError) {
               throw new Error(racedMemberError.message);
             }
+
+            const racedMember = racedMemberRows?.[0] ?? null;
 
             if (
               racedMember &&

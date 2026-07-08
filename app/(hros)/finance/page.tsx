@@ -9,7 +9,9 @@ import {
   formatCurrency,
   getSeasonDateRange,
   getSeasonTimestampBounds,
-  sumApprovedExpenses,
+  sumGeneralPoolApprovedExpenses,
+  sumGeneralPoolIncome,
+  sumPaidReimbursements,
   type Budget,
   type ExpenseRequest,
   type IncomeEntry,
@@ -41,6 +43,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     { data: approvedExpenseData },
     { data: budgetData, error: budgetError },
     { data: lineItemData, error: lineItemError },
+    { data: paidReimbursementData },
   ] = await Promise.all([
     supabase
       .from("income_entries")
@@ -61,21 +64,21 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .from("iufb_line_items")
       .select("description, approved_amount, spent_amount")
       .eq("season", season),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", expenseStart)
+      .lte("payment_timestamp", expenseEnd),
   ]);
 
   const incomeEntries = (incomeData ?? []) as Pick<
     IncomeEntry,
     "amount" | "category"
   >[];
-  const totalIncome = incomeEntries.reduce(
-    (sum, entry) => sum + Number(entry.amount),
-    0,
-  );
-  const approvedExpenses = sumApprovedExpenses(
-    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount">[],
-  );
-  const runningBalance = totalIncome - approvedExpenses;
-
+  const paidReimbursements = (paidReimbursementData ?? []) as {
+    amount: number | string;
+  }[];
   const approvedRequests = (approvedExpenseData ?? []) as Pick<
     ExpenseRequest,
     "amount" | "category" | "iufb_line_item_id"
@@ -88,6 +91,16 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     IufbLineItem,
     "description" | "approved_amount" | "spent_amount"
   >[];
+
+  // The general pool and the IUFB envelope are walled off from each other —
+  // IUFB income/spend never counts toward the team's own spendable balance.
+  // Paid reimbursements come out of the general pool too, even though they
+  // live in a separate table from pre-approved expenses.
+  const totalIncome = sumGeneralPoolIncome(incomeEntries);
+  const approvedExpenses =
+    sumGeneralPoolApprovedExpenses(approvedRequests) +
+    sumPaidReimbursements(paidReimbursements);
+  const runningBalance = totalIncome - approvedExpenses;
 
   const generalPoolSegments = buildGeneralPoolDonutSegments(
     budgets,
