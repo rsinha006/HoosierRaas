@@ -283,7 +283,6 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
             id="amount"
             type="number"
             min="0.01"
-            max={MAX_REIMBURSEMENT_AMOUNT - 0.01}
             step="0.01"
             inputMode="decimal"
             value={amount}
