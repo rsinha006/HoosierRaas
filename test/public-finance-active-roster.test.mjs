@@ -29,7 +29,7 @@ test("public finance roster helper uses active season_memberships", () => {
     migration,
     /join public\.season_memberships sm on sm\.member_id = m\.id[\s\S]*?sm\.season = p_season[\s\S]*?sm\.status = 'active'/,
   );
-  assert.doesNotMatch(migration, /m\.status = 'active'/);
+  assert.doesNotMatch(migration, /\bm\.status = 'active'/);
   assert.match(
     migration,
     /revoke all on function public\.is_member_active_in_season\(text, text\) from public, anon, authenticated/,
