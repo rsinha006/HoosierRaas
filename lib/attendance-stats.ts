@@ -277,7 +277,8 @@ export function buildSessionAttendanceStats(
 
     if (isVideoApplicableSession(session)) {
       const submittedCount = sessionRecords.filter(
-        (record) => record.practice_video_submitted === true,
+        (record) =>
+          record.practice_video_status === "on_time" || record.practice_video_status === "late",
       ).length;
 
       video = {
