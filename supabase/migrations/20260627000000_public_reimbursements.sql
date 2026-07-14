@@ -24,6 +24,7 @@ alter table public.reimbursements
   );
 
 drop policy if exists "Exec users can submit reimbursements" on public.reimbursements;
+drop policy if exists "Public can submit reimbursements" on public.reimbursements;
 
 create policy "Public can submit reimbursements"
 on public.reimbursements

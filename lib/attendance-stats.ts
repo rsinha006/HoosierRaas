@@ -5,6 +5,7 @@ import {
   type PracticeSession,
   type PracticeSessionType,
   getAudienceLabel,
+  isVideoDeadlineDay,
 } from "@/lib/attendance";
 
 export type MemberSummary = Pick<Member, "id" | "first_name" | "last_name" | "email" | "roles">;
@@ -100,12 +101,14 @@ export function getClosedSeasonSessions(sessions: PracticeSession[], season: str
   );
 }
 
+export type ExcusedAbsenceTier = "none" | "approaching" | "at_limit";
+
 export type DancerAttendanceSummary = {
   memberId: string;
   name: string;
   excusedAbsences: number;
   unexcusedAbsences: number;
-  approachingUnexcusedLimit: boolean;
+  excusedAbsenceTier: ExcusedAbsenceTier;
 };
 
 export function summarizeDancerAttendance(
@@ -123,7 +126,7 @@ export function summarizeDancerAttendance(
       name: formatMemberName(member),
       excusedAbsences: 0,
       unexcusedAbsences: 0,
-      approachingUnexcusedLimit: false,
+      excusedAbsenceTier: "none",
     });
   }
 
@@ -147,12 +150,33 @@ export function summarizeDancerAttendance(
   }
 
   for (const summary of summaries.values()) {
-    summary.approachingUnexcusedLimit = summary.unexcusedAbsences >= 2;
+    summary.excusedAbsenceTier =
+      summary.excusedAbsences >= 3
+        ? "at_limit"
+        : summary.excusedAbsences === 2
+          ? "approaching"
+          : "none";
   }
 
   return Array.from(summaries.values()).sort((left, right) =>
     left.name.localeCompare(right.name),
   );
+}
+
+export type AttendanceAlertGroups = {
+  unexcused: DancerAttendanceSummary[];
+  approaching: DancerAttendanceSummary[];
+  atLimit: DancerAttendanceSummary[];
+};
+
+export function buildAttendanceAlertGroups(
+  summaries: DancerAttendanceSummary[],
+): AttendanceAlertGroups {
+  return {
+    unexcused: summaries.filter((summary) => summary.unexcusedAbsences >= 1),
+    approaching: summaries.filter((summary) => summary.excusedAbsenceTier === "approaching"),
+    atLimit: summaries.filter((summary) => summary.excusedAbsenceTier === "at_limit"),
+  };
 }
 
 export function getTeamAttendancePercentage(
@@ -187,6 +211,7 @@ export function getTeamAttendancePercentage(
   return Math.round((numerator / denominator) * 100);
 }
 
+/** @deprecated Use buildSessionAttendanceStats for the attendance dashboard. */
 export function buildSessionRates(
   members: MemberSummary[],
   sessions: PracticeSession[],
@@ -204,5 +229,61 @@ export function buildSessionRates(
           ? 0
           : Math.round((rate.responseCount / rate.expectedCount) * 100),
     };
+  });
+}
+
+export type SessionAttendanceStat = {
+  session: Pick<
+    PracticeSession,
+    "id" | "season" | "session_date" | "session_time" | "type" | "status"
+  >;
+  presentCount: number;
+  expectedCount: number;
+  attendancePercent: number;
+  video: {
+    submittedCount: number;
+    expectedCount: number;
+    percent: number;
+  } | null;
+};
+
+function isVideoApplicableSession(
+  session: Pick<PracticeSession, "type" | "session_date">,
+) {
+  return (
+    session.type === "practice" &&
+    isVideoDeadlineDay(new Date(`${session.session_date}T12:00:00`))
+  );
+}
+
+export function buildSessionAttendanceStats(
+  members: MemberSummary[],
+  sessions: PracticeSession[],
+  records: AttendanceRecord[],
+): SessionAttendanceStat[] {
+  return sessions.map((session) => {
+    const sessionRecords = records.filter((record) => record.session_id === session.id);
+    const expectedCount = getExpectedMembers(members, session.type).length;
+    const presentCount = sessionRecords.filter((record) =>
+      isPositiveAttendance(record.attendance_status),
+    ).length;
+    const attendancePercent =
+      expectedCount === 0 ? 0 : Math.round((presentCount / expectedCount) * 100);
+
+    let video: SessionAttendanceStat["video"] = null;
+
+    if (isVideoApplicableSession(session)) {
+      const submittedCount = sessionRecords.filter(
+        (record) => record.practice_video_submitted === true,
+      ).length;
+
+      video = {
+        submittedCount,
+        expectedCount,
+        percent: expectedCount === 0 ? 0 : Math.round((submittedCount / expectedCount) * 100),
+      };
+    }
+
+    return { session, presentCount, expectedCount, attendancePercent, video };
   });
 }

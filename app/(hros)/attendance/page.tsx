@@ -1,13 +1,15 @@
 import Link from "next/link";
-import AttendanceAlertPanels, {
+import {
   AttendanceSeasonLabel,
   AttendanceTeamSummary,
 } from "@/components/attendance-alert-panels";
-import AttendanceSessionsTable from "@/components/attendance-sessions-table";
+import AttendanceAlertRow from "@/components/attendance-alert-row";
+import AttendanceTrendsSection from "@/components/attendance-trends-section";
 import { getUserMember } from "@/lib/get-user-member";
 import type { AttendanceRecord, PracticeSession } from "@/lib/attendance";
 import {
-  buildSessionRates,
+  buildAttendanceAlertGroups,
+  buildSessionAttendanceStats,
   summarizeDancerAttendance,
   getTeamAttendancePercentage,
   type AttendanceRecordWithSession,
@@ -74,11 +76,9 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
   const dancerMembers = members.filter((member) => member.roles.includes("dancer"));
   const plainRecords = records as AttendanceRecord[];
 
-  const sessionRates = buildSessionRates(members, sessions, plainRecords);
+  const sessionStats = buildSessionAttendanceStats(members, sessions, plainRecords);
   const dancerSummaries = summarizeDancerAttendance(dancerMembers, records, season);
-  const approachingUnexcusedLimit = dancerSummaries.filter(
-    (summary) => summary.approachingUnexcusedLimit,
-  );
+  const alertGroups = buildAttendanceAlertGroups(dancerSummaries);
   const teamAttendancePercentage = getTeamAttendancePercentage(
     members,
     sessions,
@@ -134,10 +134,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
             season={season}
           />
 
-          <AttendanceAlertPanels
-            approachingUnexcusedLimit={approachingUnexcusedLimit}
-            season={season}
-          />
+          <AttendanceAlertRow groups={alertGroups} />
 
           {sessions.length === 0 ? (
             <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
@@ -152,7 +149,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
               ) : null}
             </div>
           ) : (
-            <AttendanceSessionsTable sessions={sessionRates} />
+            <AttendanceTrendsSection stats={sessionStats} />
           )}
         </>
       )}

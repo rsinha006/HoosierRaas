@@ -3,6 +3,9 @@
 drop policy if exists "Exec users can insert deadlines" on public.deadlines;
 drop policy if exists "Exec users can update deadlines" on public.deadlines;
 drop policy if exists "Exec users can delete deadlines" on public.deadlines;
+drop policy if exists "Captain and TM can insert deadlines" on public.deadlines;
+drop policy if exists "Captain and TM can update deadlines" on public.deadlines;
+drop policy if exists "Captain and TM can delete deadlines" on public.deadlines;
 
 create policy "Captain and TM can insert deadlines"
 on public.deadlines
@@ -26,6 +29,9 @@ using (public.get_my_exec_title() in ('captain', 'team_manager'));
 drop policy if exists "Exec users can insert fees" on public.fees;
 drop policy if exists "Exec users can update fees" on public.fees;
 drop policy if exists "Exec users can delete fees" on public.fees;
+drop policy if exists "Captain and TM can insert fees" on public.fees;
+drop policy if exists "Captain and TM can update fees" on public.fees;
+drop policy if exists "Captain and TM can delete fees" on public.fees;
 
 create policy "Captain and TM can insert fees"
 on public.fees
