@@ -8,6 +8,7 @@ import {
   sumGeneralPoolIncome,
   sumIufbIncome,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseCategory,
   type ExpenseRequest,
   type IncomeEntry,
@@ -23,7 +24,8 @@ type BudgetSetupPageProps = {
 
 export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageProps) {
   const params = await searchParams;
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 
@@ -32,13 +34,15 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
 
   const [
     { data: budgetData, error: budgetError },
     { data: lineItemData, error: lineItemError },
     { data: incomeData, error: incomeError },
     { data: approvedExpenseData },
+    { data: paidReimbursementData },
   ] = await Promise.all([
     supabase.from("budgets").select("category, allocated_amount").eq("season", season),
     supabase
@@ -57,6 +61,12 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
       .eq("status", "approved")
       .gte("created_at", expenseStart)
       .lte("created_at", expenseEnd),
+    supabase
+      .from("reimbursements")
+      .select("category, amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", expenseStart)
+      .lte("payment_timestamp", expenseEnd),
   ]);
 
   const budgets = (budgetData ?? []) as Pick<Budget, "category" | "allocated_amount">[];
@@ -69,6 +79,7 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
     ExpenseRequest,
     "category" | "amount"
   >[];
+  const paidReimbursements = (paidReimbursementData ?? []) as CategoryReimbursement[];
 
   const allocatedByCategory = new Map(
     budgets.map((budget) => [budget.category, String(budget.allocated_amount)]),
@@ -117,6 +128,8 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
           initialAllocations={initialAllocations}
           initialLineItems={lineItems}
           approvedRequests={approvedRequests}
+          paidReimbursements={paidReimbursements}
+          reviewerMemberId={userMember?.id ?? null}
         />
       )}
     </div>

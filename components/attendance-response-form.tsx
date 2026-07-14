@@ -8,6 +8,7 @@ import {
   mapAttendanceChoiceToStatus,
   requiresExcuseForChoice,
   type AttendanceChoice,
+  type PracticeVideoStatus,
   type PublicAttendanceSession,
 } from "@/lib/attendance";
 
@@ -84,9 +85,15 @@ function RadioOption({
 }
 
 export default function AttendanceResponseForm({ session }: AttendanceResponseFormProps) {
-  const showVideoSection = useMemo(() => isVideoDeadlineDay(), []);
+  const showVideoSection = useMemo(
+    () => isVideoDeadlineDay(new Date(`${session.session_date}T12:00:00`)),
+    [session.session_date],
+  );
 
   const [view, setView] = useState<FormView>("form");
+  // Honeypot: real users never see or fill this field. A non-empty value means the
+  // submission came from a script, not a person — we quietly pretend it succeeded.
+  const [website, setWebsite] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -94,7 +101,9 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
   const [excuseText, setExcuseText] = useState("");
   const [advanceNotice, setAdvanceNotice] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
-  const [practiceVideoSubmitted, setPracticeVideoSubmitted] = useState<boolean | null>(null);
+  const [practiceVideoStatus, setPracticeVideoStatus] = useState<PracticeVideoStatus | null>(
+    null,
+  );
   const [practiceVideoExcuse, setPracticeVideoExcuse] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -119,15 +128,11 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
       errors.email = "Enter a valid email address.";
     }
 
-    if (showExcuseFields && !excuseText.trim()) {
-      errors.excuseText = "Please describe the reason.";
-    }
-
     if (showVideoSection) {
-      if (practiceVideoSubmitted === null) {
-        errors.practiceVideoSubmitted =
+      if (practiceVideoStatus === null) {
+        errors.practiceVideoStatus =
           "Please indicate whether you submitted your practice video.";
-      } else if (practiceVideoSubmitted === false && !practiceVideoExcuse.trim()) {
+      } else if (practiceVideoStatus === "missing" && !practiceVideoExcuse.trim()) {
         errors.practiceVideoExcuse = "Please explain why your video was not submitted.";
       }
     }
@@ -139,6 +144,12 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError(null);
+
+    if (website.trim()) {
+      // Honeypot tripped — pretend success without touching the database.
+      setView("success");
+      return;
+    }
 
     if (!validateForm()) {
       return;
@@ -183,9 +194,9 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
       p_excuse_text: showExcuseFields ? excuseText.trim() : null,
       p_advance_notice: showExcuseFields ? advanceNotice : false,
       p_is_emergency: showExcuseFields ? isEmergency : false,
-      p_practice_video_submitted: showVideoSection ? practiceVideoSubmitted : null,
+      p_practice_video_status: showVideoSection ? practiceVideoStatus : null,
       p_practice_video_excuse:
-        showVideoSection && practiceVideoSubmitted === false
+        showVideoSection && practiceVideoStatus === "missing"
           ? practiceVideoExcuse.trim()
           : null,
     });
@@ -235,6 +246,22 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+      >
+        <label htmlFor="website">Leave this field blank</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(event) => setWebsite(event.target.value)}
+        />
+      </div>
+
       <section className="space-y-4">
         <SectionHeading
           title="Section 1 — Identity"
@@ -322,11 +349,12 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
           <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
             <div className="space-y-2">
               <label htmlFor="excuse-text" className={labelClassName}>
-                Please describe the reason {requiredMark}
+                Please describe the reason (optional)
               </label>
               <textarea
                 id="excuse-text"
                 rows={4}
+                maxLength={500}
                 value={excuseText}
                 onChange={(event) => setExcuseText(event.target.value)}
                 className={inputClassName}
@@ -370,22 +398,29 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
             </legend>
             <RadioOption
               name="practice-video"
-              value="yes"
-              checked={practiceVideoSubmitted === true}
-              onChange={() => setPracticeVideoSubmitted(true)}
-              label="Yes"
+              value="on_time"
+              checked={practiceVideoStatus === "on_time"}
+              onChange={() => setPracticeVideoStatus("on_time")}
+              label="Yes, on time"
             />
             <RadioOption
               name="practice-video"
-              value="no"
-              checked={practiceVideoSubmitted === false}
-              onChange={() => setPracticeVideoSubmitted(false)}
-              label="No"
+              value="late"
+              checked={practiceVideoStatus === "late"}
+              onChange={() => setPracticeVideoStatus("late")}
+              label="Submitted late"
+            />
+            <RadioOption
+              name="practice-video"
+              value="missing"
+              checked={practiceVideoStatus === "missing"}
+              onChange={() => setPracticeVideoStatus("missing")}
+              label="Did not submit"
             />
           </fieldset>
-          <FieldError message={fieldErrors.practiceVideoSubmitted} />
+          <FieldError message={fieldErrors.practiceVideoStatus} />
 
-          {practiceVideoSubmitted === false ? (
+          {practiceVideoStatus === "missing" ? (
             <div className="space-y-2">
               <label htmlFor="video-excuse" className={labelClassName}>
                 Please explain {requiredMark}
@@ -393,6 +428,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
               <textarea
                 id="video-excuse"
                 rows={4}
+                maxLength={500}
                 value={practiceVideoExcuse}
                 onChange={(event) => setPracticeVideoExcuse(event.target.value)}
                 className={inputClassName}

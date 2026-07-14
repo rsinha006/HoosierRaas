@@ -5,9 +5,12 @@ import { hasWriteAccess } from "@/lib/rbac";
 import { parseExtractedPacketResponse } from "@/lib/packet-extraction-parse";
 import { PACKET_EXTRACTION_PROMPT } from "@/lib/packet-extraction-prompt";
 import {
+  MAX_PACKET_BYTES,
+  MAX_PACKET_MB,
   PACKET_MIME_TYPE,
   REGISTRATION_PACKETS_BUCKET,
 } from "@/lib/registration-packets";
+import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import {
   toUserFacingAuthError,
@@ -18,6 +21,8 @@ import {
 type ExtractPacketRequestBody = {
   storagePath?: string;
 };
+
+const EXTRACTION_COOLDOWN_MS = 2 * 60 * 1000;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -63,6 +68,47 @@ export async function POST(request: Request) {
     );
   }
 
+  const competitionId = storagePath.split("/")[0];
+  const [activeSeason, { data: competitionRow }] = await Promise.all([
+    getActiveSeason(),
+    supabase
+      .from("competitions")
+      .select("season, last_packet_extraction_at")
+      .eq("id", competitionId)
+      .maybeSingle(),
+  ]);
+
+  if (!competitionRow || competitionRow.season !== activeSeason.label) {
+    return NextResponse.json(
+      {
+        error:
+          "This competition belongs to a past, archived season and can't be edited.",
+      },
+      { status: 403 },
+    );
+  }
+
+  if (competitionRow.last_packet_extraction_at) {
+    const elapsedMs =
+      Date.now() - new Date(competitionRow.last_packet_extraction_at).getTime();
+    const remainingMs = EXTRACTION_COOLDOWN_MS - elapsedMs;
+
+    if (remainingMs > 0) {
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      return NextResponse.json(
+        {
+          error: `This competition's packet was just extracted. Please wait ${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"} before trying again.`,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
+  await supabase
+    .from("competitions")
+    .update({ last_packet_extraction_at: new Date().toISOString() })
+    .eq("id", competitionId);
+
   const { data: fileData, error: downloadError } = await supabase.storage
     .from(REGISTRATION_PACKETS_BUCKET)
     .download(storagePath);
@@ -71,6 +117,27 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: toUserFacingStorageError(downloadError ?? new Error("not found")) },
       { status: 404 },
+    );
+  }
+
+  if (fileData.type && fileData.type !== PACKET_MIME_TYPE) {
+    return NextResponse.json(
+      { error: "That file isn't a PDF. Upload a PDF registration packet and try again." },
+      { status: 415 },
+    );
+  }
+
+  if (fileData.size > MAX_PACKET_BYTES) {
+    return NextResponse.json(
+      { error: `That file is too large. Registration packets must be ${MAX_PACKET_MB} MB or smaller.` },
+      { status: 413 },
+    );
+  }
+
+  if (fileData.size === 0) {
+    return NextResponse.json(
+      { error: "That file is empty. Upload a valid PDF registration packet." },
+      { status: 422 },
     );
   }
 

@@ -1,4 +1,4 @@
-import type { ExecTitle } from "@/lib/members";
+import { formatMemberName, type ExecTitle } from "@/lib/members";
 
 export const ASSIGNABLE_EXEC_TITLES = [
   { value: "captain", label: "Captain" },
@@ -7,6 +7,16 @@ export const ASSIGNABLE_EXEC_TITLES = [
 ] as const;
 
 export type AssignableExecTitle = (typeof ASSIGNABLE_EXEC_TITLES)[number]["value"];
+
+/** Sentinel value for the role dropdown meaning "remove exec access, keep the login." */
+export const NONE_ROLE_VALUE = "none" as const;
+
+export const ROLE_SELECT_OPTIONS = [
+  { value: NONE_ROLE_VALUE, label: "No access" },
+  ...ASSIGNABLE_EXEC_TITLES,
+] as const;
+
+export type RoleSelectValue = (typeof ROLE_SELECT_OPTIONS)[number]["value"];
 
 export type UserRow = {
   id: string;
@@ -50,16 +60,26 @@ export function buildUserRowFromProfile(
     full_name: string | null;
     created_at: string;
   },
-  member?: { id: string; exec_title: string | null; roles: string[] } | null,
+  member?: {
+    id: string;
+    exec_title: string | null;
+    roles: string[];
+    first_name: string;
+    last_name: string;
+  } | null,
 ): UserRow {
   const execTitle = (member?.exec_title as ExecTitle | null) ?? null;
   const hasAccess =
     !!execTitle && Array.isArray(member?.roles) && member.roles.includes("exec");
 
+  // The roster (members table) is the source of truth for someone's name — prefer
+  // it over the signup full_name whenever this login is linked to a roster member.
+  const fullName = member ? formatMemberName(member) : profile.full_name;
+
   return {
     id: profile.id,
     email: profile.email.toLowerCase(),
-    full_name: profile.full_name,
+    full_name: fullName,
     created_at: profile.created_at,
     exec_title: execTitle,
     member_id: member?.id ?? null,
@@ -77,7 +97,7 @@ export function buildUserRows(
   }>,
   membersByEmail: Map<
     string,
-    { id: string; exec_title: string | null; roles: string[] }
+    { id: string; exec_title: string | null; roles: string[]; first_name: string; last_name: string }
   >,
 ): UserRow[] {
   return profiles.map((profile) =>

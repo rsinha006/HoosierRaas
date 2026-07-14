@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BudgetDonutCharts from "@/components/budget-donut-charts";
+import ExpenseLinkGenerator from "@/components/expense-link-generator";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   buildGeneralPoolDonutSegments,
@@ -9,7 +10,10 @@ import {
   formatCurrency,
   getSeasonDateRange,
   getSeasonTimestampBounds,
-  sumApprovedExpenses,
+  sumAmounts,
+  sumGeneralPoolApprovedExpenses,
+  sumGeneralPoolIncome,
+  sumPaidReimbursements,
   type Budget,
   type ExpenseRequest,
   type IncomeEntry,
@@ -25,7 +29,8 @@ type FinancePageProps = {
 
 export default async function FinancePage({ searchParams }: FinancePageProps) {
   const params = await searchParams;
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonDateRange(season);
   const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
 
@@ -34,13 +39,17 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
 
   const [
     { data: incomeData, error: incomeError },
     { data: approvedExpenseData },
     { data: budgetData, error: budgetError },
     { data: lineItemData, error: lineItemError },
+    { data: paidReimbursementData },
+    { data: pendingExpenseData },
+    { data: pendingReimbursementData },
   ] = await Promise.all([
     supabase
       .from("income_entries")
@@ -61,21 +70,32 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .from("iufb_line_items")
       .select("description, approved_amount, spent_amount")
       .eq("season", season),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", expenseStart)
+      .lte("payment_timestamp", expenseEnd),
+    supabase
+      .from("expense_requests")
+      .select("amount")
+      .eq("status", "pending")
+      .gte("created_at", expenseStart)
+      .lte("created_at", expenseEnd),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "pending")
+      .eq("season", season),
   ]);
 
   const incomeEntries = (incomeData ?? []) as Pick<
     IncomeEntry,
     "amount" | "category"
   >[];
-  const totalIncome = incomeEntries.reduce(
-    (sum, entry) => sum + Number(entry.amount),
-    0,
-  );
-  const approvedExpenses = sumApprovedExpenses(
-    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount">[],
-  );
-  const runningBalance = totalIncome - approvedExpenses;
-
+  const paidReimbursements = (paidReimbursementData ?? []) as {
+    amount: number | string;
+  }[];
   const approvedRequests = (approvedExpenseData ?? []) as Pick<
     ExpenseRequest,
     "amount" | "category" | "iufb_line_item_id"
@@ -88,6 +108,20 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     IufbLineItem,
     "description" | "approved_amount" | "spent_amount"
   >[];
+  const pendingExpenses = (pendingExpenseData ?? []) as { amount: number | string }[];
+  const pendingReimbursements = (pendingReimbursementData ?? []) as {
+    amount: number | string;
+  }[];
+
+  // The general pool and the IUFB envelope are walled off from each other —
+  // IUFB income/spend never counts toward the team's own spendable balance.
+  // Paid reimbursements come out of the general pool too, even though they
+  // live in a separate table from pre-approved expenses.
+  const totalIncome = sumGeneralPoolIncome(incomeEntries);
+  const approvedExpenses =
+    sumGeneralPoolApprovedExpenses(approvedRequests) +
+    sumPaidReimbursements(paidReimbursements);
+  const runningBalance = totalIncome - approvedExpenses;
 
   const generalPoolSegments = buildGeneralPoolDonutSegments(
     budgets,
@@ -95,6 +129,11 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
   );
   const iufbSegments = buildIufbDonutSegments(lineItems);
   const budgetLoadError = budgetError ?? lineItemError;
+
+  const pendingApprovalsCount = pendingExpenses.length;
+  const pendingApprovalsTotal = sumAmounts(pendingExpenses);
+  const outstandingReimbursementsCount = pendingReimbursements.length;
+  const outstandingReimbursementsTotal = sumAmounts(pendingReimbursements);
 
   return (
     <div className="space-y-6">
@@ -138,6 +177,8 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
         </div>
       </div>
 
+      <ExpenseLinkGenerator />
+
       {incomeError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
           <p className="font-medium">Could not load income data</p>
@@ -177,6 +218,38 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
                 Income minus approved expenses
               </p>
             </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <Link
+              href="/finance/expenses"
+              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-[#990000]/30 hover:bg-[#990000]/[0.02]"
+            >
+              <p className="text-sm font-medium text-zinc-500">Pending Approvals</p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-900">
+                {formatCurrency(pendingApprovalsTotal)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {pendingApprovalsCount} expense{" "}
+                {pendingApprovalsCount === 1 ? "request" : "requests"} awaiting review
+              </p>
+            </Link>
+
+            <Link
+              href="/finance/reimbursements"
+              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-[#990000]/30 hover:bg-[#990000]/[0.02]"
+            >
+              <p className="text-sm font-medium text-zinc-500">
+                Outstanding Reimbursements
+              </p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-900">
+                {formatCurrency(outstandingReimbursementsTotal)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {outstandingReimbursementsCount} request
+                {outstandingReimbursementsCount === 1 ? "" : "s"} awaiting payment
+              </p>
+            </Link>
           </section>
 
           {budgetLoadError ? (

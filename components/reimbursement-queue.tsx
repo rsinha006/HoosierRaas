@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -33,8 +34,11 @@ function PendingReimbursementCard({
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] =
     useState<ReimbursementPaymentMethod>("venmo");
+  const [showDenyForm, setShowDenyForm] = useState(false);
+  const [denialReason, setDenialReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   const submitterName = getReimbursementSubmitterLabel(reimbursement);
   const submitterEmail = getReimbursementSubmitterEmail(reimbursement);
@@ -45,6 +49,11 @@ function PendingReimbursementCard({
   );
 
   async function handleMarkPaid() {
+    if (submitLockRef.current) {
+      return;
+    }
+    submitLockRef.current = true;
+
     setActionError(null);
     setLoading(true);
 
@@ -61,12 +70,52 @@ function PendingReimbursementCard({
       .eq("status", "pending");
 
     setLoading(false);
+    submitLockRef.current = false;
 
     if (error) {
       setActionError(error.message);
       return;
     }
 
+    router.refresh();
+  }
+
+  async function handleDeny() {
+    if (submitLockRef.current) {
+      return;
+    }
+
+    if (!denialReason.trim()) {
+      setActionError("A denial reason is required.");
+      return;
+    }
+
+    submitLockRef.current = true;
+    setActionError(null);
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("reimbursements")
+      .update({
+        status: "denied",
+        denial_reason: denialReason.trim(),
+        denied_at: new Date().toISOString(),
+        denied_by_member_id: reviewerMemberId,
+      })
+      .eq("id", reimbursement.id)
+      .eq("status", "pending");
+
+    setLoading(false);
+    submitLockRef.current = false;
+
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+
+    setShowDenyForm(false);
+    setDenialReason("");
     router.refresh();
   }
 
@@ -157,39 +206,90 @@ function PendingReimbursementCard({
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label
-                htmlFor={`payment-${reimbursement.id}`}
-                className="mb-1.5 block text-sm font-medium text-zinc-700"
-              >
-                Payment method
-              </label>
-              <select
-                id={`payment-${reimbursement.id}`}
-                value={paymentMethod}
-                onChange={(event) =>
-                  setPaymentMethod(event.target.value as ReimbursementPaymentMethod)
-                }
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20"
-              >
-                {REIMBURSEMENT_PAYMENT_METHODS.map((method) => (
-                  <option key={method.value} value={method.value}>
-                    {method.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {!showDenyForm ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label
+                  htmlFor={`payment-${reimbursement.id}`}
+                  className="mb-1.5 block text-sm font-medium text-zinc-700"
+                >
+                  Payment method
+                </label>
+                <select
+                  id={`payment-${reimbursement.id}`}
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    setPaymentMethod(event.target.value as ReimbursementPaymentMethod)
+                  }
+                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20"
+                >
+                  {REIMBURSEMENT_PAYMENT_METHODS.map((method) => (
+                    <option key={method.value} value={method.value}>
+                      {method.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <button
-              type="button"
-              onClick={handleMarkPaid}
-              disabled={loading}
-              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Saving..." : "Mark as Paid"}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleMarkPaid}
+                disabled={loading}
+                className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Saving..." : "Mark as Paid"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDenyForm(true)}
+                disabled={loading}
+                className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Deny
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label
+                  htmlFor={`deny-reason-${reimbursement.id}`}
+                  className="mb-1.5 block text-sm font-medium text-zinc-700"
+                >
+                  Denial reason
+                </label>
+                <textarea
+                  id={`deny-reason-${reimbursement.id}`}
+                  rows={3}
+                  value={denialReason}
+                  onChange={(event) => setDenialReason(event.target.value)}
+                  className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20"
+                  placeholder="Explain why this request is being denied."
+                />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleDeny}
+                  disabled={loading}
+                  className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Denying..." : "Confirm Denial"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDenyForm(false);
+                    setDenialReason("");
+                    setActionError(null);
+                  }}
+                  disabled={loading}
+                  className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
     </article>
@@ -199,15 +299,21 @@ function PendingReimbursementCard({
 type ReimbursementQueueProps = {
   pendingReimbursements: ReimbursementQueueItem[];
   paidReimbursements: ReimbursementQueueItem[];
+  deniedReimbursements: ReimbursementQueueItem[];
   canReview: boolean;
   reviewerMemberId: string | null;
+  hasMorePaid: boolean;
+  loadMorePaidHref: string;
 };
 
 export default function ReimbursementQueue({
   pendingReimbursements,
   paidReimbursements,
+  deniedReimbursements,
   canReview,
   reviewerMemberId,
+  hasMorePaid,
+  loadMorePaidHref,
 }: ReimbursementQueueProps) {
   return (
     <div className="space-y-6">
@@ -284,6 +390,59 @@ export default function ReimbursementQueue({
                         {reimbursement.payment_timestamp
                           ? formatReimbursementTimestamp(reimbursement.payment_timestamp)
                           : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {hasMorePaid ? (
+            <div className="mt-4 text-center">
+              <Link
+                href={loadMorePaidHref}
+                className="text-sm font-medium text-[#990000] hover:underline"
+              >
+                Load more
+              </Link>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {deniedReimbursements.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Denied Reimbursements</h2>
+          <p className="mt-1 text-sm text-zinc-600">Recently rejected requests.</p>
+
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 text-zinc-500">
+                  <th className="px-3 py-3 font-medium">Submitted</th>
+                  <th className="px-3 py-3 font-medium">Submitter</th>
+                  <th className="px-3 py-3 font-medium">Description</th>
+                  <th className="px-3 py-3 font-medium text-right">Amount</th>
+                  <th className="px-3 py-3 font-medium">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deniedReimbursements.map((reimbursement) => {
+                  const submitterName = getReimbursementSubmitterLabel(reimbursement);
+
+                  return (
+                    <tr key={reimbursement.id} className="border-b border-zinc-100">
+                      <td className="px-3 py-3 text-zinc-600">
+                        {formatReimbursementTimestamp(reimbursement.submission_timestamp)}
+                      </td>
+                      <td className="px-3 py-3 text-zinc-900">{submitterName}</td>
+                      <td className="px-3 py-3 text-zinc-900">{reimbursement.description}</td>
+                      <td className="px-3 py-3 text-right font-medium text-zinc-900">
+                        {formatCurrency(Number(reimbursement.amount))}
+                      </td>
+                      <td className="px-3 py-3 text-zinc-600">
+                        {reimbursement.denial_reason ?? "—"}
                       </td>
                     </tr>
                   );

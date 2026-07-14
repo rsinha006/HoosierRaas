@@ -12,8 +12,19 @@ import { hasWriteAccess } from "@/lib/rbac";
 import { createClient } from "@/lib/supabase/server";
 
 type ReimbursementsPageProps = {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; paidCount?: string }>;
 };
+
+const PAID_PAGE_SIZE = 25;
+
+function parsePaidCount(value: string | undefined) {
+  const parsed = Number(value);
+  if (!value || !Number.isFinite(parsed) || parsed < PAID_PAGE_SIZE) {
+    return PAID_PAGE_SIZE;
+  }
+
+  return parsed;
+}
 
 const reimbursementSelect = `
   *,
@@ -50,6 +61,7 @@ export default async function ReimbursementsPage({
 }: ReimbursementsPageProps) {
   const params = await searchParams;
   const showSubmitted = params.submitted === "1";
+  const paidCount = parsePaidCount(params.paidCount);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
@@ -66,11 +78,15 @@ export default async function ReimbursementsPage({
   const reimbursements = (reimbursementData ?? []) as ReimbursementWithRelations[];
   const pending = reimbursements.filter((item) => item.status === "pending");
   const paid = reimbursements.filter((item) => item.status === "paid");
+  const denied = reimbursements.filter((item) => item.status === "denied");
 
-  const [pendingWithReceipts, paidWithReceipts] = await Promise.all([
+  const [pendingWithReceipts, paidWithReceipts, deniedWithReceipts] = await Promise.all([
     attachReceiptSignedUrls(supabase, pending),
-    attachReceiptSignedUrls(supabase, paid.slice(0, 25)),
+    attachReceiptSignedUrls(supabase, paid.slice(0, paidCount)),
+    attachReceiptSignedUrls(supabase, denied.slice(0, 25)),
   ]);
+
+  const hasMorePaid = paid.length > paidCount;
 
   return (
     <div className="space-y-6">
@@ -117,8 +133,11 @@ export default async function ReimbursementsPage({
         <ReimbursementQueue
           pendingReimbursements={pendingWithReceipts}
           paidReimbursements={paidWithReceipts}
+          deniedReimbursements={deniedWithReceipts}
           canReview={canReview}
           reviewerMemberId={userMember?.id ?? null}
+          hasMorePaid={hasMorePaid}
+          loadMorePaidHref={`/finance/reimbursements?paidCount=${paidCount + PAID_PAGE_SIZE}`}
         />
       )}
     </div>

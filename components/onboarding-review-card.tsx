@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import {
   EXEC_TITLES,
   formatMemberName,
+  formatPhoneForStorage,
+  isValidPhone,
   type ExecTitle,
   type Member,
   type MemberRole,
@@ -174,7 +176,11 @@ export default function OnboardingReviewCard({
     if (!firstName.trim()) errors.firstName = "First name is required.";
     if (!lastName.trim()) errors.lastName = "Last name is required.";
     if (!email.trim()) errors.email = "Email is required.";
-    if (!phone.trim()) errors.phone = "Phone is required.";
+    if (!phone.trim()) {
+      errors.phone = "Phone is required.";
+    } else if (!isValidPhone(phone)) {
+      errors.phone = "Enter a valid 10-digit phone number.";
+    }
     if (!graduationYear.trim()) errors.graduationYear = "Graduation year is required.";
     if (!shirtSize) errors.shirtSize = "Shirt size is required.";
     if (!pantsSize) errors.pantsSize = "Pants size is required.";
@@ -183,6 +189,8 @@ export default function OnboardingReviewCard({
     }
     if (!emergencyContactPhone.trim()) {
       errors.emergencyContactPhone = "Emergency contact phone is required.";
+    } else if (!isValidPhone(emergencyContactPhone)) {
+      errors.emergencyContactPhone = "Enter a valid 10-digit phone number.";
     }
     if (roles.length === 0) errors.roles = "Select at least one role.";
     if (hasExecRole && !execTitle) {
@@ -213,7 +221,7 @@ export default function OnboardingReviewCard({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: formatPhoneForStorage(phone),
         graduation_year: Number(graduationYear),
         dietary_restrictions: dietaryRestrictions.trim() || "None",
         medical_conditions: medicalConditions.trim() || "None",
@@ -221,7 +229,7 @@ export default function OnboardingReviewCard({
         pants_size: pantsSize,
         drinks_alcohol: drinksAlcohol === "yes",
         emergency_contact_name: emergencyContactName.trim(),
-        emergency_contact_phone: emergencyContactPhone.trim(),
+        emergency_contact_phone: formatPhoneForStorage(emergencyContactPhone),
         roles,
         exec_title: hasExecRole ? execTitle : null,
         pending_review: false,

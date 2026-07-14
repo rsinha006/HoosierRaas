@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import type { ExecTitle } from "@/lib/members";
+import { formatMemberName, type ExecTitle } from "@/lib/members";
 import type { UserRow } from "@/lib/users";
 
 type ProfileRow = {
@@ -13,6 +13,8 @@ type MemberRow = {
   id: string;
   email: string;
   roles: string[] | null;
+  first_name: string;
+  last_name: string;
 };
 
 function getMetadataFullName(user: User): string | null {
@@ -23,7 +25,10 @@ function getMetadataFullName(user: User): string | null {
 export function buildUserRowsFromAuthUsers(
   authUsers: User[],
   profilesById: Map<string, ProfileRow>,
-  membersByEmail: Map<string, { id: string; exec_title: string | null; roles: string[] }>,
+  membersByEmail: Map<
+    string,
+    { id: string; exec_title: string | null; roles: string[]; first_name: string; last_name: string }
+  >,
 ): UserRow[] {
   return authUsers
     .map((user) => {
@@ -39,10 +44,17 @@ export function buildUserRowsFromAuthUsers(
       const hasAccess =
         !!execTitle && Array.isArray(member?.roles) && member.roles.includes("exec");
 
+      // The roster (members table) is the source of truth for someone's name — the
+      // signup full_name is just whatever they happened to type at signup and can
+      // drift from it. Prefer the roster name whenever this login is linked to one.
+      const fullName = member
+        ? formatMemberName(member)
+        : (profile?.full_name ?? getMetadataFullName(user));
+
       return {
         id: user.id,
         email,
-        full_name: profile?.full_name ?? getMetadataFullName(user),
+        full_name: fullName,
         created_at: profile?.created_at ?? user.created_at,
         exec_title: execTitle,
         member_id: member?.id ?? null,
@@ -65,6 +77,8 @@ export function buildMembersByEmail(
         id: member.id,
         exec_title: execTitleByMemberId.get(member.id) ?? null,
         roles: Array.isArray(member.roles) ? member.roles : [],
+        first_name: member.first_name,
+        last_name: member.last_name,
       },
     ]),
   );

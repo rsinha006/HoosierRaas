@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DeadlineRow } from "@/lib/deadline-types";
-import { sortDeadlines } from "@/lib/deadline-checklist";
+import { isBlockedByHardCutoff, sortDeadlines } from "@/lib/deadline-checklist";
 import DeadlineChecklistItem from "@/components/deadline-checklist-item";
 import { toUserFacingDeadlineError } from "@/lib/user-facing-errors";
 
@@ -114,22 +114,34 @@ export default function DeadlinesChecklist({
         return;
       }
 
+      // completed_at is intentionally left as-is — unchecking is often a correction,
+      // not an undo, and clearing it would erase the record of when this was
+      // originally completed if it gets checked again later.
       const previous = deadline;
       const optimistic: DeadlineRow = {
         ...deadline,
         status: "pending",
-        completed_at: null,
       };
 
       replaceRow(optimistic);
       void syncDeadlineUpdate(deadline, previous, {
         status: "pending",
-        completed_at: null,
+        completed_at: deadline.completed_at,
       });
       return;
     }
 
-    const completedAt = new Date().toISOString();
+    if (isBlockedByHardCutoff(deadline)) {
+      setError(
+        `${deadline.name} is a hard cutoff and its due date has passed — it can no longer be marked complete.`,
+      );
+      return;
+    }
+
+    // Re-completing a deadline that already has a completed_at (i.e. it was
+    // previously checked and then unchecked) keeps the original timestamp instead
+    // of overwriting it with "now".
+    const completedAt = deadline.completed_at ?? new Date().toISOString();
     const previous = deadline;
     const optimistic: DeadlineRow = {
       ...deadline,

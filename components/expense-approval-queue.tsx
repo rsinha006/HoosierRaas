@@ -8,17 +8,19 @@ import {
   getBudgetOverage,
   getCategoryBudgetSummary,
   getExpenseRequestFundingLabel,
+  getExpenseRequesterLabel,
   getIufbLineItemSummary,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseRequest,
   type ExpenseRequestWithRelations,
 } from "@/lib/finance";
-import { formatMemberName } from "@/lib/members";
 
 type PendingRequestCardProps = {
   request: ExpenseRequestWithRelations;
   budgets: Pick<Budget, "category" | "allocated_amount">[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[];
+  paidReimbursements: CategoryReimbursement[];
   canReview: boolean;
   reviewerMemberId: string;
   compact?: boolean;
@@ -28,6 +30,7 @@ function PendingRequestCard({
   request,
   budgets,
   approvedRequests,
+  paidReimbursements,
   canReview,
   reviewerMemberId,
   compact = false,
@@ -49,14 +52,13 @@ function PendingRequestCard({
           request.category,
           budgets,
           approvedRequests,
+          paidReimbursements,
         )
       : { allocated: 0, spent: 0, remaining: 0 };
 
   const fundingLabel = getExpenseRequestFundingLabel(request);
   const overage = getBudgetOverage(Number(request.amount), budgetSummary.remaining);
-  const requesterName = request.requester
-    ? formatMemberName(request.requester)
-    : "Unknown member";
+  const requesterName = getExpenseRequesterLabel(request);
 
   async function handleApprove() {
     setActionError(null);
@@ -342,6 +344,7 @@ type ExpenseApprovalQueueProps = {
   historyRequests: ExpenseRequestWithRelations[];
   budgets: Pick<Budget, "category" | "allocated_amount">[];
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[];
+  paidReimbursements: CategoryReimbursement[];
   canReview: boolean;
   reviewerMemberId: string | null;
   compact?: boolean;
@@ -359,6 +362,7 @@ export default function ExpenseApprovalQueue({
   historyRequests,
   budgets,
   approvedRequests,
+  paidReimbursements,
   canReview,
   reviewerMemberId,
   compact = false,
@@ -387,6 +391,7 @@ export default function ExpenseApprovalQueue({
                     request={request}
                     budgets={budgets}
                     approvedRequests={approvedRequests}
+                    paidReimbursements={paidReimbursements}
                     canReview={canReview && Boolean(reviewerMemberId)}
                     reviewerMemberId={reviewerMemberId ?? ""}
                     compact
@@ -423,9 +428,7 @@ export default function ExpenseApprovalQueue({
                 </thead>
                 <tbody>
                   {historyRequests.map((request) => {
-                    const requesterName = request.requester
-                      ? formatMemberName(request.requester)
-                      : "Unknown";
+                    const requesterName = getExpenseRequesterLabel(request);
 
                     return (
                       <tr key={request.id} className="border-b border-zinc-100">
@@ -491,6 +494,7 @@ export default function ExpenseApprovalQueue({
                 request={request}
                 budgets={budgets}
                 approvedRequests={approvedRequests}
+                paidReimbursements={paidReimbursements}
                 canReview={canReview && Boolean(reviewerMemberId)}
                 reviewerMemberId={reviewerMemberId ?? ""}
               />
@@ -525,9 +529,7 @@ export default function ExpenseApprovalQueue({
               </thead>
               <tbody>
                 {historyRequests.map((request) => {
-                  const requesterName = request.requester
-                    ? formatMemberName(request.requester)
-                    : "Unknown member";
+                  const requesterName = getExpenseRequesterLabel(request);
 
                   return (
                     <tr key={request.id} className="border-b border-zinc-100">

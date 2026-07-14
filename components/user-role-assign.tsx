@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ExecTitle } from "@/lib/members";
-import { ASSIGNABLE_EXEC_TITLES } from "@/lib/users";
+import { NONE_ROLE_VALUE, ROLE_SELECT_OPTIONS, type RoleSelectValue } from "@/lib/users";
 
 type UserRoleAssignProps = {
   userId: string;
@@ -12,13 +12,15 @@ type UserRoleAssignProps = {
 
 export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAssignProps) {
   const router = useRouter();
-  const [execTitle, setExecTitle] = useState<ExecTitle>(
-    currentExecTitle ?? ASSIGNABLE_EXEC_TITLES[0].value,
+  const [execTitle, setExecTitle] = useState<RoleSelectValue>(
+    currentExecTitle ?? NONE_ROLE_VALUE,
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isUnchanged = currentExecTitle === execTitle;
+  const currentValue: RoleSelectValue = currentExecTitle ?? NONE_ROLE_VALUE;
+  const isUnchanged = currentValue === execTitle;
+  const isRevoking = execTitle === NONE_ROLE_VALUE;
 
   async function handleAssign() {
     setLoading(true);
@@ -52,10 +54,10 @@ export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAss
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={execTitle}
-          onChange={(event) => setExecTitle(event.target.value as ExecTitle)}
+          onChange={(event) => setExecTitle(event.target.value as RoleSelectValue)}
           className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20"
         >
-          {ASSIGNABLE_EXEC_TITLES.map((title) => (
+          {ROLE_SELECT_OPTIONS.map((title) => (
             <option key={title.value} value={title.value}>
               {title.label}
             </option>
@@ -65,9 +67,17 @@ export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAss
           type="button"
           onClick={handleAssign}
           disabled={loading || isUnchanged}
-          className="rounded-lg bg-[#990000] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            isRevoking ? "bg-zinc-700 hover:bg-zinc-800" : "bg-[#990000] hover:bg-[#7a0000]"
+          }`}
         >
-          {loading ? "Saving..." : currentExecTitle ? "Update" : "Assign"}
+          {loading
+            ? "Saving..."
+            : isRevoking
+              ? "Revoke access"
+              : currentExecTitle
+                ? "Update"
+                : "Assign"}
         </button>
       </div>
       {error ? <p className="text-xs text-red-600">{error}</p> : null}

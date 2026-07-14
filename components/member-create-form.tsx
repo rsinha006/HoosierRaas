@@ -10,7 +10,9 @@ import {
   type ExecTitle,
   type MemberRole,
   type MemberStatus,
+  formatPhoneForStorage,
   isValidEmail,
+  isValidPhone,
 } from "@/lib/members";
 import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
 
@@ -72,6 +74,8 @@ export default function MemberCreateForm({ activeSeason }: MemberCreateFormProps
 
     if (!phone.trim()) {
       errors.phone = "Phone is required.";
+    } else if (!isValidPhone(phone)) {
+      errors.phone = "Enter a valid 10-digit phone number.";
     }
 
     if (!graduationYear.trim()) {
@@ -117,7 +121,7 @@ export default function MemberCreateForm({ activeSeason }: MemberCreateFormProps
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone.trim(),
+        phone: formatPhoneForStorage(phone),
         graduation_year: Number(graduationYear),
         status,
         roles,

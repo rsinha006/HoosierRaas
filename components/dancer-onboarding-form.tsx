@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isValidEmail } from "@/lib/members";
+import { formatPhoneForStorage, isValidEmail, isValidPhone } from "@/lib/members";
 import {
   CLOTHING_SIZES,
   ONBOARDING_STORAGE_BUCKET,
@@ -136,6 +136,8 @@ export default function DancerOnboardingForm() {
 
     if (!phone.trim()) {
       errors.phone = "Phone number is required.";
+    } else if (!isValidPhone(phone)) {
+      errors.phone = "Enter a valid 10-digit phone number.";
     }
 
     if (!graduationYear) {
@@ -160,6 +162,8 @@ export default function DancerOnboardingForm() {
 
     if (!emergencyContactPhone.trim()) {
       errors.emergencyContactPhone = "Emergency contact phone is required.";
+    } else if (!isValidPhone(emergencyContactPhone)) {
+      errors.emergencyContactPhone = "Enter a valid 10-digit phone number.";
     }
 
     if (roles.length === 0) {
@@ -233,7 +237,7 @@ export default function DancerOnboardingForm() {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: normalizedEmail,
-        phone: phone.trim(),
+        phone: formatPhoneForStorage(phone),
         graduation_year: Number(graduationYear),
         status: "active" as const,
         roles,
@@ -249,24 +253,21 @@ export default function DancerOnboardingForm() {
         covid_vaccination_path: uploadedPaths.covid_vaccination ?? null,
         drinks_alcohol: drinksAlcohol === "yes",
         emergency_contact_name: emergencyContactName.trim(),
-        emergency_contact_phone: emergencyContactPhone.trim(),
+        emergency_contact_phone: formatPhoneForStorage(emergencyContactPhone),
       };
 
-      const { data: existingMember, error: existingMemberError } = await supabase
-        .from("members")
-        .select("id, roles, pending_review, government_id_path")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      const { data: existingMemberRows, error: existingMemberError } =
+        await supabase.rpc("get_onboarding_member_status", {
+          p_email: normalizedEmail,
+        });
 
       if (existingMemberError) {
         throw new Error(existingMemberError.message);
       }
 
-      if (
-        existingMember &&
-        !existingMember.pending_review &&
-        existingMember.government_id_path
-      ) {
+      const existingMember = existingMemberRows?.[0] ?? null;
+
+      if (existingMember && !existingMember.pending_review) {
         setView("duplicate");
         return;
       }
@@ -288,21 +289,18 @@ export default function DancerOnboardingForm() {
 
         if (error) {
           if (error.code === "23505") {
-            const { data: racedMember, error: racedMemberError } = await supabase
-              .from("members")
-              .select("id, roles, pending_review, government_id_path")
-              .eq("email", normalizedEmail)
-              .maybeSingle();
+            const { data: racedMemberRows, error: racedMemberError } =
+              await supabase.rpc("get_onboarding_member_status", {
+                p_email: normalizedEmail,
+              });
 
             if (racedMemberError) {
               throw new Error(racedMemberError.message);
             }
 
-            if (
-              racedMember &&
-              !racedMember.pending_review &&
-              racedMember.government_id_path
-            ) {
+            const racedMember = racedMemberRows?.[0] ?? null;
+
+            if (racedMember && !racedMember.pending_review) {
               setView("duplicate");
               return;
             }

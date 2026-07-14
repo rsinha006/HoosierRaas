@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -34,6 +34,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
 
   const showMemberSelector = category === "dues";
 
@@ -46,8 +47,8 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
 
     if (!amount.trim()) {
       errors.amount = "Amount is required.";
-    } else if (Number.isNaN(Number(amount)) || Number(amount) < 0) {
-      errors.amount = "Enter a valid amount.";
+    } else if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+      errors.amount = "Enter a valid amount greater than zero.";
     }
 
     if (!dateApplied) {
@@ -58,6 +59,11 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
       errors.dateReceived = "Date received is required.";
     }
 
+    if (showMemberSelector && !memberId) {
+      errors.memberId =
+        "Select which member this dues payment is for, so the team can track who's paid.";
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -66,10 +72,11 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
     event.preventDefault();
     setSaveError(null);
 
-    if (!validateForm()) {
+    if (!validateForm() || submitLockRef.current) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
 
     const supabase = createClient();
@@ -86,6 +93,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
     });
 
     setLoading(false);
+    submitLockRef.current = false;
 
     if (error) {
       setSaveError(error.message);
@@ -131,7 +139,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
           <input
             id="amount"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
@@ -169,7 +177,7 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
         {showMemberSelector ? (
           <div>
             <label htmlFor="memberId" className="mb-1.5 block text-sm font-medium text-zinc-700">
-              Member
+              Member {requiredMark}
             </label>
             <select
               id="memberId"
@@ -177,13 +185,16 @@ export default function AddIncomeForm({ activeMembers, season }: AddIncomeFormPr
               onChange={(event) => setMemberId(event.target.value)}
               className={inputClassName}
             >
-              <option value="">No member selected</option>
+              <option value="">Select a member</option>
               {activeMembers.map((member) => (
                 <option key={member.id} value={member.id}>
                   {formatMemberName(member)}
                 </option>
               ))}
             </select>
+            {fieldErrors.memberId ? (
+              <p className="mt-1.5 text-sm text-red-600">{fieldErrors.memberId}</p>
+            ) : null}
           </div>
         ) : null}
 

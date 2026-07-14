@@ -87,7 +87,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       )
       .eq("season", activeSeason.label),
     supabase.from("profiles").select("email"),
-    loadArchiveFinancePreview(activeSeason.label),
+    loadArchiveFinancePreview(activeSeason),
   ]);
 
   const loginEmails = new Set(

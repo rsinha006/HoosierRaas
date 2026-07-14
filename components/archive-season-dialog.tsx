@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { archiveSeason } from "@/app/actions/archive-season";
 import {
@@ -44,17 +44,25 @@ export default function ArchiveSeasonDialog({
   >({});
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) {
-      return;
+    // roster is refetched by the parent (e.g. on router.refresh() while this dialog
+    // is already open), which gives us a new array reference on every render. Only
+    // reset the in-progress flow when the dialog actually transitions from closed to
+    // open — not on every background roster refresh — or a mid-flow refresh would
+    // silently wipe the exec's step and choices.
+    if (open && !wasOpenRef.current) {
+      setStep(1);
+      setStatusByMemberId(buildInitialStatusChoices(roster));
+      setAccessChoices({});
+      setSubmitting(false);
+      setErrorMessage(null);
+      setConfirmText("");
     }
 
-    setStep(1);
-    setStatusByMemberId(buildInitialStatusChoices(roster));
-    setAccessChoices({});
-    setSubmitting(false);
-    setErrorMessage(null);
+    wasOpenRef.current = open;
   }, [open, roster]);
 
   const accessEligible = useMemo(
@@ -78,11 +86,31 @@ export default function ArchiveSeasonDialog({
   }
 
   function goToAccessStep() {
-    setAccessChoices(buildInitialAccessChoices(accessEligible));
+    // Going Back to step 1 and then Next again shouldn't wipe access choices the
+    // exec already made — only fill in defaults for members who are newly eligible
+    // (e.g. their step-1 status just changed), and keep everything else as-is.
+    setAccessChoices((current) => {
+      const defaults = buildInitialAccessChoices(accessEligible);
+      const merged = { ...defaults };
+
+      for (const member of accessEligible) {
+        const existingChoice = current[member.memberId];
+        if (existingChoice) {
+          merged[member.memberId] = existingChoice;
+        }
+      }
+
+      return merged;
+    });
     setStep(2);
   }
 
   async function handleConfirm() {
+    if (confirmText.trim() !== activeSeasonLabel) {
+      setErrorMessage(`Type "${activeSeasonLabel}" exactly to confirm.`);
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage(null);
 
@@ -235,6 +263,7 @@ export default function ArchiveSeasonDialog({
                             <td className="px-4 py-3">
                               <select
                                 value={choice.nextExecTitle}
+                                disabled={choice.deleteLogin}
                                 onChange={(event) =>
                                   setAccessChoices((current) => ({
                                     ...current,
@@ -245,7 +274,9 @@ export default function ArchiveSeasonDialog({
                                     },
                                   }))
                                 }
-                                className={selectClassName}
+                                className={`${selectClassName} ${
+                                  choice.deleteLogin ? "opacity-50" : ""
+                                }`}
                               >
                                 {ASSIGNABLE_EXEC_TITLES.map((title) => (
                                   <option key={title.value} value={title.value}>
@@ -254,21 +285,32 @@ export default function ArchiveSeasonDialog({
                                 ))}
                                 <option value="none">None</option>
                               </select>
+                              {choice.deleteLogin ? (
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  Login is being deleted — access will be None.
+                                </p>
+                              ) : null}
                             </td>
                             <td className="px-4 py-3">
                               <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
                                 <input
                                   type="checkbox"
                                   checked={choice.deleteLogin}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    const deleteLogin = event.target.checked;
                                     setAccessChoices((current) => ({
                                       ...current,
                                       [member.memberId]: {
-                                        ...choice,
-                                        deleteLogin: event.target.checked,
+                                        // Checking "delete login" always resets access to
+                                        // None — you can't grant access and delete the
+                                        // login in the same step.
+                                        nextExecTitle: deleteLogin
+                                          ? "none"
+                                          : choice.nextExecTitle,
+                                        deleteLogin,
                                       },
-                                    }))
-                                  }
+                                    }));
+                                  }}
                                   className="rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
                                 />
                                 Delete login
@@ -335,6 +377,29 @@ export default function ArchiveSeasonDialog({
                 )}
               </div>
 
+              <div className="rounded-xl border border-zinc-200 p-4">
+                <label
+                  htmlFor="archive-confirm-text"
+                  className="block text-sm font-semibold text-zinc-900"
+                >
+                  Type <span className="font-mono text-[#990000]">{activeSeasonLabel}</span>{" "}
+                  to confirm
+                </label>
+                <p className="mt-1 text-sm text-zinc-600">
+                  This action is irreversible — it archives the season and deletes any
+                  logins listed above.
+                </p>
+                <input
+                  id="archive-confirm-text"
+                  type="text"
+                  value={confirmText}
+                  onChange={(event) => setConfirmText(event.target.value)}
+                  autoComplete="off"
+                  className={`${selectClassName} mt-3`}
+                  placeholder={activeSeasonLabel}
+                />
+              </div>
+
               {errorMessage ? (
                 <div
                   role="alert"
@@ -392,7 +457,7 @@ export default function ArchiveSeasonDialog({
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={submitting}
+                disabled={submitting || confirmText.trim() !== activeSeasonLabel}
                 className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Archiving..." : "Confirm archive"}

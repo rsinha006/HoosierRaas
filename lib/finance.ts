@@ -71,7 +71,9 @@ export type ExpenseRequest = {
   category: ExpenseCategory | null;
   iufb_line_item_id: string | null;
   competition_id: string | null;
-  requester_member_id: string;
+  requester_member_id: string | null;
+  submitter_name: string | null;
+  submitter_email: string | null;
   justification: string;
   status: ExpenseRequestStatus;
   denial_reason: string | null;
@@ -100,6 +102,30 @@ export type PopulatedIufbLineItemOption = Pick<
   IufbLineItem,
   "id" | "description" | "approved_amount" | "spent_amount"
 >;
+
+/** For the public expense request form — category/line-item names only, no
+ *  allocated-amount figures, since that page has no login and shouldn't leak
+ *  budget dollar amounts to anyone with the link. */
+export type PublicExpenseCategoryOption = {
+  value: ExpenseCategory;
+  label: string;
+};
+
+export type PublicIufbLineItemOption = {
+  id: string;
+  description: string;
+};
+
+export function buildPublicExpenseCategories(
+  rows: { category: string }[],
+): PublicExpenseCategoryOption[] {
+  return rows
+    .map((row) => ({
+      value: row.category as ExpenseCategory,
+      label: getExpenseCategoryLabel(row.category as ExpenseCategory),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
 
 export function buildPopulatedGeneralPoolCategories(
   budgets: Pick<Budget, "category" | "allocated_amount">[],
@@ -135,6 +161,22 @@ export function getIufbLineItemSummary(
   };
 }
 
+export function getExpenseRequesterLabel(
+  request: Pick<ExpenseRequest, "submitter_name" | "requester_member_id"> & {
+    requester?: { first_name: string; last_name: string } | null;
+  },
+) {
+  if (request.requester) {
+    return `${request.requester.first_name} ${request.requester.last_name}`;
+  }
+
+  if (request.submitter_name) {
+    return request.submitter_name;
+  }
+
+  return "Unknown member";
+}
+
 export function getExpenseRequestFundingLabel(
   request: Pick<ExpenseRequest, "category" | "iufb_line_item_id"> & {
     iufb_line_item?: Pick<IufbLineItem, "description"> | null;
@@ -151,20 +193,27 @@ export function getExpenseRequestFundingLabel(
   return "Unknown category";
 }
 
+export type CategoryReimbursement = { category: string; amount: number | string };
+
 export function getCategoryBudgetSummary(
   category: ExpenseCategory,
   budgets: Pick<Budget, "category" | "allocated_amount">[],
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[],
+  paidReimbursements: CategoryReimbursement[] = [],
 ) {
   const allocated =
     Number(
       budgets.find((budget) => budget.category === category)?.allocated_amount,
     ) || 0;
-  const spent = approvedRequests
+  const spentOnExpenses = approvedRequests
     .filter(
       (request) => request.category === category && !request.iufb_line_item_id,
     )
     .reduce((sum, request) => sum + Number(request.amount), 0);
+  const spentOnReimbursements = paidReimbursements
+    .filter((reimbursement) => reimbursement.category === category)
+    .reduce((sum, reimbursement) => sum + Number(reimbursement.amount), 0);
+  const spent = spentOnExpenses + spentOnReimbursements;
 
   return {
     allocated,
@@ -185,6 +234,26 @@ export function sumApprovedExpenses(
   requests: Pick<ExpenseRequest, "amount">[],
 ) {
   return requests.reduce((sum, request) => sum + Number(request.amount), 0);
+}
+
+export function sumAmounts(items: { amount: number | string }[]) {
+  return items.reduce((sum, item) => sum + Number(item.amount), 0);
+}
+
+/** Approved expenses charged to the general pool — excludes anything funded by an IUFB line item. */
+export function sumGeneralPoolApprovedExpenses(
+  requests: Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],
+) {
+  return requests
+    .filter((request) => !request.iufb_line_item_id)
+    .reduce((sum, request) => sum + Number(request.amount), 0);
+}
+
+/** Paid reimbursements always come out of the general pool — there is no IUFB reimbursement path. */
+export function sumPaidReimbursements(
+  reimbursements: { amount: number | string }[],
+) {
+  return reimbursements.reduce((sum, item) => sum + Number(item.amount), 0);
 }
 
 /** Income categories that feed the general pool (everything except IUFB). */
@@ -219,12 +288,14 @@ export function sumIufbIncome(
 export function buildCategoryBudgetRows(
   budgets: Pick<Budget, "category" | "allocated_amount">[],
   approvedRequests: Pick<ExpenseRequest, "category" | "amount" | "iufb_line_item_id">[] = [],
+  paidReimbursements: CategoryReimbursement[] = [],
 ) {
   return EXPENSE_CATEGORIES.map((category) => {
     const summary = getCategoryBudgetSummary(
       category.value,
       budgets,
       approvedRequests,
+      paidReimbursements,
     );
 
     return {

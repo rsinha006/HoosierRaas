@@ -12,11 +12,13 @@ import {
   type IncomeEntry,
 } from "@/lib/finance";
 import { getNextSeasonLabel } from "@/lib/season-label";
+import type { Season } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 export async function loadArchiveFinancePreview(
-  activeSeasonLabel: string,
+  activeSeason: Pick<Season, "label" | "starts_on" | "ends_on">,
 ): Promise<ArchiveFinancePreview> {
+  const activeSeasonLabel = activeSeason.label;
   const supabase = await createClient();
   const { start, end } = getSeasonDateRange(activeSeasonLabel);
   const { start: expenseStart, end: expenseEnd } =
@@ -25,20 +27,27 @@ export async function loadArchiveFinancePreview(
   const [
     { data: incomeData },
     { data: approvedExpenseData },
+    { data: paidReimbursementData },
     { count: budgetCount },
     { count: lineItemCount },
   ] = await Promise.all([
     supabase
       .from("income_entries")
-      .select("amount")
+      .select("amount, category")
       .gte("date_received", start)
       .lte("date_received", end),
     supabase
       .from("expense_requests")
-      .select("amount")
+      .select("amount, iufb_line_item_id")
       .eq("status", "approved")
       .gte("created_at", expenseStart)
       .lte("created_at", expenseEnd),
+    supabase
+      .from("reimbursements")
+      .select("amount")
+      .eq("status", "paid")
+      .gte("payment_timestamp", expenseStart)
+      .lte("payment_timestamp", expenseEnd),
     supabase
       .from("budgets")
       .select("*", { count: "exact", head: true })
@@ -50,15 +59,16 @@ export async function loadArchiveFinancePreview(
   ]);
 
   const endingBalance = computeSeasonEndingBalance(
-    (incomeData ?? []) as Pick<IncomeEntry, "amount">[],
-    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount">[],
+    (incomeData ?? []) as Pick<IncomeEntry, "amount" | "category">[],
+    (approvedExpenseData ?? []) as Pick<ExpenseRequest, "amount" | "iufb_line_item_id">[],
+    (paidReimbursementData ?? []) as { amount: number | string }[],
   );
 
   return {
     budgetCount: budgetCount ?? 0,
     lineItemCount: lineItemCount ?? 0,
     endingBalance,
-    nextSeasonLabel: getNextSeasonLabel(activeSeasonLabel),
+    nextSeasonLabel: getNextSeasonLabel(activeSeason.starts_on, activeSeason.ends_on),
   };
 }
 
@@ -99,6 +109,9 @@ export async function deleteMemberLoginsByEmail(
     const userId = profileIdByEmail.get(email);
 
     if (!userId) {
+      failures.push(
+        `${email}: no login account found with this exact email — if this member's login uses a different email, it was NOT deleted and still works. Delete it manually from the Users page if needed.`,
+      );
       continue;
     }
 

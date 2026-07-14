@@ -7,6 +7,7 @@ import { getActiveSeason } from "@/lib/seasons";
 import {
   isAssignableExecTitle,
   mergeExecRole,
+  NONE_ROLE_VALUE,
   splitFullName,
 } from "@/lib/users";
 
@@ -30,7 +31,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const execTitle = body.exec_title;
-  if (!execTitle || !isAssignableExecTitle(execTitle)) {
+  const isRevoke = execTitle === NONE_ROLE_VALUE;
+  if (!execTitle || (!isRevoke && !isAssignableExecTitle(execTitle))) {
     return NextResponse.json({ error: "A valid role is required." }, { status: 400 });
   }
 
@@ -59,19 +61,26 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
+  if (isRevoke && !existingMember) {
+    // Nothing to revoke — this profile never had a member record or access.
+    return NextResponse.json({ success: true });
+  }
+
   let memberId = existingMember?.id ?? null;
 
   if (existingMember) {
-    const { error: updateError } = await supabase
-      .from("members")
-      .update({
-        roles: mergeExecRole(Array.isArray(existingMember.roles) ? existingMember.roles : []),
-        pending_review: false,
-      })
-      .eq("id", existingMember.id);
+    if (!isRevoke) {
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({
+          roles: mergeExecRole(Array.isArray(existingMember.roles) ? existingMember.roles : []),
+          pending_review: false,
+        })
+        .eq("id", existingMember.id);
 
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
     }
   } else {
     const { firstName, lastName } = splitFullName(profile.full_name);
@@ -122,7 +131,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       member_id: memberId,
       season: activeSeason,
       status: existingMembership?.status ?? "active",
-      exec_title: execTitle,
+      exec_title: isRevoke ? null : execTitle,
     },
     { onConflict: "member_id,season" },
   );
@@ -131,7 +140,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: membershipError.message }, { status: 500 });
   }
 
-  const roleLabel = formatExecTitle(execTitle) ?? "Executive Board";
+  const roleLabel = isRevoke ? "No access" : (formatExecTitle(execTitle) ?? "Executive Board");
   const { error: profileUpdateError } = await supabase
     .from("profiles")
     .update({ role: roleLabel })

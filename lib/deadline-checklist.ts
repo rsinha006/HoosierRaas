@@ -15,6 +15,8 @@ export function isOverdue(deadline: DeadlineRow, today = new Date()) {
   return dayDiff(today, due) < 0;
 }
 
+/** Due within 48 hours. due_date has no time component, so this is measured in
+ *  whole days — due today, tomorrow, or the day after counts as "due soon." */
 export function isDueSoon(deadline: DeadlineRow, today = new Date()) {
   if (deadline.status === "complete" || !deadline.due_date) {
     return false;
@@ -22,7 +24,17 @@ export function isDueSoon(deadline: DeadlineRow, today = new Date()) {
 
   const due = new Date(`${deadline.due_date}T00:00:00`);
   const daysUntilDue = dayDiff(today, due);
-  return daysUntilDue >= 0 && daysUntilDue <= 7;
+  return daysUntilDue >= 0 && daysUntilDue <= 2;
+}
+
+/** A hard-cutoff deadline can't be marked complete once its due date has passed —
+ *  the requirement it represents (e.g. a registration window) is genuinely closed. */
+export function isBlockedByHardCutoff(deadline: DeadlineRow, today = new Date()) {
+  return (
+    deadline.is_hard_cutoff &&
+    deadline.status !== "complete" &&
+    isOverdue(deadline, today)
+  );
 }
 
 export function sortDeadlines(rows: DeadlineRow[]) {

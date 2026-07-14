@@ -1,10 +1,13 @@
 import Link from "next/link";
 import {
   formatAttendanceStatus,
+  formatAttendanceStatusForDisplay,
   formatResponseTimestamp,
   formatSessionTime,
   formatSessionType,
-  getAttendanceStatusStyle,
+  getAttendanceStatusStyleForDisplay,
+  getPracticeVideoStatusLabel,
+  isDisplayedAsNoResponse,
 } from "@/lib/attendance";
 import type { AttendanceRecordWithSession } from "@/lib/attendance-stats";
 
@@ -78,21 +81,23 @@ export default function DancerAttendanceHistory({
                 </td>
                 <td className="px-6 py-4 text-sm">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyle(record.attendance_status)}`}
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyleForDisplay(record.attendance_status, isDisplayedAsNoResponse(record.auto_flagged, record.overridden))}`}
                   >
-                    {formatAttendanceStatus(record.attendance_status)}
+                    {formatAttendanceStatusForDisplay(record.attendance_status, isDisplayedAsNoResponse(record.auto_flagged, record.overridden))}
                   </span>
-                  {record.auto_flagged ? (
-                    <p className="mt-1 text-xs text-zinc-500">Auto-flagged non-responder</p>
-                  ) : null}
                 </td>
                 <td className="px-6 py-4 text-sm text-zinc-700">
                   {formatResponseTimestamp(record.response_timestamp)}
                 </td>
                 <td className="max-w-sm px-6 py-4 text-sm text-zinc-700">
                   {record.excuse_text || "—"}
-                  {record.practice_video_excuse ? (
+                  {record.practice_video_status ? (
                     <p className="mt-2 text-xs text-zinc-500">
+                      Video: {getPracticeVideoStatusLabel(record.practice_video_status)}
+                    </p>
+                  ) : null}
+                  {record.practice_video_excuse ? (
+                    <p className="mt-1 text-xs text-zinc-500">
                       Video excuse: {record.practice_video_excuse}
                     </p>
                   ) : null}
@@ -132,9 +137,9 @@ export default function DancerAttendanceHistory({
                 </p>
               </div>
               <span
-                className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyle(record.attendance_status)}`}
+                className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${getAttendanceStatusStyleForDisplay(record.attendance_status, isDisplayedAsNoResponse(record.auto_flagged, record.overridden))}`}
               >
-                {formatAttendanceStatus(record.attendance_status)}
+                {formatAttendanceStatusForDisplay(record.attendance_status, isDisplayedAsNoResponse(record.auto_flagged, record.overridden))}
               </span>
             </div>
             <p className="text-sm text-zinc-700">
@@ -145,14 +150,17 @@ export default function DancerAttendanceHistory({
                 <span className="font-medium text-zinc-900">Excuse:</span> {record.excuse_text}
               </p>
             ) : null}
+            {record.practice_video_status ? (
+              <p className="text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">Video:</span>{" "}
+                {getPracticeVideoStatusLabel(record.practice_video_status)}
+              </p>
+            ) : null}
             {record.practice_video_excuse ? (
               <p className="text-sm text-zinc-700">
                 <span className="font-medium text-zinc-900">Video excuse:</span>{" "}
                 {record.practice_video_excuse}
               </p>
-            ) : null}
-            {record.auto_flagged ? (
-              <p className="text-xs text-zinc-500">Auto-flagged non-responder</p>
             ) : null}
             {record.overridden && record.original_attendance_status ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">

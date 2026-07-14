@@ -3,6 +3,11 @@ import { dayDiff, sortDeadlines } from "@/lib/deadline-checklist";
 
 const MAX_COMPETITIONS = 4;
 const MAX_DEADLINES_PER_COMPETITION = 4;
+/** "Pressing" means due soon (or recently overdue) — a deadline five months out
+ *  shouldn't crowd out one actually coming up just because nothing closer exists
+ *  yet, and a deadline seven months overdue has effectively gone stale rather
+ *  than staying "pressing" forever. */
+const PRESSING_WINDOW_DAYS = 30;
 
 type DeadlineWithCompetition = DeadlineRow & {
   competitions:
@@ -21,6 +26,15 @@ function getCompetition(
   return Array.isArray(competitions) ? (competitions[0] ?? null) : competitions;
 }
 
+function isWithinPressingWindow(deadline: DeadlineRow, today: Date) {
+  if (!deadline.due_date) {
+    return false;
+  }
+
+  const due = new Date(`${deadline.due_date}T00:00:00`);
+  return Math.abs(dayDiff(today, due)) <= PRESSING_WINDOW_DAYS;
+}
+
 function mostUrgentDueDate(deadlines: DeadlineRow[]) {
   const sorted = sortDeadlines(
     deadlines.filter((deadline) => deadline.status === "pending"),
@@ -34,7 +48,7 @@ function mostUrgentDueDate(deadlines: DeadlineRow[]) {
   return first.due_date;
 }
 
-function competitionUrgency(deadlines: DeadlineRow[]) {
+function competitionUrgency(deadlines: DeadlineRow[], today: Date) {
   const pending = deadlines.filter((deadline) => deadline.status === "pending");
   const sorted = sortDeadlines(pending);
   const first = sorted[0];
@@ -44,11 +58,12 @@ function competitionUrgency(deadlines: DeadlineRow[]) {
   }
 
   const due = new Date(`${first.due_date}T00:00:00`);
-  return dayDiff(new Date(), due);
+  return dayDiff(today, due);
 }
 
 export function buildPressingDeadlineGroups(
   rows: DeadlineWithCompetition[],
+  today = new Date(),
 ): PressingDeadlineGroup[] {
   const byCompetition = new Map<
     string,
@@ -57,7 +72,11 @@ export function buildPressingDeadlineGroups(
 
   for (const row of rows) {
     const competition = getCompetition(row.competitions);
-    if (row.status !== "pending" || !competition) {
+    if (
+      row.status !== "pending" ||
+      !competition ||
+      !isWithinPressingWindow(row, today)
+    ) {
       continue;
     }
 
@@ -76,7 +95,7 @@ export function buildPressingDeadlineGroups(
       competitionId,
       competitionName: name,
       deadlines: sortDeadlines(deadlines).slice(0, MAX_DEADLINES_PER_COMPETITION),
-      urgency: competitionUrgency(deadlines),
+      urgency: competitionUrgency(deadlines, today),
       sortKey: mostUrgentDueDate(deadlines),
     }))
     .sort((left, right) => {

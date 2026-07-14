@@ -23,6 +23,9 @@ export default function PacketReviewPageClient({
   const [formState, setFormState] = useState<PacketReviewFormState | null>(null);
 
   useEffect(() => {
+    // sessionStorage isn't available during SSR, so this genuinely needs an
+    // effect — the brief "Loading..." flash is an unavoidable consequence of
+    // that, not a sign of a real bug.
     const draft = loadPacketReviewDraft(competitionId);
     if (!draft) {
       router.replace(`/team-manager/competitions/${competitionId}`);

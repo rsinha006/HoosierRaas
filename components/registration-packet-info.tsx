@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { ExtractedPacketData } from "@/lib/packet-extraction-types";
 import {
-  buildPacketReviewFormState,
+  buildMergedPacketReviewFormState,
+  type ExistingContactRow,
+  type ExistingDeadlineRow,
+  type ExistingFeeRow,
   savePacketReviewDraft,
 } from "@/lib/packet-review";
 import {
@@ -141,10 +144,56 @@ export default function RegistrationPacketInfo({
         return;
       }
 
-      const reviewState = buildPacketReviewFormState(
+      const supabase = createClient();
+      const [
+        { data: competitionData },
+        { data: deadlinesData },
+        { data: feesData },
+        { data: contactsData },
+      ] = await Promise.all([
+        supabase
+          .from("competitions")
+          .select(
+            "roster_min, roster_max, per_person_registration_cost, min_performance_duration, max_performance_duration, mix_format, tech_rehearsal_required",
+          )
+          .eq("id", competitionId)
+          .maybeSingle(),
+        supabase
+          .from("deadlines")
+          .select("name, due_date, fine_amount, is_hard_cutoff")
+          .eq("competition_id", competitionId),
+        supabase
+          .from("fees")
+          .select("name, amount, is_per_person, is_refundable, due_date")
+          .eq("competition_id", competitionId),
+        supabase
+          .from("competition_contacts")
+          .select("name, role, email, phone")
+          .eq("competition_id", competitionId)
+          .order("sort_order", { ascending: true }),
+      ]);
+
+      const reviewState = buildMergedPacketReviewFormState(
         competitionId,
         competitionName,
         parsed.data,
+        {
+          deadlines: (deadlinesData ?? []) as ExistingDeadlineRow[],
+          fees: (feesData ?? []) as ExistingFeeRow[],
+          contacts: (contactsData ?? []) as ExistingContactRow[],
+          roster_rules: {
+            min_size: competitionData?.roster_min ?? null,
+            max_size: competitionData?.roster_max ?? null,
+            per_person_registration_cost:
+              competitionData?.per_person_registration_cost ?? null,
+          },
+          performance_rules: {
+            min_duration_minutes: competitionData?.min_performance_duration ?? null,
+            max_duration_minutes: competitionData?.max_performance_duration ?? null,
+            mix_format: competitionData?.mix_format ?? null,
+            tech_rehearsal_required: competitionData?.tech_rehearsal_required ?? null,
+          },
+        },
         parsed.warnings,
       );
       savePacketReviewDraft(reviewState);

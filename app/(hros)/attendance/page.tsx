@@ -26,14 +26,21 @@ type AttendancePageProps = {
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
   const params = await searchParams;
   const showCreated = params.created === "1";
-  const { label: season } = await getViewingSeason(params.season);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "attendance");
+  // Auto-flagging normally happens via a pg_cron schedule. Opportunistically call the
+  // same close function here too, so a dashboard visit closes any expired sessions
+  // even if the cron job didn't run — cheap and safe to call repeatedly.
+  await supabase.rpc("close_expired_practice_sessions");
+
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "attendance") && viewingSeason.is_active;
 
   const [
     { data: sessionData, error: sessionError },

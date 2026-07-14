@@ -19,6 +19,10 @@ export const ATTENDANCE_STATUSES = [
 
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 
+export const PRACTICE_VIDEO_STATUSES = ["on_time", "late", "missing"] as const;
+
+export type PracticeVideoStatus = (typeof PRACTICE_VIDEO_STATUSES)[number];
+
 export type PracticeSession = {
   id: string;
   created_at: string;
@@ -46,7 +50,7 @@ export type AttendanceRecord = {
   overridden: boolean;
   override_reason: string | null;
   original_attendance_status: AttendanceStatus | null;
-  practice_video_submitted: boolean | null;
+  practice_video_status: PracticeVideoStatus | null;
   practice_video_excuse: string | null;
   auto_flagged: boolean;
 };
@@ -99,6 +103,29 @@ export function getAttendanceStatusStyle(status: AttendanceStatus) {
   return ATTENDANCE_STATUS_STYLES[status];
 }
 
+/** There's no distinct "no response" status in the database — a no-show gets
+ *  stored as absent_unexcused with auto_flagged=true, which is correct for
+ *  contract scoring (a no-show should count against the limit) but looks
+ *  identical to a dancer who explicitly said "I didn't attend, no excuse."
+ *  Overriding doesn't clear auto_flagged, so also check overridden. */
+export function isDisplayedAsNoResponse(autoFlagged: boolean, overridden: boolean) {
+  return autoFlagged && !overridden;
+}
+
+export function formatAttendanceStatusForDisplay(
+  status: AttendanceStatus,
+  isNoResponse: boolean,
+) {
+  return isNoResponse ? "No Response" : formatAttendanceStatus(status);
+}
+
+export function getAttendanceStatusStyleForDisplay(
+  status: AttendanceStatus,
+  isNoResponse: boolean,
+) {
+  return isNoResponse ? "bg-zinc-200 text-zinc-700" : getAttendanceStatusStyle(status);
+}
+
 export function formatResponseTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -140,6 +167,19 @@ export function requiresExcuseForChoice(choice: AttendanceChoice) {
 export function isVideoDeadlineDay(date: Date = new Date()) {
   const day = date.getDay();
   return day === 0 || day === 4;
+}
+
+export function getPracticeVideoStatusLabel(status: PracticeVideoStatus | null) {
+  switch (status) {
+    case "on_time":
+      return "Submitted on time";
+    case "late":
+      return "Submitted late";
+    case "missing":
+      return "Missing";
+    default:
+      return "—";
+  }
 }
 
 export function mapAttendanceChoiceToStatus(

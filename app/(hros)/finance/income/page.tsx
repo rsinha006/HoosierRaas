@@ -7,8 +7,9 @@ import {
   sumIncomeByCategory,
   type IncomeEntry,
 } from "@/lib/finance";
+import { formatMemberName } from "@/lib/members";
 import { hasWriteAccess } from "@/lib/rbac";
-import { getActiveSeason, getViewingSeason } from "@/lib/seasons";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type FinanceIncomePageProps = {
@@ -19,10 +20,8 @@ export default async function FinanceIncomePage({
   searchParams,
 }: FinanceIncomePageProps) {
   const params = await searchParams;
-  const [{ label: season }, { label: activeSeason }] = await Promise.all([
-    getViewingSeason(params.season),
-    getActiveSeason(),
-  ]);
+  const viewingSeason = await getViewingSeason(params.season);
+  const season = viewingSeason.label;
   const { start, end } = getSeasonDateRange(season);
 
   const [supabase, userMember] = await Promise.all([
@@ -30,7 +29,8 @@ export default async function FinanceIncomePage({
     getUserMember(),
   ]);
 
-  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "finance");
+  const canWrite =
+    hasWriteAccess(userMember?.exec_title ?? null, "finance") && viewingSeason.is_active;
 
   const [
     { data: incomeData, error: incomeError },
@@ -38,29 +38,48 @@ export default async function FinanceIncomePage({
   ] = await Promise.all([
     supabase
       .from("income_entries")
-      .select("amount, category")
+      .select("amount, category, member_id")
       .gte("date_received", start)
       .lte("date_received", end),
-    canWrite
-      ? supabase
-          .from("members")
-          .select("id, first_name, last_name")
-          .eq("status", "active")
-          .eq("pending_review", false)
-          .order("last_name", { ascending: true })
-          .order("first_name", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("members")
+      .select("id, first_name, last_name")
+      .eq("status", "active")
+      .eq("pending_review", false)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true }),
   ]);
 
   const incomeEntries = (incomeData ?? []) as Pick<
     IncomeEntry,
-    "amount" | "category"
+    "amount" | "category" | "member_id"
   >[];
   const totalIncome = incomeEntries.reduce(
     (sum, entry) => sum + Number(entry.amount),
     0,
   );
   const categoryBreakdown = sumIncomeByCategory(incomeEntries);
+
+  const activeMembers = (membersData ?? []) as {
+    id: string;
+    first_name: string;
+    last_name: string;
+  }[];
+  const duesPaidByMember = new Map<string, number>();
+  for (const entry of incomeEntries) {
+    if (entry.category !== "dues" || !entry.member_id) {
+      continue;
+    }
+    duesPaidByMember.set(
+      entry.member_id,
+      (duesPaidByMember.get(entry.member_id) ?? 0) + Number(entry.amount),
+    );
+  }
+  const duesStatusRows = activeMembers.map((member) => ({
+    member,
+    paid: duesPaidByMember.get(member.id) ?? 0,
+    hasPaid: duesPaidByMember.has(member.id),
+  }));
 
   return (
     <div className="space-y-6">
@@ -134,6 +153,56 @@ export default async function FinanceIncomePage({
               </table>
             </div>
           </section>
+
+          <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Dues Status</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Who&apos;s paid dues for {season}, based on dues income linked to a member.
+            </p>
+
+            {membersError ? (
+              <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Could not load members: {membersError.message}
+              </div>
+            ) : duesStatusRows.length === 0 ? (
+              <p className="mt-6 text-sm text-zinc-500">No active members on the roster yet.</p>
+            ) : (
+              <div className="mt-6 overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-zinc-500">
+                      <th className="px-3 py-3 font-medium">Member</th>
+                      <th className="px-3 py-3 font-medium">Status</th>
+                      <th className="px-3 py-3 font-medium text-right">Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {duesStatusRows.map((row) => (
+                      <tr key={row.member.id} className="border-b border-zinc-100">
+                        <td className="px-3 py-3 text-zinc-900">
+                          {formatMemberName(row.member)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              row.hasPaid
+                                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                                : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                            }`}
+                          >
+                            {row.hasPaid ? "Paid" : "Not paid"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right font-medium text-zinc-900">
+                          {formatCurrency(row.paid)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </>
       )}
 
@@ -150,7 +219,7 @@ export default async function FinanceIncomePage({
             </div>
           ) : (
             <div className="mt-6">
-              <AddIncomeForm activeMembers={membersData ?? []} season={activeSeason} />
+              <AddIncomeForm activeMembers={activeMembers} season={season} />
             </div>
           )}
         </section>

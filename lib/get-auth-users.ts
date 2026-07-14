@@ -20,7 +20,7 @@ export async function listAuthUsersForPage(): Promise<ListAuthUsersResult> {
 
   const { data: members, error: membersError } = await supabase
     .from("members")
-    .select("id, email, roles");
+    .select("id, email, roles, first_name, last_name");
 
   if (membersError) {
     return { users: [], error: membersError.message, warning: null };
