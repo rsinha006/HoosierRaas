@@ -12,7 +12,15 @@ const migration = readFileSync(
 
 const syncMigration = readFileSync(
   new URL(
-    "../supabase/migrations/20260704000000_sync_iufb_spent_amount.sql",
+    "../supabase/migrations/20260704000001_sync_iufb_spent_amount.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+const iufbDeleteGuardMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20260718200000_prevent_iufb_line_item_delete_with_expenses.sql",
     import.meta.url,
   ),
   "utf8",
@@ -79,6 +87,17 @@ test("latest approval RPC definition leaves IUFB accounting to the trigger", () 
   assert.match(
     latestApprovalFunction,
     /grant execute on function public\.approve_expense_request\(uuid, uuid\) to authenticated/,
+  );
+});
+
+test("IUFB line items with linked expenses cannot be deleted", () => {
+  assert.match(
+    iufbDeleteGuardMigration,
+    /create or replace function public\.block_iufb_line_item_delete_with_expenses\(\)[\s\S]*?from public\.expense_requests[\s\S]*?where iufb_line_item_id = old\.id[\s\S]*?raise exception 'Cannot delete an IUFB line item while expense requests are linked to it\.'/,
+  );
+  assert.match(
+    iufbDeleteGuardMigration,
+    /create trigger iufb_line_items_block_delete_with_expenses[\s\S]*?before delete on public\.iufb_line_items[\s\S]*?execute function public\.block_iufb_line_item_delete_with_expenses\(\)/,
   );
 });
 
