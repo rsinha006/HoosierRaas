@@ -1,20 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Buffer } from "node:buffer";
-import ts from "typescript";
 
 const onboardingModuleUrl = new URL("../lib/onboarding.ts", import.meta.url);
 const onboardingSource = readFileSync(onboardingModuleUrl, "utf8");
-const transpiledOnboarding = ts.transpileModule(onboardingSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.ESNext,
-    target: ts.ScriptTarget.ES2020,
-  },
-  fileName: onboardingModuleUrl.pathname,
-}).outputText;
+const mergeFunctionMatch = onboardingSource.match(
+  /export function mergeOnboardingRoles\([\s\S]*?\n\}/,
+);
+assert.ok(mergeFunctionMatch);
+
+const mergeFunctionSource = mergeFunctionMatch[0].replace(
+  /export function mergeOnboardingRoles\([\s\S]*?\) \{/,
+  "export function mergeOnboardingRoles(existingRoles, onboardingRoles) {",
+);
 const { mergeOnboardingRoles } = await import(
-  `data:text/javascript;base64,${Buffer.from(transpiledOnboarding).toString("base64")}`
+  `data:text/javascript,${encodeURIComponent(mergeFunctionSource)}`
 );
 
 test("mergeOnboardingRoles keeps non-dancer roles and applies onboarding roles", () => {
