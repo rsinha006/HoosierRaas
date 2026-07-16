@@ -87,8 +87,11 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
 
   const exactDeadlineMatches = new Map<string, ExistingDeadline[]>();
   const deadlinesByName = new Map<string, ExistingDeadline[]>();
+  const deadlinesById = new Map<string, ExistingDeadline>();
 
   for (const deadline of (existingDeadlines ?? []) as ExistingDeadline[]) {
+    deadlinesById.set(deadline.id, deadline);
+
     const exactKey = deadlineExactKey(deadline.name, deadline.due_date);
     const exactCandidates = exactDeadlineMatches.get(exactKey) ?? [];
     exactCandidates.push(deadline);
@@ -118,12 +121,20 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
         fine_amount: parseOptionalNumber(deadline.fine_amount),
         is_hard_cutoff: deadline.is_hard_cutoff,
       };
-      const existingDeadline = takeDeadlineMatch(
-        reviewedDeadline,
-        exactDeadlineMatches,
-        uniqueDeadlineNameMatches,
-        usedDeadlineIds,
-      );
+      const existingDeadlineById = deadlinesById.get(deadline.id);
+      let existingDeadline: ExistingDeadline | null = null;
+
+      if (existingDeadlineById && !usedDeadlineIds.has(existingDeadlineById.id)) {
+        usedDeadlineIds.add(existingDeadlineById.id);
+        existingDeadline = existingDeadlineById;
+      } else {
+        existingDeadline = takeDeadlineMatch(
+          reviewedDeadline,
+          exactDeadlineMatches,
+          uniqueDeadlineNameMatches,
+          usedDeadlineIds,
+        );
+      }
 
       return {
         id: existingDeadline?.id ?? null,

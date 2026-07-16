@@ -160,7 +160,7 @@ export default function RegistrationPacketInfo({
           .maybeSingle(),
         supabase
           .from("deadlines")
-          .select("name, due_date, fine_amount, is_hard_cutoff")
+          .select("id, name, due_date, fine_amount, is_hard_cutoff")
           .eq("competition_id", competitionId),
         supabase
           .from("fees")

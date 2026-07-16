@@ -153,6 +153,7 @@ function createContactRow(contact: ExtractedContact): ReviewContactRow {
 
 
 export type ExistingDeadlineRow = {
+  id: string;
   name: string;
   due_date: string | null;
   fine_amount: number | null;
@@ -208,7 +209,7 @@ function mergeDeadlines(
   extracted: ExtractedDeadline[],
 ): ReviewDeadlineRow[] {
   const existingRows = existing.map((deadline) => ({
-    id: createId(),
+    id: deadline.id,
     name: deadline.name,
     due_date: deadline.due_date ?? "",
     fine_amount:
