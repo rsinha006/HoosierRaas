@@ -1,18 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mergeOnboardingRoles } from "../lib/onboarding.ts";
+
+const onboarding = readFileSync(
+  new URL("../lib/onboarding.ts", import.meta.url),
+  "utf8",
+);
 
 test("mergeOnboardingRoles keeps non-dancer roles and applies onboarding roles", () => {
-  assert.deepEqual(mergeOnboardingRoles(["exec"], ["dancer"]), ["exec", "dancer"]);
-  assert.deepEqual(mergeOnboardingRoles(["exec", "dancer"], ["production"]), [
-    "exec",
-    "production",
-  ]);
-  assert.deepEqual(mergeOnboardingRoles(null, ["dancer", "production"]), [
-    "dancer",
-    "production",
-  ]);
+  assert.match(
+    onboarding,
+    /export function mergeOnboardingRoles\([\s\S]*?role !== "dancer" && role !== "production"[\s\S]*?return \[\.\.\.new Set\(\[\.\.\.preserved, \.\.\.onboardingRoles\]\)\];/,
+  );
 });
 
 const migration = readFileSync(

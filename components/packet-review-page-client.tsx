@@ -1,14 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PacketExtractionReviewForm from "@/components/packet-extraction-review-form";
 import {
   clearPacketReviewDraft,
   loadPacketReviewDraft,
+  PACKET_REVIEW_STORAGE_KEY,
   type PacketReviewFormState,
 } from "@/lib/packet-review";
+
+let cachedDraftCompetitionId: string | null = null;
+let cachedDraftRaw: string | null = null;
+let cachedDraft: PacketReviewFormState | null = null;
+
+function subscribeToPacketReviewDraft() {
+  return () => {};
+}
+
+function getServerPacketReviewDraftSnapshot() {
+  return null;
+}
+
+function getPacketReviewDraftSnapshot(competitionId: string) {
+  const rawDraft = sessionStorage.getItem(PACKET_REVIEW_STORAGE_KEY);
+
+  if (cachedDraftCompetitionId !== competitionId || cachedDraftRaw !== rawDraft) {
+    cachedDraftCompetitionId = competitionId;
+    cachedDraftRaw = rawDraft;
+    cachedDraft = loadPacketReviewDraft(competitionId);
+  }
+
+  return cachedDraft;
+}
 
 type PacketReviewPageClientProps = {
   competitionId: string;
@@ -20,20 +45,21 @@ export default function PacketReviewPageClient({
   competitionName,
 }: PacketReviewPageClientProps) {
   const router = useRouter();
-  const [formState, setFormState] = useState<PacketReviewFormState | null>(null);
+  const getSnapshot = useCallback(
+    () => getPacketReviewDraftSnapshot(competitionId),
+    [competitionId],
+  );
+  const formState = useSyncExternalStore(
+    subscribeToPacketReviewDraft,
+    getSnapshot,
+    getServerPacketReviewDraftSnapshot,
+  );
 
   useEffect(() => {
-    // sessionStorage isn't available during SSR, so this genuinely needs an
-    // effect — the brief "Loading..." flash is an unavoidable consequence of
-    // that, not a sign of a real bug.
-    const draft = loadPacketReviewDraft(competitionId);
-    if (!draft) {
+    if (!formState) {
       router.replace(`/team-manager/competitions/${competitionId}`);
-      return;
     }
-
-    setFormState(draft);
-  }, [competitionId, router]);
+  }, [competitionId, formState, router]);
 
   if (!formState) {
     return (
