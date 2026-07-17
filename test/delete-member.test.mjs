@@ -18,15 +18,15 @@ function loadDeleteMemberAccount() {
     },
   });
 
-  const module = { exports: {} };
+  const testModule = { exports: {} };
   const context = vm.createContext({
-    exports: module.exports,
-    module,
+    exports: testModule.exports,
+    module: testModule,
   });
 
   vm.runInContext(outputText, context);
 
-  return module.exports.deleteMemberAccount;
+  return testModule.exports.deleteMemberAccount;
 }
 
 function createAdminMock({
