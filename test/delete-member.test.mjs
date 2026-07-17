@@ -108,11 +108,13 @@ test("deleteMemberAccount removes preloaded documents after a successful databas
   const { admin, calls } = createAdminMock({ member: memberWithDocuments });
 
   const result = await deleteMemberAccount(admin, memberWithDocuments.id);
+  const removeCall = calls.find(([name]) => name === "storage.remove");
 
   assert.equal(result.error, null);
-  assert.deepEqual(calls.find(([name]) => name === "storage.remove"), [
-    "storage.remove",
-    ["member-1/government-id.pdf", "member-1/student-id.png"],
+  assert.equal(removeCall?.[0], "storage.remove");
+  assert.deepEqual(Array.from(removeCall?.[1] ?? []), [
+    "member-1/government-id.pdf",
+    "member-1/student-id.png",
   ]);
   assert.ok(
     calls.findIndex(([name]) => name === "rpc") <
