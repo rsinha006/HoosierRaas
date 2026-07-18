@@ -8,7 +8,6 @@ import {
   ONBOARDING_STORAGE_BUCKET,
   getGraduationYearOptions,
   isValidIuEmail,
-  mergeOnboardingRoles,
   normalizeOptionalText,
   validateUploadFile,
   type ClothingSize,
@@ -219,6 +218,20 @@ export default function DancerOnboardingForm() {
       const normalizedEmail = email.trim().toLowerCase();
       const emailPrefix = normalizedEmail.replace(/[^a-z0-9]/g, "_");
 
+      const { data: existingMemberRows, error: existingMemberError } =
+        await supabase.rpc("get_onboarding_member_status", {
+          p_email: normalizedEmail,
+        });
+
+      if (existingMemberError) {
+        throw new Error(existingMemberError.message);
+      }
+
+      if (existingMemberRows?.[0]) {
+        setView("duplicate");
+        return;
+      }
+
       const uploadedPaths: Partial<Record<OnboardingFileField, string>> = {};
 
       for (const field of fileFields) {
@@ -256,75 +269,15 @@ export default function DancerOnboardingForm() {
         emergency_contact_phone: formatPhoneForStorage(emergencyContactPhone),
       };
 
-      const { data: existingMemberRows, error: existingMemberError } =
-        await supabase.rpc("get_onboarding_member_status", {
-          p_email: normalizedEmail,
-        });
+      const { error } = await supabase.from("members").insert(memberPayload);
 
-      if (existingMemberError) {
-        throw new Error(existingMemberError.message);
-      }
-
-      const existingMember = existingMemberRows?.[0] ?? null;
-
-      if (existingMember && !existingMember.pending_review) {
-        setView("duplicate");
-        return;
-      }
-
-      if (existingMember) {
-        const { error } = await supabase
-          .from("members")
-          .update({
-            ...memberPayload,
-            roles: mergeOnboardingRoles(existingMember.roles, roles),
-          })
-          .eq("id", existingMember.id);
-
-        if (error) {
-          throw new Error(error.message);
+      if (error) {
+        if (error.code === "23505") {
+          setView("duplicate");
+          return;
         }
-      } else {
-        const { error } = await supabase.from("members").insert(memberPayload);
 
-        if (error) {
-          if (error.code === "23505") {
-            const { data: racedMemberRows, error: racedMemberError } =
-              await supabase.rpc("get_onboarding_member_status", {
-                p_email: normalizedEmail,
-              });
-
-            if (racedMemberError) {
-              throw new Error(racedMemberError.message);
-            }
-
-            const racedMember = racedMemberRows?.[0] ?? null;
-
-            if (racedMember && !racedMember.pending_review) {
-              setView("duplicate");
-              return;
-            }
-
-            if (racedMember) {
-              const { error: updateError } = await supabase
-                .from("members")
-                .update({
-                  ...memberPayload,
-                  roles: mergeOnboardingRoles(racedMember.roles, roles),
-                })
-                .eq("id", racedMember.id);
-
-              if (updateError) {
-                throw new Error(updateError.message);
-              }
-            } else {
-              setView("duplicate");
-              return;
-            }
-          } else {
-            throw new Error(error.message);
-          }
-        }
+        throw new Error(error.message);
       }
 
       setView("success");
