@@ -37,17 +37,6 @@ export function normalizeOptionalText(value: string, fallback = "None") {
   return trimmed || fallback;
 }
 
-export function mergeOnboardingRoles(
-  existingRoles: string[] | null | undefined,
-  onboardingRoles: OnboardingRole[],
-) {
-  const preserved = (Array.isArray(existingRoles) ? existingRoles : []).filter(
-    (role) => role !== "dancer" && role !== "production",
-  );
-
-  return [...new Set([...preserved, ...onboardingRoles])];
-}
-
 export function validateUploadFile(
   file: File | null,
   options?: { required?: boolean },

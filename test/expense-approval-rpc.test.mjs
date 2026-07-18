@@ -12,7 +12,7 @@ const migration = readFileSync(
 
 const syncMigration = readFileSync(
   new URL(
-    "../supabase/migrations/20260704000000_sync_iufb_spent_amount.sql",
+    "../supabase/migrations/20260704000001_sync_iufb_spent_amount.sql",
     import.meta.url,
   ),
   "utf8",
