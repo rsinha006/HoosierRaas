@@ -46,6 +46,10 @@ function deadlineExactKey(name: string, dueDate: string | null) {
   return `${normalizeDeadlineName(name)}::${dueDate ?? ""}`;
 }
 
+function snapshotIds(ids: string[] | undefined) {
+  return Array.isArray(ids) ? ids : [];
+}
+
 function takeDeadlineMatch(
   reviewed: { name: string; due_date: string | null },
   exactMatches: Map<string, ExistingDeadline[]>,
@@ -87,8 +91,11 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
 
   const exactDeadlineMatches = new Map<string, ExistingDeadline[]>();
   const deadlinesByName = new Map<string, ExistingDeadline[]>();
+  const deadlinesById = new Map<string, ExistingDeadline>();
 
   for (const deadline of (existingDeadlines ?? []) as ExistingDeadline[]) {
+    deadlinesById.set(deadline.id, deadline);
+
     const exactKey = deadlineExactKey(deadline.name, deadline.due_date);
     const exactCandidates = exactDeadlineMatches.get(exactKey) ?? [];
     exactCandidates.push(deadline);
@@ -108,9 +115,11 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
   }
 
   const usedDeadlineIds = new Set<string>();
+  const useLegacyDeadlineMatching = !state.rowSnapshot;
   const deadlinesToSave = state.deadlines
     .filter((deadline) => deadline.name.trim())
     .map((deadline) => {
+      const databaseId = deadline.databaseId ?? null;
       const reviewedDeadline = {
         competition_id: state.competitionId,
         name: deadline.name.trim(),
@@ -118,15 +127,19 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
         fine_amount: parseOptionalNumber(deadline.fine_amount),
         is_hard_cutoff: deadline.is_hard_cutoff,
       };
-      const existingDeadline = takeDeadlineMatch(
-        reviewedDeadline,
-        exactDeadlineMatches,
-        uniqueDeadlineNameMatches,
-        usedDeadlineIds,
-      );
+      const existingDeadline = databaseId
+        ? deadlinesById.get(databaseId) ?? null
+        : useLegacyDeadlineMatching
+          ? takeDeadlineMatch(
+              reviewedDeadline,
+              exactDeadlineMatches,
+              uniqueDeadlineNameMatches,
+              usedDeadlineIds,
+            )
+          : null;
 
       return {
-        id: existingDeadline?.id ?? null,
+        id: databaseId ?? existingDeadline?.id ?? null,
         name: reviewedDeadline.name,
         due_date: reviewedDeadline.due_date,
         fine_amount: reviewedDeadline.fine_amount,
@@ -139,6 +152,7 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
   const feesToSave = state.fees
     .filter((fee) => fee.name.trim())
     .map((fee) => ({
+      id: fee.databaseId ?? null,
       name: fee.name.trim(),
       amount: parseOptionalNumber(fee.amount) ?? 0,
       is_per_person: fee.is_per_person,
@@ -149,6 +163,7 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
   const contactsToSave = state.contacts
     .filter((contact) => contact.name.trim())
     .map((contact, index) => ({
+      id: contact.databaseId ?? null,
       name: contact.name.trim(),
       role: contact.role.trim() || null,
       email: contact.email.trim() || null,
@@ -174,6 +189,9 @@ export async function saveCompetitionPacketData(state: PacketReviewFormState) {
     p_deadlines: deadlinesToSave,
     p_fees: feesToSave,
     p_contacts: contactsToSave,
+    p_known_deadline_ids: snapshotIds(state.rowSnapshot?.deadlineIds),
+    p_known_fee_ids: snapshotIds(state.rowSnapshot?.feeIds),
+    p_known_contact_ids: snapshotIds(state.rowSnapshot?.contactIds),
   });
 
   if (saveError) {

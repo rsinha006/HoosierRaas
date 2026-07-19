@@ -160,15 +160,15 @@ export default function RegistrationPacketInfo({
           .maybeSingle(),
         supabase
           .from("deadlines")
-          .select("name, due_date, fine_amount, is_hard_cutoff")
+          .select("id, name, due_date, fine_amount, is_hard_cutoff")
           .eq("competition_id", competitionId),
         supabase
           .from("fees")
-          .select("name, amount, is_per_person, is_refundable, due_date")
+          .select("id, name, amount, is_per_person, is_refundable, due_date")
           .eq("competition_id", competitionId),
         supabase
           .from("competition_contacts")
-          .select("name, role, email, phone")
+          .select("id, name, role, email, phone")
           .eq("competition_id", competitionId)
           .order("sort_order", { ascending: true }),
       ]);
