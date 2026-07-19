@@ -11,6 +11,7 @@ export type AiFieldFlags<T extends string> = Partial<Record<T, boolean>>;
 
 export type ReviewDeadlineRow = {
   id: string;
+  databaseId?: string | null;
   name: string;
   due_date: string;
   fine_amount: string;
@@ -22,6 +23,7 @@ export type ReviewDeadlineRow = {
 
 export type ReviewFeeRow = {
   id: string;
+  databaseId?: string | null;
   name: string;
   amount: string;
   is_per_person: boolean;
@@ -34,6 +36,7 @@ export type ReviewFeeRow = {
 
 export type ReviewContactRow = {
   id: string;
+  databaseId?: string | null;
   name: string;
   role: string;
   email: string;
@@ -67,6 +70,11 @@ export type PacketReviewFormState = {
   competitionId: string;
   competitionName: string;
   extractionWarnings?: string[];
+  rowSnapshot?: {
+    deadlineIds: string[];
+    feeIds: string[];
+    contactIds: string[];
+  };
   deadlines: ReviewDeadlineRow[];
   fees: ReviewFeeRow[];
   contacts: ReviewContactRow[];
@@ -153,6 +161,7 @@ function createContactRow(contact: ExtractedContact): ReviewContactRow {
 
 
 export type ExistingDeadlineRow = {
+  id?: string;
   name: string;
   due_date: string | null;
   fine_amount: number | null;
@@ -160,6 +169,7 @@ export type ExistingDeadlineRow = {
 };
 
 export type ExistingFeeRow = {
+  id?: string;
   name: string;
   amount: number;
   is_per_person: boolean;
@@ -168,6 +178,7 @@ export type ExistingFeeRow = {
 };
 
 export type ExistingContactRow = {
+  id?: string;
   name: string;
   role: string | null;
   email: string | null;
@@ -208,7 +219,8 @@ function mergeDeadlines(
   extracted: ExtractedDeadline[],
 ): ReviewDeadlineRow[] {
   const existingRows = existing.map((deadline) => ({
-    id: createId(),
+    id: deadline.id ?? createId(),
+    databaseId: deadline.id ?? null,
     name: deadline.name,
     due_date: deadline.due_date ?? "",
     fine_amount:
@@ -237,7 +249,8 @@ function mergeFees(
   extracted: ExtractedFee[],
 ): ReviewFeeRow[] {
   const existingRows = existing.map((fee) => ({
-    id: createId(),
+    id: fee.id ?? createId(),
+    databaseId: fee.id ?? null,
     name: fee.name,
     amount: String(fee.amount),
     is_per_person: fee.is_per_person,
@@ -266,7 +279,8 @@ function mergeContacts(
   extracted: ExtractedContact[],
 ): ReviewContactRow[] {
   const existingRows = existing.map((contact) => ({
-    id: createId(),
+    id: contact.id ?? createId(),
+    databaseId: contact.id ?? null,
     name: contact.name,
     role: contact.role ?? "",
     email: contact.email ?? "",
@@ -357,6 +371,17 @@ export function buildMergedPacketReviewFormState(
     competitionId,
     competitionName,
     extractionWarnings,
+    rowSnapshot: {
+      deadlineIds: existing.deadlines
+        .map((deadline) => deadline.id)
+        .filter((id): id is string => Boolean(id)),
+      feeIds: existing.fees
+        .map((fee) => fee.id)
+        .filter((id): id is string => Boolean(id)),
+      contactIds: existing.contacts
+        .map((contact) => contact.id)
+        .filter((id): id is string => Boolean(id)),
+    },
     deadlines: mergeDeadlines(existing.deadlines, extracted.deadlines),
     fees: mergeFees(existing.fees, extracted.fees),
     contacts: mergeContacts(existing.contacts, extracted.contacts),
@@ -371,6 +396,7 @@ export function buildMergedPacketReviewFormState(
 export function createEmptyDeadlineRow(): ReviewDeadlineRow {
   return {
     id: createId(),
+    databaseId: null,
     name: "",
     due_date: "",
     fine_amount: "",
@@ -382,6 +408,7 @@ export function createEmptyDeadlineRow(): ReviewDeadlineRow {
 export function createEmptyFeeRow(): ReviewFeeRow {
   return {
     id: createId(),
+    databaseId: null,
     name: "",
     amount: "",
     is_per_person: false,
@@ -394,6 +421,7 @@ export function createEmptyFeeRow(): ReviewFeeRow {
 export function createEmptyContactRow(): ReviewContactRow {
   return {
     id: createId(),
+    databaseId: null,
     name: "",
     role: "",
     email: "",

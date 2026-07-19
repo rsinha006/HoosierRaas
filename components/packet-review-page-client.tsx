@@ -23,6 +23,7 @@ export default function PacketReviewPageClient({
   const [formState, setFormState] = useState<PacketReviewFormState | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     // sessionStorage isn't available during SSR, so this genuinely needs an
     // effect — the brief "Loading..." flash is an unavoidable consequence of
     // that, not a sign of a real bug.
@@ -32,7 +33,15 @@ export default function PacketReviewPageClient({
       return;
     }
 
-    setFormState(draft);
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setFormState(draft);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [competitionId, router]);
 
   if (!formState) {
