@@ -74,8 +74,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .from("reimbursements")
       .select("amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", season),
     supabase
       .from("expense_requests")
       .select("amount")

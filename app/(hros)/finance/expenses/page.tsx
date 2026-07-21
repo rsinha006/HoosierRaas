@@ -84,8 +84,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
       .from("reimbursements")
       .select("category, amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", start)
-      .lte("payment_timestamp", end),
+      .eq("season", season),
   ]);
 
   const budgets = (budgetData ?? []) as Pick<Budget, "category" | "allocated_amount">[];

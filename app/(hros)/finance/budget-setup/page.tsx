@@ -65,8 +65,7 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
       .from("reimbursements")
       .select("category, amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", season),
   ]);
 
   const budgets = (budgetData ?? []) as Pick<Budget, "category" | "allocated_amount">[];
