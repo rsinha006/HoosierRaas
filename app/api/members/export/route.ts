@@ -100,7 +100,8 @@ export async function POST(request: Request) {
       worksheet.addRows(rows);
     }
 
-    zip.file("roster.xlsx", await workbook.xlsx.writeBuffer());
+    const workbookBuffer = await workbook.xlsx.writeBuffer();
+    zip.file("roster.xlsx", new Uint8Array(workbookBuffer as unknown as ArrayBufferLike));
 
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
