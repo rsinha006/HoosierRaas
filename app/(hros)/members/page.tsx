@@ -138,6 +138,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           <MembersTable
             members={members}
             canDelete={canManageOnboarding}
+            canExport={canManageOnboarding}
             currentMemberId={userMember?.id ?? ""}
           />
         </div>
