@@ -46,8 +46,7 @@ export async function loadArchiveFinancePreview(
       .from("reimbursements")
       .select("amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", activeSeasonLabel),
     supabase
       .from("budgets")
       .select("*", { count: "exact", head: true })
