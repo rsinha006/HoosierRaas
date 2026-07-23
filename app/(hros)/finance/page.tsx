@@ -1,11 +1,11 @@
 import Link from "next/link";
-import BudgetDonutCharts from "@/components/budget-donut-charts";
+import BudgetBarCharts from "@/components/budget-bar-charts";
 import ExpenseLinkGenerator from "@/components/expense-link-generator";
 import { getUserMember } from "@/lib/get-user-member";
 import {
-  buildGeneralPoolDonutSegments,
-  buildIufbDonutSegments,
-} from "@/lib/budget-donut";
+  buildGeneralPoolBarSegments,
+  buildIufbBarSegments,
+} from "@/lib/budget-bar";
 import {
   formatCurrency,
   getSeasonDateRange,
@@ -123,11 +123,11 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     sumPaidReimbursements(paidReimbursements);
   const runningBalance = totalIncome - approvedExpenses;
 
-  const generalPoolSegments = buildGeneralPoolDonutSegments(
+  const generalPoolSegments = buildGeneralPoolBarSegments(
     budgets,
     approvedRequests,
   );
-  const iufbSegments = buildIufbDonutSegments(lineItems);
+  const iufbSegments = buildIufbBarSegments(lineItems);
   const budgetLoadError = budgetError ?? lineItemError;
 
   const pendingApprovalsCount = pendingExpenses.length;
@@ -258,7 +258,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
               <p className="mt-1 text-sm">{budgetLoadError.message}</p>
             </div>
           ) : (
-            <BudgetDonutCharts
+            <BudgetBarCharts
               generalPoolSegments={generalPoolSegments}
               iufbSegments={iufbSegments}
             />
