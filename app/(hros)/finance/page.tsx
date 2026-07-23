@@ -209,7 +209,13 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
               <p className="mt-1 text-sm text-zinc-500">Approved this season</p>
             </Link>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div
+              className={`rounded-2xl border p-6 shadow-sm ${
+                runningBalance < 0
+                  ? "border-red-200 bg-red-50"
+                  : "border-zinc-200 bg-white"
+              }`}
+            >
               <p className="text-sm font-medium text-zinc-500">Running Balance</p>
               <p className="mt-2 text-3xl font-semibold text-[#990000]">
                 {formatCurrency(runningBalance)}
