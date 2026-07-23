@@ -10,6 +10,9 @@ const PAD_TOP = 24;
 const PAD_BOTTOM = 110;
 const NUDGE_PX = 6;
 const OVERLAP_THRESHOLD_PX = 16;
+// Minimum pixel gap between x-axis tick labels. Sized for a rotated (-40deg)
+// "M/D" label at 11px so adjacent labels never overlap regardless of session volume.
+const MIN_TICK_SPACING_PX = 44;
 
 export const CHART_COLORS: Record<PracticeSessionType, string> = {
   practice: "#990000",
@@ -17,7 +20,9 @@ export const CHART_COLORS: Record<PracticeSessionType, string> = {
   "exec meeting": "#71717a",
 };
 
-export const VIDEO_LINE_COLOR = "#990000";
+// Distinct from CHART_COLORS.practice (validated CVD-safe pair) since the video
+// line frequently overlaps the practice line on the same days.
+export const VIDEO_LINE_COLOR = "#1baf7a";
 
 export type AttendanceChartPoint = {
   sessionId: string;
@@ -100,7 +105,23 @@ export function buildAttendanceChartSpec(
     return { value, y, yPercent: (y / height) * 100 };
   });
 
-  const tickIndices = stats.map((_, index) => index).filter((index) => index % 2 === 0);
+  // Space ticks by actual pixel distance rather than a fixed "every Nth session" -
+  // keeps labels legible whether there are 4 sessions or 400. Always include the
+  // last session so the range's end date stays visible.
+  const pointSpacingPx = n > 1 ? innerWidth / (n - 1) : innerWidth;
+  const tickStep = Math.max(1, Math.ceil(MIN_TICK_SPACING_PX / pointSpacingPx));
+  const tickIndices = stats.map((_, index) => index).filter((index) => index % tickStep === 0);
+  const lastRegularTick = tickIndices[tickIndices.length - 1];
+  if (n > 0 && lastRegularTick !== n - 1) {
+    const gapToEndPx = (n - 1 - lastRegularTick) * pointSpacingPx;
+    if (gapToEndPx < MIN_TICK_SPACING_PX && tickIndices.length > 1) {
+      // Too close to the previous tick to add both without crowding - swap in
+      // the final session so the range's end date still stays visible.
+      tickIndices[tickIndices.length - 1] = n - 1;
+    } else {
+      tickIndices.push(n - 1);
+    }
+  }
 
   const xTicks: AttendanceChartTick[] = tickIndices.map((index) => ({
     sessionId: stats[index].session.id,
