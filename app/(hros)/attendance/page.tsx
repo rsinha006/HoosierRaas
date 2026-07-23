@@ -12,6 +12,7 @@ import {
   buildSessionAttendanceStats,
   summarizeDancerAttendance,
   getTeamAttendancePercentage,
+  getTeamAttendanceTrend,
   type AttendanceRecordWithSession,
   type MemberSummary,
 } from "@/lib/attendance-stats";
@@ -92,6 +93,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
     plainRecords,
     season,
   );
+  const teamAttendanceTrend = getTeamAttendanceTrend(members, sessions, plainRecords, season);
 
   const error = sessionError ?? recordError ?? memberError;
 
@@ -139,6 +141,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
           <AttendanceTeamSummary
             teamAttendancePercentage={teamAttendancePercentage}
             season={season}
+            trendDeltaPoints={teamAttendanceTrend.deltaPoints}
           />
 
           <AttendanceAlertRow groups={alertGroups} />

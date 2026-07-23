@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
+import {
+  filterStatsByTimeWindow,
+  getDefaultTimeWindow,
+  type TimeWindow,
+} from "@/lib/attendance-time-window";
 import AttendanceTrendsChart from "@/components/attendance-trends-chart";
 import AttendanceSessionsTable from "@/components/attendance-sessions-table";
 
@@ -13,17 +18,25 @@ type AttendanceTrendsSectionProps = {
 export default function AttendanceTrendsSection({ stats }: AttendanceTrendsSectionProps) {
   const [activeFilter, setActiveFilter] = useState<PracticeSessionType | "all">("all");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>(() => getDefaultTimeWindow(stats));
+
+  const windowedStats = useMemo(
+    () => filterStatsByTimeWindow(stats, timeWindow),
+    [stats, timeWindow],
+  );
 
   return (
     <div className="space-y-6">
       <AttendanceTrendsChart
-        stats={stats}
+        stats={windowedStats}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onPointClick={setSelectedSessionId}
+        timeWindow={timeWindow}
+        onTimeWindowChange={setTimeWindow}
       />
       <AttendanceSessionsTable
-        stats={stats}
+        stats={windowedStats}
         activeFilter={activeFilter}
         scrollToSessionId={selectedSessionId}
       />

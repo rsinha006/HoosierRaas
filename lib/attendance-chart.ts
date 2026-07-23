@@ -10,8 +10,9 @@ const PAD_TOP = 24;
 const PAD_BOTTOM = 110;
 const NUDGE_PX = 6;
 const OVERLAP_THRESHOLD_PX = 16;
-// Minimum pixel gap between x-axis tick labels. Sized for a rotated (-40deg)
-// "M/D" label at 11px so adjacent labels never overlap regardless of session volume.
+// Minimum pixel gap allowed between the last two x-axis tick labels (horizontal
+// "M/D" text at 11px) - used only to avoid crowding when the final session is
+// forced onto the axis so the range's end date always stays visible.
 const MIN_TICK_SPACING_PX = 44;
 
 export const CHART_COLORS: Record<PracticeSessionType, string> = {
@@ -68,6 +69,18 @@ export function computeNiceMax(maxValue: number): number {
   return Math.max(4, Math.ceil(maxValue / 4) * 4);
 }
 
+function mondayOfWeek(date: Date): Date {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const isoDayIndex = (monday.getDay() + 6) % 7; // 0 = Monday
+  monday.setDate(monday.getDate() - isoDayIndex);
+  return monday;
+}
+
+function weeksBetween(from: Date, to: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((mondayOfWeek(to).getTime() - mondayOfWeek(from).getTime()) / (7 * msPerDay));
+}
+
 function buildPath(points: AttendanceChartPoint[]) {
   return points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)},${point.y.toFixed(1)}`)
@@ -105,12 +118,24 @@ export function buildAttendanceChartSpec(
     return { value, y, yPercent: (y / height) * 100 };
   });
 
-  // Space ticks by actual pixel distance rather than a fixed "every Nth session" -
-  // keeps labels legible whether there are 4 sessions or 400. Always include the
-  // last session so the range's end date stays visible.
+  // Label by calendar week rather than raw session count, so a busy week (5
+  // sessions) gets the same one label as a quiet week (1 session): find each
+  // week's first session, then keep only every 2nd of those week-anchors.
   const pointSpacingPx = n > 1 ? innerWidth / (n - 1) : innerWidth;
-  const tickStep = Math.max(1, Math.ceil(MIN_TICK_SPACING_PX / pointSpacingPx));
-  const tickIndices = stats.map((_, index) => index).filter((index) => index % tickStep === 0);
+  const firstSessionDate = n > 0 ? new Date(`${stats[0].session.session_date}T12:00:00`) : null;
+
+  const weekAnchorIndices: number[] = [];
+  let lastWeekNumber: number | null = null;
+  stats.forEach((stat, index) => {
+    const date = new Date(`${stat.session.session_date}T12:00:00`);
+    const weekNumber = firstSessionDate ? weeksBetween(firstSessionDate, date) : 0;
+    if (weekNumber !== lastWeekNumber) {
+      lastWeekNumber = weekNumber;
+      weekAnchorIndices.push(index);
+    }
+  });
+
+  const tickIndices = weekAnchorIndices.filter((_, i) => i % 2 === 0);
   const lastRegularTick = tickIndices[tickIndices.length - 1];
   if (n > 0 && lastRegularTick !== n - 1) {
     const gapToEndPx = (n - 1 - lastRegularTick) * pointSpacingPx;

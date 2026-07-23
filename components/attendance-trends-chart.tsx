@@ -4,12 +4,15 @@ import { useMemo, useState } from "react";
 import { formatSessionType, type PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
 import { buildAttendanceChartSpec, CHART_COLORS, VIDEO_LINE_COLOR } from "@/lib/attendance-chart";
+import { TIME_WINDOWS, TIME_WINDOW_LABELS, type TimeWindow } from "@/lib/attendance-time-window";
 
 type AttendanceTrendsChartProps = {
   stats: SessionAttendanceStat[];
   activeFilter: PracticeSessionType | "all";
   onFilterChange: (filter: PracticeSessionType | "all") => void;
   onPointClick: (sessionId: string) => void;
+  timeWindow: TimeWindow;
+  onTimeWindowChange: (window: TimeWindow) => void;
 };
 
 type FilterOption = { key: PracticeSessionType | "all"; label: string };
@@ -30,12 +33,24 @@ function formatDateShort(date: string) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// Practice attendance is the primary KPI this dashboard exists to track, so it
+// gets a bolder, fully-opaque line; fundraiser/exec meeting are secondary
+// context and are rendered thinner and muted so they don't compete with it.
+const LINE_STYLE: Record<PracticeSessionType, { strokeWidth: number; baseOpacity: number }> = {
+  practice: { strokeWidth: 3.5, baseOpacity: 1 },
+  fundraiser: { strokeWidth: 1.75, baseOpacity: 0.7 },
+  "exec meeting": { strokeWidth: 1.75, baseOpacity: 0.7 },
+};
+
 function lineOpacity(type: PracticeSessionType, activeFilter: PracticeSessionType | "all") {
-  return activeFilter === "all" || activeFilter === type ? 1 : 0.15;
+  if (activeFilter !== "all" && activeFilter !== type) {
+    return 0.15;
+  }
+  return LINE_STYLE[type].baseOpacity;
 }
 
 function videoOpacity(activeFilter: PracticeSessionType | "all") {
-  return activeFilter !== "all" && activeFilter !== "practice" ? 0.15 : 0.55;
+  return activeFilter !== "all" && activeFilter !== "practice" ? 0.15 : 0.45;
 }
 
 export default function AttendanceTrendsChart({
@@ -43,6 +58,8 @@ export default function AttendanceTrendsChart({
   activeFilter,
   onFilterChange,
   onPointClick,
+  timeWindow,
+  onTimeWindowChange,
 }: AttendanceTrendsChartProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -61,9 +78,7 @@ export default function AttendanceTrendsChart({
     [ascendingStats, xLabels],
   );
 
-  if (ascendingStats.length === 0) {
-    return null;
-  }
+  const hasStats = ascendingStats.length > 0;
 
   const dateRangeLabel =
     ascendingStats.length > 0
@@ -86,12 +101,13 @@ export default function AttendanceTrendsChart({
     metricLabel: string;
   } | null = null;
 
+  let hoverPoint: { x: number; y: number; color: string; isVideo: boolean } | null = null;
+
   if (hoverStat) {
+    const matchingLine = spec.lines.find((line) => line.type === hoverStat.session.type);
     const point = hoverIsVideo
       ? spec.videoLine?.points.find((p) => p.sessionId === hoverStat.session.id)
-      : spec.lines
-          .find((line) => line.type === hoverStat.session.type)
-          ?.points.find((p) => p.sessionId === hoverStat.session.id);
+      : matchingLine?.points.find((p) => p.sessionId === hoverStat.session.id);
 
     if (point) {
       const metricLabel = hoverIsVideo
@@ -105,6 +121,13 @@ export default function AttendanceTrendsChart({
         typeLabel: formatSessionType(hoverStat.session.type),
         metricLabel,
       };
+
+      hoverPoint = {
+        x: point.x,
+        y: point.y,
+        color: hoverIsVideo ? VIDEO_LINE_COLOR : (matchingLine?.color ?? CHART_COLORS[hoverStat.session.type]),
+        isVideo: hoverIsVideo,
+      };
     }
   }
 
@@ -116,27 +139,50 @@ export default function AttendanceTrendsChart({
             Attendance trends
           </p>
           <h2 className="mt-1.5 text-xl font-semibold text-zinc-900">
-            {ascendingStats.length} sessions &middot; {dateRangeLabel}
+            {hasStats ? `${ascendingStats.length} sessions · ${dateRangeLabel}` : "No sessions in this window"}
           </h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {FILTER_OPTIONS.map((option) => (
+          {TIME_WINDOWS.map((window) => (
             <button
-              key={option.key}
+              key={window}
               type="button"
-              onClick={() => onFilterChange(option.key)}
+              onClick={() => onTimeWindowChange(window)}
               className={
-                activeFilter === option.key
-                  ? "rounded-lg border border-[#990000] bg-[#990000] px-3 py-1.5 text-sm font-medium text-white"
+                timeWindow === window
+                  ? "rounded-lg border border-zinc-500 bg-zinc-500 px-3 py-1.5 text-sm font-medium text-white"
                   : "rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-400"
               }
             >
-              {option.label}
+              {TIME_WINDOW_LABELS[window]}
             </button>
           ))}
         </div>
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {FILTER_OPTIONS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => onFilterChange(option.key)}
+            className={
+              activeFilter === option.key
+                ? "rounded-lg border border-[#990000] bg-[#990000] px-3 py-1.5 text-sm font-medium text-white"
+                : "rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-400"
+            }
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {!hasStats ? (
+        <p className="mt-5 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500">
+          No sessions fall within this time window. Try a wider range.
+        </p>
+      ) : (
+        <>
       <div className="mt-5 flex flex-wrap gap-5 text-[13px] text-zinc-600">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS.practice }} />
@@ -213,8 +259,10 @@ export default function AttendanceTrendsChart({
               d={spec.videoLine.path}
               fill="none"
               stroke={VIDEO_LINE_COLOR}
-              strokeWidth={2}
+              strokeWidth={1.5}
               strokeDasharray="5,4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               opacity={videoOpacity(activeFilter)}
             />
           ) : null}
@@ -225,24 +273,24 @@ export default function AttendanceTrendsChart({
               d={line.path}
               fill="none"
               stroke={line.color}
-              strokeWidth={2.5}
+              strokeWidth={LINE_STYLE[line.type].strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
               opacity={lineOpacity(line.type, activeFilter)}
             />
           ))}
 
+          {/* Invisible hit-targets - markers are hidden until hovered, but the
+              hit area stays generous so hovering/clicking a date stays easy. */}
           {spec.videoLine?.points.map((point) => {
             const key = `video-${point.sessionId}`;
-            const isHover = hoveredKey === key;
             return (
               <circle
                 key={key}
                 cx={point.x}
                 cy={point.y}
-                r={isHover ? 6 : 4}
-                fill="white"
-                stroke={VIDEO_LINE_COLOR}
-                strokeWidth={2}
-                opacity={videoOpacity(activeFilter)}
+                r={10}
+                fill="transparent"
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHoveredKey(key)}
                 onMouseLeave={() => setHoveredKey(null)}
@@ -252,26 +300,32 @@ export default function AttendanceTrendsChart({
           })}
 
           {spec.lines.flatMap((line) =>
-            line.points.map((point) => {
-              const isHover = hoveredKey === point.sessionId;
-              return (
-                <circle
-                  key={point.sessionId}
-                  cx={point.x}
-                  cy={point.y}
-                  r={isHover ? 6 : 4}
-                  fill={line.color}
-                  opacity={lineOpacity(line.type, activeFilter)}
-                  stroke="white"
-                  strokeWidth={1.5}
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={() => setHoveredKey(point.sessionId)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                  onClick={() => onPointClick(point.sessionId)}
-                />
-              );
-            }),
+            line.points.map((point) => (
+              <circle
+                key={point.sessionId}
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="transparent"
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setHoveredKey(point.sessionId)}
+                onMouseLeave={() => setHoveredKey(null)}
+                onClick={() => onPointClick(point.sessionId)}
+              />
+            )),
           )}
+
+          {hoverPoint ? (
+            <circle
+              cx={hoverPoint.x}
+              cy={hoverPoint.y}
+              r={6}
+              fill={hoverPoint.isVideo ? "white" : hoverPoint.color}
+              stroke={hoverPoint.isVideo ? hoverPoint.color : "white"}
+              strokeWidth={hoverPoint.isVideo ? 2 : 1.5}
+              style={{ pointerEvents: "none" }}
+            />
+          ) : null}
         </svg>
 
         {spec.gridlines.map((grid) => (
@@ -295,8 +349,7 @@ export default function AttendanceTrendsChart({
             style={{
               left: `${tick.xPercent}%`,
               top: `calc(${spec.axisYPercent}% + 8px)`,
-              transform: "translate(-100%,0) rotate(-40deg)",
-              transformOrigin: "right top",
+              transform: "translate(-50%,0)",
             }}
           >
             {tick.label}
@@ -329,6 +382,8 @@ export default function AttendanceTrendsChart({
           </div>
         ) : null}
       </div>
+      </>
+      )}
     </div>
   );
 }

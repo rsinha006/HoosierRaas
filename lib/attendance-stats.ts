@@ -182,22 +182,19 @@ export function buildAttendanceAlertGroups(
   };
 }
 
-export function getTeamAttendancePercentage(
+function attendancePercentForSessions(
   members: MemberSummary[],
   sessions: PracticeSession[],
   records: AttendanceRecord[],
-  season: string,
 ) {
-  const closedSessions = getClosedSeasonSessions(sessions, season);
-
-  if (closedSessions.length === 0) {
+  if (sessions.length === 0) {
     return null;
   }
 
   let denominator = 0;
   let numerator = 0;
 
-  for (const session of closedSessions) {
+  for (const session of sessions) {
     const expectedCount = getExpectedMembers(members, session.type).length;
     denominator += expectedCount;
 
@@ -212,6 +209,61 @@ export function getTeamAttendancePercentage(
   }
 
   return Math.round((numerator / denominator) * 100);
+}
+
+export function getTeamAttendancePercentage(
+  members: MemberSummary[],
+  sessions: PracticeSession[],
+  records: AttendanceRecord[],
+  season: string,
+) {
+  return attendancePercentForSessions(members, getClosedSeasonSessions(sessions, season), records);
+}
+
+export type AttendanceTrend = {
+  current: number | null;
+  previous: number | null;
+  deltaPoints: number | null;
+};
+
+function calendarMonthRange(reference: Date, monthOffset: number) {
+  const year = reference.getFullYear();
+  const month = reference.getMonth() + monthOffset;
+  return {
+    start: new Date(year, month, 1),
+    end: new Date(year, month + 1, 0, 23, 59, 59, 999),
+  };
+}
+
+/**
+ * Compares this-month-to-date team attendance against the full previous
+ * calendar month, for a "up X% from last month" style trend indicator.
+ */
+export function getTeamAttendanceTrend(
+  members: MemberSummary[],
+  sessions: PracticeSession[],
+  records: AttendanceRecord[],
+  season: string,
+  referenceDate: Date = new Date(),
+): AttendanceTrend {
+  const closedSessions = getClosedSeasonSessions(sessions, season);
+  const currentRange = calendarMonthRange(referenceDate, 0);
+  const previousRange = calendarMonthRange(referenceDate, -1);
+
+  const sessionsInRange = (range: { start: Date; end: Date }) =>
+    closedSessions.filter((session) => {
+      const date = new Date(`${session.session_date}T12:00:00`);
+      return date >= range.start && date <= range.end;
+    });
+
+  const current = attendancePercentForSessions(members, sessionsInRange(currentRange), records);
+  const previous = attendancePercentForSessions(members, sessionsInRange(previousRange), records);
+
+  return {
+    current,
+    previous,
+    deltaPoints: current !== null && previous !== null ? current - previous : null,
+  };
 }
 
 /** @deprecated Use buildSessionAttendanceStats for the attendance dashboard. */
