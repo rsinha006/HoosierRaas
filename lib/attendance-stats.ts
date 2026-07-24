@@ -175,8 +175,15 @@ export type AttendanceAlertGroups = {
 export function buildAttendanceAlertGroups(
   summaries: DancerAttendanceSummary[],
 ): AttendanceAlertGroups {
+  const unexcused = summaries
+    .filter((summary) => summary.unexcusedAbsences >= 1)
+    .sort(
+      (left, right) =>
+        right.unexcusedAbsences - left.unexcusedAbsences || left.name.localeCompare(right.name),
+    );
+
   return {
-    unexcused: summaries.filter((summary) => summary.unexcusedAbsences >= 1),
+    unexcused,
     approaching: summaries.filter((summary) => summary.excusedAbsenceTier === "approaching"),
     atLimit: summaries.filter((summary) => summary.excusedAbsenceTier === "at_limit"),
   };

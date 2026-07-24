@@ -17,6 +17,7 @@ type AlertBoxConfig = {
   colorClasses: string;
   badgeClasses: string;
   countLabel: (member: DancerAttendanceSummary) => string;
+  memberLabel?: (member: DancerAttendanceSummary) => string;
 };
 
 let measureContext: CanvasRenderingContext2D | null = null;
@@ -56,16 +57,18 @@ export default function AttendanceAlertRow({ groups }: AttendanceAlertRowProps) 
   const allBoxes: AlertBoxConfig[] = [
     {
       key: "unexcused",
-      title: "Unexcused",
+      title: "1+ Unexcused Absences",
       members: groups.unexcused,
       colorClasses: "border-red-200 bg-red-50 text-red-950",
       badgeClasses: "bg-red-950/10",
       countLabel: (member: DancerAttendanceSummary) =>
         `${member.unexcusedAbsences} unexcused absence${member.unexcusedAbsences === 1 ? "" : "s"}`,
+      memberLabel: (member: DancerAttendanceSummary) =>
+        `${member.name} (${member.unexcusedAbsences})`,
     },
     {
       key: "warning",
-      title: "Approaching limit",
+      title: "2 Excused Absences (Approaching Limit)",
       members: groups.approaching,
       colorClasses: "border-amber-200 bg-amber-50 text-amber-950",
       badgeClasses: "bg-amber-950/10",
@@ -73,7 +76,7 @@ export default function AttendanceAlertRow({ groups }: AttendanceAlertRowProps) 
     },
     {
       key: "policy",
-      title: "At the limit",
+      title: "3+ Excused Absences (At Limit)",
       members: groups.atLimit,
       colorClasses: "border-red-200 bg-red-50 text-red-950",
       badgeClasses: "bg-red-950/10",
@@ -118,7 +121,8 @@ function AlertBox({
   const [overflowing, setOverflowing] = useState(false);
 
   const badgeText = String(config.members.length);
-  const summary = config.members.map((member) => member.name).join(", ");
+  const getLabel = config.memberLabel ?? ((member: DancerAttendanceSummary) => member.name);
+  const summary = config.members.map(getLabel).join(", ");
 
   useEffect(() => {
     const el = containerRef.current;
@@ -143,7 +147,7 @@ function AlertBox({
   return (
     <div
       ref={containerRef}
-      className={`flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl border px-3.5 py-2.5 ${config.colorClasses}`}
+      className={`flex min-w-0 gap-2 overflow-hidden rounded-xl border px-3.5 py-2.5 ${expanded ? "items-start whitespace-normal" : "items-center whitespace-nowrap"} ${config.colorClasses}`}
       style={{ flex: expanded ? "1 1 100%" : "1 1 0" }}
     >
       <span className="shrink-0 text-[13px] font-semibold">{config.title}</span>
@@ -153,7 +157,7 @@ function AlertBox({
       <span
         className={
           expanded
-            ? "min-w-0 flex-1 text-xs opacity-80"
+            ? "min-w-0 flex-1 whitespace-normal break-words text-xs opacity-80"
             : "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs opacity-80"
         }
       >
@@ -165,7 +169,7 @@ function AlertBox({
               className="underline-offset-2 hover:underline"
               title={config.countLabel(member)}
             >
-              {member.name}
+              {getLabel(member)}
             </Link>
           </span>
         ))}
