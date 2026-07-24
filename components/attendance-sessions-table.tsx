@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { formatSessionType, type PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
 
 type AttendanceSessionsTableProps = {
   stats: SessionAttendanceStat[];
   activeFilter: PracticeSessionType | "all";
-  scrollToSessionId: string | null;
 };
 
 const VISIBLE_ROW_COUNT = 4;
@@ -28,47 +27,14 @@ function statusBadgeClassName(status: "open" | "closed") {
 export default function AttendanceSessionsTable({
   stats,
   activeFilter,
-  scrollToSessionId,
 }: AttendanceSessionsTableProps) {
   const [expanded, setExpanded] = useState(false);
-  const [lastScrollTarget, setLastScrollTarget] = useState<string | null>(null);
-  const rowRefs = useRef(new Map<string, HTMLElement>());
 
   const filtered =
     activeFilter === "all" ? stats : stats.filter((stat) => stat.session.type === activeFilter);
 
-  // Adjust `expanded` during render (not in an effect) when a newly-clicked chart point
-  // falls outside the default-visible slice, per React's recommended pattern for state
-  // derived from a prop change: https://react.dev/learn/you-might-not-need-an-effect
-  if (scrollToSessionId !== lastScrollTarget) {
-    setLastScrollTarget(scrollToSessionId);
-
-    if (scrollToSessionId) {
-      const inFilter = filtered.some((stat) => stat.session.id === scrollToSessionId);
-      const isCurrentlyVisible = filtered
-        .slice(0, VISIBLE_ROW_COUNT)
-        .some((stat) => stat.session.id === scrollToSessionId);
-
-      if (inFilter && !isCurrentlyVisible) {
-        setExpanded(true);
-      }
-    }
-  }
-
   const visible = expanded ? filtered : filtered.slice(0, VISIBLE_ROW_COUNT);
   const hasMore = filtered.length > VISIBLE_ROW_COUNT;
-
-  useEffect(() => {
-    if (!scrollToSessionId) {
-      return;
-    }
-
-    const frame = requestAnimationFrame(() => {
-      rowRefs.current.get(scrollToSessionId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [scrollToSessionId, activeFilter, expanded]);
 
   if (stats.length === 0) {
     return (
@@ -111,19 +77,7 @@ export default function AttendanceSessionsTable({
               </thead>
               <tbody className="divide-y divide-zinc-200">
                 {visible.map((stat) => (
-                  <tr
-                    key={stat.session.id}
-                    ref={(el) => {
-                      if (el) {
-                        rowRefs.current.set(stat.session.id, el);
-                      } else {
-                        rowRefs.current.delete(stat.session.id);
-                      }
-                    }}
-                    className={`transition-colors ${
-                      stat.session.id === scrollToSessionId ? "bg-[#990000]/5" : "hover:bg-zinc-50"
-                    }`}
-                  >
+                  <tr key={stat.session.id} className="transition-colors hover:bg-zinc-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-900">
                       <Link
                         href={`/attendance/${stat.session.id}`}
@@ -156,15 +110,7 @@ export default function AttendanceSessionsTable({
 
           <div className="divide-y divide-zinc-200 md:hidden">
             {visible.map((stat) => (
-              <div
-                key={stat.session.id}
-                ref={(el) => {
-                  if (el) {
-                    rowRefs.current.set(stat.session.id, el);
-                  }
-                }}
-                className={`space-y-2 px-4 py-4 ${stat.session.id === scrollToSessionId ? "bg-[#990000]/5" : ""}`}
-              >
+              <div key={stat.session.id} className="space-y-2 px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <Link

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
 import {
@@ -16,8 +17,8 @@ type AttendanceTrendsSectionProps = {
 };
 
 export default function AttendanceTrendsSection({ stats }: AttendanceTrendsSectionProps) {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<PracticeSessionType | "all">("all");
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>(() => getDefaultTimeWindow(stats));
 
   const windowedStats = useMemo(
@@ -31,15 +32,11 @@ export default function AttendanceTrendsSection({ stats }: AttendanceTrendsSecti
         stats={windowedStats}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
-        onPointClick={setSelectedSessionId}
+        onPointClick={(sessionId) => router.push(`/attendance/${sessionId}`)}
         timeWindow={timeWindow}
         onTimeWindowChange={setTimeWindow}
       />
-      <AttendanceSessionsTable
-        stats={windowedStats}
-        activeFilter={activeFilter}
-        scrollToSessionId={selectedSessionId}
-      />
+      <AttendanceSessionsTable stats={windowedStats} activeFilter={activeFilter} />
     </div>
   );
 }
