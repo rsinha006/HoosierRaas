@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AddExpenseForm from "@/components/add-expense-form";
 import ExpenseApprovalQueue from "@/components/expense-approval-queue";
+import ExpenseLinkGenerator from "@/components/expense-link-generator";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   buildPopulatedGeneralPoolCategories,
@@ -120,12 +121,16 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
           <p className="text-xs text-zinc-500">Pre-approval · {season}</p>
         </div>
 
-        <Link
-          href="/finance"
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-        >
-          Back to Finance
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExpenseLinkGenerator />
+
+          <Link
+            href="/finance"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Back to Finance
+          </Link>
+        </div>
       </div>
 
       {showSubmitted ? (

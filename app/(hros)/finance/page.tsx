@@ -1,6 +1,5 @@
 import Link from "next/link";
 import BudgetBarCharts from "@/components/budget-bar-charts";
-import ExpenseLinkGenerator from "@/components/expense-link-generator";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   buildGeneralPoolBarSegments,
@@ -176,8 +175,6 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
           </div>
         </div>
       </div>
-
-      <ExpenseLinkGenerator />
 
       {incomeError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
