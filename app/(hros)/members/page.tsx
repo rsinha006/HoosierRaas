@@ -93,7 +93,10 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
             <p className="mt-2 text-zinc-600">Team roster for the {season} season</p>
           </div>
 
-          <AddMemberButton />
+          <div className="flex items-start gap-3">
+            <AddMemberButton />
+            {canManageOnboarding ? <OnboardingLinkGenerator /> : null}
+          </div>
         </div>
       </div>
 
@@ -110,22 +113,18 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
       )}
 
       {canManageOnboarding ? (
-        <>
-          <OnboardingLinkGenerator />
-
-          {pendingError ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-              <p className="font-medium">Could not load pending reviews</p>
-              <p className="mt-1 text-sm">{pendingError.message}</p>
-            </div>
-          ) : (
-            <PendingOnboardingReviews
-              members={pendingMembers}
-              canWrite={canManageOnboarding}
-              activeSeason={activeSeason}
-            />
-          )}
-        </>
+        pendingError ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+            <p className="font-medium">Could not load pending reviews</p>
+            <p className="mt-1 text-sm">{pendingError.message}</p>
+          </div>
+        ) : (
+          <PendingOnboardingReviews
+            members={pendingMembers}
+            canWrite={canManageOnboarding}
+            activeSeason={activeSeason}
+          />
+        )
       ) : null}
 
       {error ? (
