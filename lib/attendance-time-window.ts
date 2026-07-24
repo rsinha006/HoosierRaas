@@ -15,16 +15,17 @@ function parseSessionDate(date: string) {
 }
 
 // No explicit semester model exists in the schema, so semesters are approximated
-// by calendar month: Aug-Dec is "fall", Jan-Jul is "spring" (folding summer in,
-// since there's no separate summer option).
+// by calendar month: Aug-Dec is the 1st semester, Jan-May is the 2nd. June/July
+// (summer, between the 2nd semester ending and the 1st starting again) fold into
+// the 2nd semester, since that's the one that most recently ended.
 function getSemesterRange(reference: Date) {
   const year = reference.getFullYear();
-  const month = reference.getMonth();
+  const month = reference.getMonth(); // 0 = Jan ... 11 = Dec
 
-  if (month >= 7) {
+  if (month >= 7 && month <= 11) {
     return { start: new Date(year, 7, 1), end: new Date(year, 11, 31, 23, 59, 59) };
   }
-  return { start: new Date(year, 0, 1), end: new Date(year, 6, 31, 23, 59, 59) };
+  return { start: new Date(year, 0, 1), end: new Date(year, 4, 31, 23, 59, 59) };
 }
 
 export function getTimeWindowRange(

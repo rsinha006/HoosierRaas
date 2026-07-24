@@ -24,6 +24,54 @@ type AttendancePageProps = {
   searchParams: Promise<{ created?: string; season?: string }>;
 };
 
+// PostgREST caps unpaginated selects at 1000 rows. A full season of attendance
+// records comfortably exceeds that, and the query is ordered by
+// response_timestamp descending - so without paging, the oldest sessions in
+// the season would silently drop out of every stat on this page.
+async function fetchAllAttendanceRecords(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  season: string,
+) {
+  const PAGE_SIZE = 1000;
+  const all: AttendanceRecordWithSession[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("attendance_records")
+      .select(
+        `
+        *,
+        session:practice_sessions!inner (
+          id,
+          season,
+          session_date,
+          session_time,
+          type,
+          status
+        )
+      `,
+      )
+      .eq("practice_sessions.season", season)
+      .order("response_timestamp", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      return { data: all, error };
+    }
+
+    all.push(...((data ?? []) as AttendanceRecordWithSession[]));
+
+    if (!data || data.length < PAGE_SIZE) {
+      break;
+    }
+
+    offset += PAGE_SIZE;
+  }
+
+  return { data: all, error: null };
+}
+
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
   const params = await searchParams;
   const showCreated = params.created === "1";
@@ -54,23 +102,7 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
       .eq("season", season)
       .order("session_date", { ascending: false })
       .order("session_time", { ascending: false }),
-    supabase
-      .from("attendance_records")
-      .select(
-        `
-        *,
-        session:practice_sessions!inner (
-          id,
-          season,
-          session_date,
-          session_time,
-          type,
-          status
-        )
-      `,
-      )
-      .eq("practice_sessions.season", season)
-      .order("response_timestamp", { ascending: false }),
+    fetchAllAttendanceRecords(supabase, season),
     supabase
       .from("members")
       .select("id, first_name, last_name, email, roles")
