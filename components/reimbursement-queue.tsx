@@ -355,7 +355,7 @@ export default function ReimbursementQueue({
             Recently processed reimbursements.
           </p>
 
-          <div className="mt-6 overflow-x-auto">
+          <div className="mt-6 hidden overflow-x-auto md:block">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-zinc-500">
@@ -398,6 +398,41 @@ export default function ReimbursementQueue({
             </table>
           </div>
 
+          <div className="mt-6 divide-y divide-zinc-100 md:hidden">
+            {paidReimbursements.map((reimbursement) => {
+              const submitterName = getReimbursementSubmitterLabel(reimbursement);
+
+              return (
+                <div key={reimbursement.id} className="space-y-1.5 py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">
+                        {reimbursement.description}
+                      </p>
+                      <p className="text-xs text-zinc-500">{submitterName}</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-medium text-zinc-900">
+                      {formatCurrency(Number(reimbursement.amount))}
+                    </p>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    Submitted{" "}
+                    {formatReimbursementTimestamp(reimbursement.submission_timestamp)}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Paid via{" "}
+                    {reimbursement.payment_method
+                      ? getPaymentMethodLabel(reimbursement.payment_method)
+                      : "—"}
+                    {reimbursement.payment_timestamp
+                      ? ` · ${formatReimbursementTimestamp(reimbursement.payment_timestamp)}`
+                      : ""}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
           {hasMorePaid ? (
             <div className="mt-4 text-center">
               <Link
@@ -416,7 +451,7 @@ export default function ReimbursementQueue({
           <h2 className="text-lg font-semibold text-zinc-900">Denied Reimbursements</h2>
           <p className="mt-1 text-sm text-zinc-600">Recently rejected requests.</p>
 
-          <div className="mt-6 overflow-x-auto">
+          <div className="mt-6 hidden overflow-x-auto md:block">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-zinc-500">
@@ -449,6 +484,34 @@ export default function ReimbursementQueue({
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-6 divide-y divide-zinc-100 md:hidden">
+            {deniedReimbursements.map((reimbursement) => {
+              const submitterName = getReimbursementSubmitterLabel(reimbursement);
+
+              return (
+                <div key={reimbursement.id} className="space-y-1.5 py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">
+                        {reimbursement.description}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {submitterName} ·{" "}
+                        {formatReimbursementTimestamp(reimbursement.submission_timestamp)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-medium text-zinc-900">
+                      {formatCurrency(Number(reimbursement.amount))}
+                    </p>
+                  </div>
+                  {reimbursement.denial_reason ? (
+                    <p className="text-xs text-zinc-500">{reimbursement.denial_reason}</p>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </section>
       ) : null}

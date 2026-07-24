@@ -232,86 +232,152 @@ export default function UsersTable({
           No users match your search.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200">
-          <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
-            <thead className="bg-zinc-50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Role</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Status</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Created</th>
-                {canManage ? (
-                  <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 bg-white">
-              {filteredUsers.map((user) => {
-                const isHighlighted = highlightedUserIds.has(user.id);
+        <div className="overflow-hidden rounded-xl border border-zinc-200">
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Role</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Status</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Created</th>
+                  {canManage ? (
+                    <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
+                  ) : null}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 bg-white">
+                {filteredUsers.map((user) => {
+                  const isHighlighted = highlightedUserIds.has(user.id);
 
-                return (
-                  <tr
-                    key={user.id}
-                    className={`align-top transition-colors duration-700 ${
-                      isHighlighted
-                        ? "bg-amber-50 ring-2 ring-inset ring-amber-300"
-                        : ""
-                    }`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-medium text-zinc-900">
-                          {user.full_name?.trim() || "—"}
+                  return (
+                    <tr
+                      key={user.id}
+                      className={`align-top transition-colors duration-700 ${
+                        isHighlighted
+                          ? "bg-amber-50 ring-2 ring-inset ring-amber-300"
+                          : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-medium text-zinc-900">
+                            {user.full_name?.trim() || "—"}
+                          </div>
+                          {isHighlighted ? (
+                            <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                              New
+                            </span>
+                          ) : null}
                         </div>
-                        {isHighlighted ? (
-                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
-                            New
+                        {user.on_roster ? (
+                          <span className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                            On roster
                           </span>
                         ) : null}
-                      </div>
-                      {user.on_roster ? (
-                        <span className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                          On roster
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600">{user.email}</td>
-                    <td className="px-4 py-3 text-zinc-600">
-                      {formatExecTitle(user.exec_title) ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          user.access_status === "active"
-                            ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                        }`}
-                      >
-                        {user.access_status === "active" ? "Active" : "Pending"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600">{formatDate(user.created_at)}</td>
-                    {canManage ? (
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-3">
-                          <UserRoleAssign
-                            userId={user.id}
-                            currentExecTitle={user.exec_title}
-                          />
-                          <UserDeleteButton
-                            userId={user.id}
-                            email={user.email}
-                            currentUserId={currentUserId}
-                          />
-                        </div>
                       </td>
+                      <td className="px-4 py-3 text-zinc-600">{user.email}</td>
+                      <td className="px-4 py-3 text-zinc-600">
+                        {formatExecTitle(user.exec_title) ?? "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            user.access_status === "active"
+                              ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                              : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                          }`}
+                        >
+                          {user.access_status === "active" ? "Active" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-600">{formatDate(user.created_at)}</td>
+                      {canManage ? (
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-3">
+                            <UserRoleAssign
+                              userId={user.id}
+                              currentExecTitle={user.exec_title}
+                            />
+                            <UserDeleteButton
+                              userId={user.id}
+                              email={user.email}
+                              currentUserId={currentUserId}
+                            />
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-zinc-200 md:hidden">
+            {filteredUsers.map((user) => {
+              const isHighlighted = highlightedUserIds.has(user.id);
+
+              return (
+                <div
+                  key={user.id}
+                  className={`space-y-2 px-4 py-4 transition-colors duration-700 ${
+                    isHighlighted ? "bg-amber-50 ring-2 ring-inset ring-amber-300" : ""
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-zinc-900">
+                      {user.full_name?.trim() || "—"}
+                    </p>
+                    {isHighlighted ? (
+                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                        New
+                      </span>
                     ) : null}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  </div>
+                  <p className="text-sm text-zinc-600">{user.email}</p>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        user.access_status === "active"
+                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                          : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                      }`}
+                    >
+                      {user.access_status === "active" ? "Active" : "Pending"}
+                    </span>
+                    {user.on_roster ? (
+                      <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                        On roster
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                    <span>{formatExecTitle(user.exec_title) ?? "—"}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Joined {formatDate(user.created_at)}</span>
+                  </div>
+
+                  {canManage ? (
+                    <div className="flex flex-col gap-3 pt-1">
+                      <UserRoleAssign
+                        userId={user.id}
+                        currentExecTitle={user.exec_title}
+                      />
+                      <UserDeleteButton
+                        userId={user.id}
+                        email={user.email}
+                        currentUserId={currentUserId}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -114,14 +114,14 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const loadError = budgetError ?? lineItemError ?? competitionError ?? requestError;
 
   return (
-    <div className="flex h-[calc(100dvh-3rem)] flex-col gap-3 lg:h-[calc(100dvh-4rem)]">
-      <div className="flex shrink-0 items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+    <div className="flex flex-col gap-3 lg:h-[calc(100dvh-4rem)]">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
         <div>
           <h1 className="text-lg font-semibold text-zinc-900">Expenses</h1>
           <p className="text-xs text-zinc-500">Pre-approval · {season}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ExpenseLinkGenerator />
 
           <Link
@@ -149,21 +149,21 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </div>
       ) : (
         <div
-          className={`grid min-h-0 flex-1 gap-3 ${
+          className={`flex flex-col gap-3 lg:grid lg:min-h-0 lg:flex-1 ${
             canSubmit
               ? "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]"
-              : "grid-cols-1"
+              : "lg:grid-cols-1"
           }`}
         >
           {userMember?.id && viewingSeason.is_active ? (
-            <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <section className="flex flex-col rounded-xl border border-zinc-200 bg-white shadow-sm lg:min-h-0 lg:overflow-hidden">
               <div className="shrink-0 border-b border-zinc-100 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">Add Expense</h2>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   Submit against a general pool or IUFB line item.
                 </p>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              <div className="px-4 py-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                 <AddExpenseForm
                   compact
                   season={season}
@@ -176,7 +176,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
             </section>
           ) : null}
 
-          <div className="min-h-0 overflow-hidden">
+          <div className="lg:min-h-0 lg:overflow-hidden">
             <ExpenseApprovalQueue
               compact
               pendingRequests={pendingRequests}

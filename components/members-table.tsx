@@ -138,59 +138,108 @@ export default function MembersTable({
             : "No members found."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200">
-          <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
-            <thead className="bg-zinc-50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Graduation Year</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Roles</th>
-                <th className="px-4 py-3 font-medium text-zinc-700">Exec Title</th>
-                {canDelete ? (
-                  <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 bg-white">
-              {filteredMembers.map((member) => (
-                <tr
-                  key={member.id}
-                  onClick={() => router.push(`/members/${member.id}`)}
-                  className="cursor-pointer transition hover:bg-zinc-50/80"
-                >
-                  <td className="px-4 py-3 font-medium text-zinc-900">
-                    {formatMemberName(member)}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{member.email}</td>
-                  <td className="px-4 py-3 text-zinc-600">{member.graduation_year}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {member.roles.map((role) => (
-                        <span
-                          key={role}
-                          className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
-                        >
-                          {formatRole(role)}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {formatExecTitle(member.exec_title) ?? "—"}
-                  </td>
+        <div className="overflow-hidden rounded-xl border border-zinc-200">
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Name</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Email</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Graduation Year</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Roles</th>
+                  <th className="px-4 py-3 font-medium text-zinc-700">Exec Title</th>
                   {canDelete ? (
-                    <td className="px-4 py-3">
-                      <MemberDeleteButton
-                        member={member}
-                        currentMemberId={currentMemberId}
-                      />
-                    </td>
+                    <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
                   ) : null}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 bg-white">
+                {filteredMembers.map((member) => (
+                  <tr
+                    key={member.id}
+                    onClick={() => router.push(`/members/${member.id}`)}
+                    className="cursor-pointer transition hover:bg-zinc-50/80"
+                  >
+                    <td className="px-4 py-3 font-medium text-zinc-900">
+                      {formatMemberName(member)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">{member.email}</td>
+                    <td className="px-4 py-3 text-zinc-600">{member.graduation_year}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {member.roles.map((role) => (
+                          <span
+                            key={role}
+                            className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
+                          >
+                            {formatRole(role)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">
+                      {formatExecTitle(member.exec_title) ?? "—"}
+                    </td>
+                    {canDelete ? (
+                      <td className="px-4 py-3">
+                        <MemberDeleteButton
+                          member={member}
+                          currentMemberId={currentMemberId}
+                        />
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-zinc-200 md:hidden">
+            {filteredMembers.map((member) => (
+              <div
+                key={member.id}
+                onClick={() => router.push(`/members/${member.id}`)}
+                className="cursor-pointer space-y-2 px-4 py-4 transition hover:bg-zinc-50/80"
+              >
+                <div>
+                  <p className="font-medium text-zinc-900">{formatMemberName(member)}</p>
+                  <p className="text-sm text-zinc-600">{member.email}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                  <span>Class of {member.graduation_year}</span>
+                  {member.exec_title ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{formatExecTitle(member.exec_title)}</span>
+                    </>
+                  ) : null}
+                </div>
+
+                {member.roles.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {member.roles.map((role) => (
+                      <span
+                        key={role}
+                        className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
+                      >
+                        {formatRole(role)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {canDelete ? (
+                  <div className="pt-1">
+                    <MemberDeleteButton
+                      member={member}
+                      currentMemberId={currentMemberId}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -369,8 +369,8 @@ export default function ExpenseApprovalQueue({
 }: ExpenseApprovalQueueProps) {
   if (compact) {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3">
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
+        <section className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm lg:min-h-0 lg:flex-1">
           <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-2.5">
             <h2 className="text-sm font-semibold text-zinc-900">Approval Queue</h2>
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
@@ -378,7 +378,7 @@ export default function ExpenseApprovalQueue({
             </span>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {pendingRequests.length === 0 ? (
               <p className="rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-center text-xs text-zinc-500">
                 No pending expense requests.
@@ -402,7 +402,7 @@ export default function ExpenseApprovalQueue({
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <section className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm lg:min-h-0 lg:flex-1">
           <div className="shrink-0 border-b border-zinc-100 px-4 py-2.5">
             <h2 className="text-sm font-semibold text-zinc-900">History</h2>
             <p className="mt-0.5 text-xs text-zinc-500">
@@ -410,56 +410,93 @@ export default function ExpenseApprovalQueue({
             </p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {historyRequests.length === 0 ? (
               <p className="px-4 py-6 text-center text-xs text-zinc-500">
                 No reviewed requests yet.
               </p>
             ) : (
-              <table className="min-w-full text-left text-xs">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="border-b border-zinc-200 text-zinc-500">
-                    <th className="px-3 py-2 font-medium">Date</th>
-                    <th className="px-3 py-2 font-medium">Requester</th>
-                    <th className="px-3 py-2 font-medium">Description</th>
-                    <th className="px-3 py-2 font-medium text-right">Amount</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="bg-white lg:sticky lg:top-0">
+                      <tr className="border-b border-zinc-200 text-zinc-500">
+                        <th className="px-3 py-2 font-medium">Date</th>
+                        <th className="px-3 py-2 font-medium">Requester</th>
+                        <th className="px-3 py-2 font-medium">Description</th>
+                        <th className="px-3 py-2 font-medium text-right">Amount</th>
+                        <th className="px-3 py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyRequests.map((request) => {
+                        const requesterName = getExpenseRequesterLabel(request);
+
+                        return (
+                          <tr key={request.id} className="border-b border-zinc-100">
+                            <td className="whitespace-nowrap px-3 py-2 text-zinc-600">
+                              {formatRequestDate(request.created_at)}
+                            </td>
+                            <td className="max-w-[5rem] truncate px-3 py-2 text-zinc-900">
+                              {requesterName}
+                            </td>
+                            <td className="max-w-[8rem] truncate px-3 py-2 text-zinc-900">
+                              {request.description}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right font-medium text-zinc-900">
+                              {formatCurrency(Number(request.amount))}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                  request.status === "approved"
+                                    ? "bg-green-50 text-green-700"
+                                    : "bg-red-50 text-red-700"
+                                }`}
+                              >
+                                {request.status === "approved" ? "Approved" : "Denied"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="divide-y divide-zinc-100 px-3 md:hidden">
                   {historyRequests.map((request) => {
                     const requesterName = getExpenseRequesterLabel(request);
 
                     return (
-                      <tr key={request.id} className="border-b border-zinc-100">
-                        <td className="whitespace-nowrap px-3 py-2 text-zinc-600">
-                          {formatRequestDate(request.created_at)}
-                        </td>
-                        <td className="max-w-[5rem] truncate px-3 py-2 text-zinc-900">
-                          {requesterName}
-                        </td>
-                        <td className="max-w-[8rem] truncate px-3 py-2 text-zinc-900">
-                          {request.description}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right font-medium text-zinc-900">
-                          {formatCurrency(Number(request.amount))}
-                        </td>
-                        <td className="px-3 py-2">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              request.status === "approved"
-                                ? "bg-green-50 text-green-700"
-                                : "bg-red-50 text-red-700"
-                            }`}
-                          >
-                            {request.status === "approved" ? "Approved" : "Denied"}
-                          </span>
-                        </td>
-                      </tr>
+                      <div key={request.id} className="space-y-1 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium text-zinc-900">
+                              {request.description}
+                            </p>
+                            <p className="truncate text-[11px] text-zinc-500">
+                              {requesterName} · {formatRequestDate(request.created_at)}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-xs font-medium text-zinc-900">
+                            {formatCurrency(Number(request.amount))}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            request.status === "approved"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {request.status === "approved" ? "Approved" : "Denied"}
+                        </span>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </>
             )}
           </div>
         </section>
@@ -514,7 +551,8 @@ export default function ExpenseApprovalQueue({
             No reviewed requests yet.
           </p>
         ) : (
-          <div className="mt-6 overflow-x-auto">
+          <>
+          <div className="mt-6 hidden overflow-x-auto md:block">
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-zinc-500">
@@ -566,6 +604,50 @@ export default function ExpenseApprovalQueue({
               </tbody>
             </table>
           </div>
+
+          <div className="mt-6 divide-y divide-zinc-100 md:hidden">
+            {historyRequests.map((request) => {
+              const requesterName = getExpenseRequesterLabel(request);
+              const note =
+                request.status === "denied" ? request.denial_reason : request.justification;
+
+              return (
+                <div key={request.id} className="space-y-1.5 py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">
+                        {request.description}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {requesterName} · {formatRequestDate(request.created_at)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-medium text-zinc-900">
+                      {formatCurrency(Number(request.amount))}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        request.status === "approved"
+                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                          : "bg-red-50 text-red-700 ring-1 ring-red-200"
+                      }`}
+                    >
+                      {request.status === "approved" ? "Approved" : "Denied"}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      {getExpenseRequestFundingLabel(request)}
+                    </span>
+                  </div>
+
+                  {note ? <p className="text-xs text-zinc-500">{note}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </section>
     </div>
