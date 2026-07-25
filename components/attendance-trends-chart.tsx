@@ -210,7 +210,7 @@ export default function AttendanceTrendsChart({
           className="absolute whitespace-nowrap text-xs font-semibold text-zinc-500"
           style={{
             left: `${spec.axisXPercent}%`,
-            top: "50%",
+            top: `${spec.axisLabelCenterPercent}%`,
             transform: "translate(calc(-100% - 36px), -50%) rotate(180deg)",
             writingMode: "vertical-rl",
           }}
@@ -239,17 +239,17 @@ export default function AttendanceTrendsChart({
               x1={grid.x}
               x2={grid.x}
               y1={24}
-              y2={spec.height - 110}
+              y2={spec.plotBottom}
               stroke="#e4e4e7"
               strokeWidth={1}
             />
           ))}
-          <line x1={48} x2={48} y1={24} y2={spec.height - 110} stroke="#d4d4d8" strokeWidth={1.5} />
+          <line x1={48} x2={48} y1={24} y2={spec.plotBottom} stroke="#d4d4d8" strokeWidth={1.5} />
           <line
             x1={48}
             x2={spec.width - 20}
-            y1={spec.height - 110}
-            y2={spec.height - 110}
+            y1={spec.plotBottom}
+            y2={spec.plotBottom}
             stroke="#d4d4d8"
             strokeWidth={1.5}
           />

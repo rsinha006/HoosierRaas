@@ -7,7 +7,7 @@ export const CHART_VIEWBOX_HEIGHT = 380;
 const PAD_LEFT = 48;
 const PAD_RIGHT = 20;
 const PAD_TOP = 24;
-const PAD_BOTTOM = 110;
+const PAD_BOTTOM = 50;
 const NUDGE_PX = 6;
 const OVERLAP_THRESHOLD_PX = 16;
 // Minimum pixel gap allowed between the last two x-axis tick labels (horizontal
@@ -58,6 +58,8 @@ export type AttendanceChartSpec = {
   height: number;
   axisXPercent: number;
   axisYPercent: number;
+  plotBottom: number;
+  axisLabelCenterPercent: number;
   gridlines: AttendanceChartGridline[];
   vGridLines: { x: number }[];
   xTicks: AttendanceChartTick[];
@@ -110,7 +112,13 @@ export function buildAttendanceChartSpec(
   const yFor = (count: number) => PAD_TOP + ((yMax - count) / yMax) * innerHeight;
 
   const axisXPercent = (PAD_LEFT / width) * 100;
-  const axisYPercent = ((height - PAD_BOTTOM) / height) * 100;
+  const plotBottom = height - PAD_BOTTOM;
+  const axisYPercent = (plotBottom / height) * 100;
+  // Vertical center of the plot area (between the top pad and the x-axis line),
+  // used to center the "Members present" axis label on the plotted range rather
+  // than on the whole SVG canvas (which is padded further at the bottom for
+  // tick labels and the "Session date" caption).
+  const axisLabelCenterPercent = ((PAD_TOP + plotBottom) / 2 / height) * 100;
 
   const gridlines: AttendanceChartGridline[] = [0, 1, 2, 3, 4].map((i) => {
     const value = gridStep * i;
@@ -205,6 +213,8 @@ export function buildAttendanceChartSpec(
     height,
     axisXPercent,
     axisYPercent,
+    plotBottom,
+    axisLabelCenterPercent,
     gridlines,
     vGridLines,
     xTicks,
