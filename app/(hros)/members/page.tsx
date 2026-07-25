@@ -93,7 +93,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
             <p className="mt-2 text-zinc-600">Team roster for the {season} season</p>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-start">
             <AddMemberButton />
             {canManageOnboarding ? <OnboardingLinkGenerator /> : null}
           </div>

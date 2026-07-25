@@ -58,17 +58,20 @@ export default function MemberDeleteButton({
   }
 
   return (
-    <div className="flex flex-col gap-1" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="flex flex-col items-end gap-1"
+      onClick={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         onClick={handleDelete}
         disabled={loading || isSelf}
         title={isSelf ? "You cannot delete your own member record" : undefined}
-        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Deleting..." : "Delete"}
       </button>
-      {error ? <p className="max-w-xs text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="max-w-40 text-right text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }

@@ -62,11 +62,11 @@ export default function UserDeleteButton({
         onClick={handleDelete}
         disabled={loading || isSelf}
         title={isSelf ? "You cannot delete your own account" : undefined}
-        className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Deleting..." : "Delete"}
       </button>
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="max-w-40 text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }

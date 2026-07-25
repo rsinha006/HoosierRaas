@@ -199,38 +199,40 @@ export default function MembersTable({
               <div
                 key={member.id}
                 onClick={() => router.push(`/members/${member.id}`)}
-                className="cursor-pointer space-y-2 px-4 py-4 transition hover:bg-zinc-50/80"
+                className="flex cursor-pointer items-start gap-3 px-4 py-4 transition hover:bg-zinc-50/80"
               >
-                <div>
-                  <p className="font-medium text-zinc-900">{formatMemberName(member)}</p>
-                  <p className="text-sm text-zinc-600">{member.email}</p>
-                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div>
+                    <p className="font-medium text-zinc-900">{formatMemberName(member)}</p>
+                    <p className="text-sm break-words text-zinc-600">{member.email}</p>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-                  <span>Class of {member.graduation_year}</span>
-                  {member.exec_title ? (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span>{formatExecTitle(member.exec_title)}</span>
-                    </>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                    <span>Class of {member.graduation_year}</span>
+                    {member.exec_title ? (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{formatExecTitle(member.exec_title)}</span>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {member.roles.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {member.roles.map((role) => (
+                        <span
+                          key={role}
+                          className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
+                        >
+                          {formatRole(role)}
+                        </span>
+                      ))}
+                    </div>
                   ) : null}
                 </div>
 
-                {member.roles.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {member.roles.map((role) => (
-                      <span
-                        key={role}
-                        className="inline-flex rounded-full bg-[#990000]/10 px-2.5 py-0.5 text-xs font-medium text-[#990000]"
-                      >
-                        {formatRole(role)}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-
                 {canDelete ? (
-                  <div className="pt-1">
+                  <div className="shrink-0">
                     <MemberDeleteButton
                       member={member}
                       currentMemberId={currentMemberId}

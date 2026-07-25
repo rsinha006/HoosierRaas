@@ -20,11 +20,11 @@ export default function OnboardingLinkGenerator() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div className="flex w-full flex-col items-stretch gap-1.5 sm:w-auto sm:items-end">
       <button
         type="button"
         onClick={handleCopy}
-        className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] sm:min-h-0 sm:w-auto"
       >
         Generate Onboarding Link
       </button>

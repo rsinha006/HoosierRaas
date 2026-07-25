@@ -326,51 +326,60 @@ export default function UsersTable({
                     isHighlighted ? "bg-amber-50 ring-2 ring-inset ring-amber-300" : ""
                   }`}
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-zinc-900">
-                      {user.full_name?.trim() || "—"}
-                    </p>
-                    {isHighlighted ? (
-                      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
-                        New
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-sm text-zinc-600">{user.email}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-zinc-900">
+                          {user.full_name?.trim() || "—"}
+                        </p>
+                        {isHighlighted ? (
+                          <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                            New
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-sm break-words text-zinc-600">{user.email}</p>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        user.access_status === "active"
-                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                          : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                      }`}
-                    >
-                      {user.access_status === "active" ? "Active" : "Pending"}
-                    </span>
-                    {user.on_roster ? (
-                      <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                        On roster
-                      </span>
-                    ) : null}
-                  </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            user.access_status === "active"
+                              ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                              : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                          }`}
+                        >
+                          {user.access_status === "active" ? "Active" : "Pending"}
+                        </span>
+                        {user.on_roster ? (
+                          <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                            On roster
+                          </span>
+                        ) : null}
+                      </div>
 
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-                    <span>{formatExecTitle(user.exec_title) ?? "—"}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Joined {formatDate(user.created_at)}</span>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                        <span>{formatExecTitle(user.exec_title) ?? "—"}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>Joined {formatDate(user.created_at)}</span>
+                      </div>
+                    </div>
+
+                    {canManage ? (
+                      <div className="shrink-0">
+                        <UserDeleteButton
+                          userId={user.id}
+                          email={user.email}
+                          currentUserId={currentUserId}
+                        />
+                      </div>
+                    ) : null}
                   </div>
 
                   {canManage ? (
-                    <div className="flex flex-col gap-3 pt-1">
+                    <div className="pt-1">
                       <UserRoleAssign
                         userId={user.id}
                         currentExecTitle={user.exec_title}
-                      />
-                      <UserDeleteButton
-                        userId={user.id}
-                        email={user.email}
-                        currentUserId={currentUserId}
                       />
                     </div>
                   ) : null}
