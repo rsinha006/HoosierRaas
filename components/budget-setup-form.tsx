@@ -331,7 +331,49 @@ export default function BudgetSetupForm({
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
+        <div className="mt-6 space-y-3 md:hidden">
+          {categoryRows.map((row) => (
+            <div key={row.value} className="rounded-lg border border-zinc-200 p-4">
+              <p className="text-sm font-medium text-zinc-900">{row.label}</p>
+
+              <div className="mt-3">
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Allocated
+                </label>
+                {canWrite ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={allocations[row.value]}
+                    onChange={(event) =>
+                      updateAllocation(row.value, event.target.value)
+                    }
+                    className={inputClassName}
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-zinc-900">
+                    {formatCurrency(row.allocated)}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className="text-zinc-500">Spent</span>
+                <span className="text-zinc-600">{formatCurrency(row.spent)}</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-sm">
+                <span className="text-zinc-500">Remaining</span>
+                <span className="font-medium text-zinc-900">
+                  {formatCurrency(row.remaining)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 hidden md:block">
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-zinc-500">
@@ -387,20 +429,26 @@ export default function BudgetSetupForm({
             </p>
           </div>
           <div className="rounded-lg bg-zinc-50 px-4 py-3 text-sm">
-            <p className="text-zinc-500">IUFB available</p>
-            <p className="mt-1 font-semibold text-zinc-900">
-              {formatCurrency(iufbAvailable)}
-            </p>
-            <p className="mt-2 text-zinc-500">Total IUFB approved</p>
-            <p
-              className={`mt-1 font-semibold ${
-                totalIufbApproved > iufbAvailable
-                  ? "text-red-600"
-                  : "text-zinc-900"
-              }`}
-            >
-              {formatCurrency(totalIufbApproved)}
-            </p>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-zinc-500">IUFB available</p>
+                <p className="mt-1 font-semibold text-zinc-900">
+                  {formatCurrency(iufbAvailable)}
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Total IUFB approved</p>
+                <p
+                  className={`mt-1 font-semibold ${
+                    totalIufbApproved > iufbAvailable
+                      ? "text-red-600"
+                      : "text-zinc-900"
+                  }`}
+                >
+                  {formatCurrency(totalIufbApproved)}
+                </p>
+              </div>
+            </div>
             <p className="mt-2 text-zinc-500">Remaining envelope</p>
             <p
               className={`mt-1 font-semibold ${
