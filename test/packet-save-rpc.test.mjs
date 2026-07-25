@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 const migration = readFileSync(
   new URL(
-    "../supabase/migrations/20260704000000_transactional_packet_save.sql",
+    "../supabase/migrations/20260704000002_transactional_packet_save.sql",
     import.meta.url,
   ),
   "utf8",

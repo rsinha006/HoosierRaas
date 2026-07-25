@@ -3,6 +3,7 @@ import PressingDeadlinesSection from "@/components/pressing-deadlines-section";
 import { getUserMember } from "@/lib/get-user-member";
 import { buildPressingDeadlineGroups } from "@/lib/pressing-deadlines";
 import { hasWriteAccess } from "@/lib/rbac";
+import { DEFAULT_REMINDER_LEAD_DAYS } from "@/lib/reminder-types";
 import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,15 +24,16 @@ export default async function TeamManagerPage({ searchParams }: TeamManagerPageP
   const canWrite =
     hasWriteAccess(userMember?.exec_title ?? null, "team-manager") && viewingSeason.is_active;
 
-  const [{ count: competitionCount }, { data: deadlinesData }] = await Promise.all([
-    supabase
-      .from("competitions")
-      .select("*", { count: "exact", head: true })
-      .eq("season", season),
-    supabase
-      .from("deadlines")
-      .select(
-        `
+  const [{ count: competitionCount }, { data: deadlinesData }, { data: reminderSettingsRow }] =
+    await Promise.all([
+      supabase
+        .from("competitions")
+        .select("*", { count: "exact", head: true })
+        .eq("season", season),
+      supabase
+        .from("deadlines")
+        .select(
+          `
         id,
         competition_id,
         name,
@@ -46,12 +48,16 @@ export default async function TeamManagerPage({ searchParams }: TeamManagerPageP
           name
         )
       `,
-      )
-      .eq("status", "pending")
-      .eq("competitions.season", season),
-  ]);
+        )
+        .eq("status", "pending")
+        .eq("competitions.season", season),
+      supabase.from("reminder_settings").select("lead_days").eq("id", 1).maybeSingle(),
+    ]);
 
   const pressingDeadlineGroups = buildPressingDeadlineGroups(deadlinesData ?? []);
+  const reminderSettings = {
+    lead_days: reminderSettingsRow?.lead_days ?? DEFAULT_REMINDER_LEAD_DAYS,
+  };
 
   return (
     <div className="space-y-6">
@@ -94,7 +100,11 @@ export default async function TeamManagerPage({ searchParams }: TeamManagerPageP
         </div>
       </section>
 
-      <PressingDeadlinesSection groups={pressingDeadlineGroups} />
+      <PressingDeadlinesSection
+        groups={pressingDeadlineGroups}
+        canManageReminders={canWrite}
+        reminderSettings={reminderSettings}
+      />
     </div>
   );
 }

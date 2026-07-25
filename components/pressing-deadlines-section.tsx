@@ -4,11 +4,15 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DeadlineRow, PressingDeadlineGroup } from "@/lib/deadline-types";
+import type { ReminderSettings } from "@/lib/reminder-types";
 import DeadlineChecklistItem from "@/components/deadline-checklist-item";
+import ReminderSettingsDialog from "@/components/reminder-settings-dialog";
 import { toUserFacingDeadlineError } from "@/lib/user-facing-errors";
 
 type PressingDeadlinesSectionProps = {
   groups: PressingDeadlineGroup[];
+  canManageReminders: boolean;
+  reminderSettings: ReminderSettings;
 };
 
 function removeDeadlineFromGroups(
@@ -53,11 +57,25 @@ function getPressingGridClass(count: number) {
 
 export default function PressingDeadlinesSection({
   groups: initialGroups,
+  canManageReminders,
+  reminderSettings: initialReminderSettings,
 }: PressingDeadlinesSectionProps) {
   const supabase = useMemo(() => createClient(), []);
   const [groups, setGroups] = useState(initialGroups);
   const [error, setError] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [reminderSettings, setReminderSettings] = useState(initialReminderSettings);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+
+  const setRemindersButton = canManageReminders ? (
+    <button
+      type="button"
+      onClick={() => setReminderDialogOpen(true)}
+      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+    >
+      Set reminders
+    </button>
+  ) : null;
 
   async function handleToggle(deadline: DeadlineRow) {
     setError(null);
@@ -120,11 +138,22 @@ export default function PressingDeadlinesSection({
   if (groups.length === 0) {
     return (
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Pressing deadlines</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold text-zinc-900">Pressing deadlines</h2>
+          {setRemindersButton}
+        </div>
         <p className="mt-2 text-sm text-zinc-600">
           No pending deadlines right now. Confirm packet data on a competition to
           build a checklist.
         </p>
+        {canManageReminders ? (
+          <ReminderSettingsDialog
+            open={reminderDialogOpen}
+            onClose={() => setReminderDialogOpen(false)}
+            settings={reminderSettings}
+            onSaved={setReminderSettings}
+          />
+        ) : null}
       </section>
     );
   }
@@ -133,7 +162,10 @@ export default function PressingDeadlinesSection({
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Pressing deadlines</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-lg font-semibold text-zinc-900">Pressing deadlines</h2>
+            {setRemindersButton}
+          </div>
           <p className="mt-1 text-sm text-zinc-600">
             Most urgent pending deadlines across active competitions.
           </p>
@@ -178,6 +210,15 @@ export default function PressingDeadlinesSection({
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </p>
+      ) : null}
+
+      {canManageReminders ? (
+        <ReminderSettingsDialog
+          open={reminderDialogOpen}
+          onClose={() => setReminderDialogOpen(false)}
+          settings={reminderSettings}
+          onSaved={setReminderSettings}
+        />
       ) : null}
     </section>
   );
