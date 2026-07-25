@@ -1,5 +1,5 @@
 import Link from "next/link";
-import BudgetBarCharts from "@/components/budget-bar-charts";
+import BudgetCharts from "@/components/budget-charts";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   buildGeneralPoolBarSegments,
@@ -261,7 +261,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
               <p className="mt-1 text-sm">{budgetLoadError.message}</p>
             </div>
           ) : (
-            <BudgetBarCharts
+            <BudgetCharts
               generalPoolSegments={generalPoolSegments}
               iufbSegments={iufbSegments}
             />
