@@ -1,3 +1,9 @@
+"use client";
+
+import { useState } from "react";
+import BudgetChartToggle, { type BudgetChartView } from "@/components/budget-chart-toggle";
+import BudgetPieChart from "@/components/budget-pie-chart";
+import OverBudgetIcon from "@/components/over-budget-icon";
 import {
   IU_CRIMSON,
   IU_CREAM,
@@ -11,19 +17,6 @@ type BudgetBarRowProps = {
   segment: BudgetBarSegment;
   maxAllocated: number;
 };
-
-function WarningIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill={OVER_BUDGET_ALERT}
-      className="h-3.5 w-3.5 shrink-0"
-      aria-hidden="true"
-    >
-      <path d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.28 11.164c.75 1.333-.213 2.987-1.743 2.987H3.72c-1.53 0-2.493-1.654-1.743-2.987L8.257 3.1zM10 7a1 1 0 00-1 1v3a1 1 0 002 0V8a1 1 0 00-1-1zm0 7.25a1 1 0 100 2 1 1 0 000-2z" />
-    </svg>
-  );
-}
 
 function BudgetBarRow({ segment, maxAllocated }: BudgetBarRowProps) {
   const overBudget = segment.spent > segment.allocated;
@@ -52,7 +45,7 @@ function BudgetBarRow({ segment, maxAllocated }: BudgetBarRowProps) {
               className="ml-1.5 inline-flex items-center gap-1 font-semibold"
               style={{ color: OVER_BUDGET_ALERT }}
             >
-              <WarningIcon />
+              <OverBudgetIcon />
               {formatCurrency(overAmount)} over
             </span>
           ) : null}
@@ -74,24 +67,57 @@ function BudgetBarRow({ segment, maxAllocated }: BudgetBarRowProps) {
   );
 }
 
-type BudgetBarChartProps = {
+function BudgetBarList({ segments }: { segments: BudgetBarSegment[] }) {
+  const maxAllocated = Math.max(0, ...segments.map((segment) => segment.allocated));
+
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      {segments.map((segment) => (
+        <BudgetBarRow
+          key={segment.label}
+          segment={segment}
+          maxAllocated={maxAllocated}
+        />
+      ))}
+    </div>
+  );
+}
+
+type BudgetChartCardProps = {
   title: string;
-  subtitle: string;
+  barSubtitle: string;
+  pieSubtitle: string;
   segments: BudgetBarSegment[];
 };
 
-function BudgetBarChart({ title, subtitle, segments }: BudgetBarChartProps) {
+function BudgetChartCard({
+  title,
+  barSubtitle,
+  pieSubtitle,
+  segments,
+}: BudgetChartCardProps) {
+  const [view, setView] = useState<BudgetChartView>("bars");
   const totalAllocated = sumBarAllocated(segments);
-  const maxAllocated = Math.max(0, ...segments.map((segment) => segment.allocated));
+  const hasBudget = totalAllocated > 0;
 
   return (
     <section className="flex flex-col rounded-2xl border border-zinc-200 bg-white px-6 pt-6 pb-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate text-lg font-semibold text-zinc-900">{title}</h2>
-          <p className="mt-1 truncate text-sm text-zinc-600">{subtitle}</p>
+          <p className="mt-1 text-sm text-zinc-600">
+            {view === "bars" ? barSubtitle : pieSubtitle}
+          </p>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-xs text-zinc-600">
+        {hasBudget ? (
+          <BudgetChartToggle value={view} onChange={setView} chartLabel={title} />
+        ) : null}
+      </div>
+
+      {hasBudget && view === "bars" ? (
+        // Only meaningful against the crimson/cream fill of the bar view; the
+        // pie encodes category identity instead, and carries its own legend.
+        <div className="mt-3 flex items-center gap-3 text-xs text-zinc-600">
           <span className="inline-flex items-center gap-1.5">
             <span
               className="h-2.5 w-2.5 rounded-sm"
@@ -107,46 +133,42 @@ function BudgetBarChart({ title, subtitle, segments }: BudgetBarChartProps) {
             Remaining
           </span>
         </div>
-      </div>
+      ) : null}
 
-      {totalAllocated <= 0 ? (
+      {!hasBudget ? (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500">
           No allocated budget yet. Set amounts in Budget Setup.
         </div>
+      ) : view === "bars" ? (
+        <BudgetBarList segments={segments} />
       ) : (
-        <div className="mt-4 flex flex-col gap-4">
-          {segments.map((segment) => (
-            <BudgetBarRow
-              key={segment.label}
-              segment={segment}
-              maxAllocated={maxAllocated}
-            />
-          ))}
-        </div>
+        <BudgetPieChart segments={segments} />
       )}
     </section>
   );
 }
 
-type BudgetBarChartsProps = {
+type BudgetChartsProps = {
   generalPoolSegments: BudgetBarSegment[];
   iufbSegments: BudgetBarSegment[];
 };
 
-export default function BudgetBarCharts({
+export default function BudgetCharts({
   generalPoolSegments,
   iufbSegments,
-}: BudgetBarChartsProps) {
+}: BudgetChartsProps) {
   return (
     <section className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-      <BudgetBarChart
+      <BudgetChartCard
         title="General Pool"
-        subtitle="Allocated budget by category with proportional spend."
+        barSubtitle="Allocated budget by category with proportional spend."
+        pieSubtitle="Share of total allocated budget by category."
         segments={generalPoolSegments}
       />
-      <BudgetBarChart
+      <BudgetChartCard
         title="IUFB"
-        subtitle="Allocated line items with proportional spend."
+        barSubtitle="Allocated line items with proportional spend."
+        pieSubtitle="Share of total allocated budget by line item."
         segments={iufbSegments}
       />
     </section>
