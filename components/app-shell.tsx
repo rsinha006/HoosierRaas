@@ -13,7 +13,7 @@ export default function AppShell({ user, archivedSeasonLabel, children }: AppShe
   return (
     <UserRoleProvider>
       <div className="min-h-screen bg-zinc-50">
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen flex-col lg:flex-row">
           <AppSidebar user={user} />
           <div className="flex min-w-0 flex-1 flex-col">
             {archivedSeasonLabel ? (
