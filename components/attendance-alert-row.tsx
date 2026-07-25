@@ -73,6 +73,8 @@ export default function AttendanceAlertRow({ groups }: AttendanceAlertRowProps) 
       colorClasses: "border-amber-200 bg-amber-50 text-amber-950",
       badgeClasses: "bg-amber-950/10",
       countLabel: (member: DancerAttendanceSummary) => `${member.excusedAbsences} excused absences`,
+      memberLabel: (member: DancerAttendanceSummary) =>
+        `${member.name} (${member.excusedAbsences})`,
     },
     {
       key: "policy",
@@ -81,6 +83,8 @@ export default function AttendanceAlertRow({ groups }: AttendanceAlertRowProps) 
       colorClasses: "border-red-200 bg-red-50 text-red-950",
       badgeClasses: "bg-red-950/10",
       countLabel: (member: DancerAttendanceSummary) => `${member.excusedAbsences} excused absences`,
+      memberLabel: (member: DancerAttendanceSummary) =>
+        `${member.name} (${member.excusedAbsences})`,
     },
   ];
 
