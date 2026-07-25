@@ -1,5 +1,4 @@
 import AddExpenseForm from "@/components/add-expense-form";
-import BackToFinanceLink from "@/components/back-to-finance-link";
 import ExpenseApprovalQueue from "@/components/expense-approval-queue";
 import ExpenseLinkGenerator from "@/components/expense-link-generator";
 import { getUserMember } from "@/lib/get-user-member";
@@ -116,12 +115,9 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   return (
     <div className="flex flex-col gap-3 lg:h-[calc(100dvh-4rem)]">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-3">
-          <BackToFinanceLink />
-          <div>
-            <h1 className="text-lg font-semibold text-zinc-900">Expenses</h1>
-            <p className="text-xs text-zinc-500">Pre-approval · {season}</p>
-          </div>
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900">Expenses</h1>
+          <p className="text-xs text-zinc-500">Pre-approval · {season}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

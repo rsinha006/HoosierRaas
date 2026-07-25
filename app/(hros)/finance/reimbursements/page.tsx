@@ -1,4 +1,3 @@
-import BackToFinanceLink from "@/components/back-to-finance-link";
 import ReimbursementLinkGenerator from "@/components/reimbursement-link-generator";
 import ReimbursementQueue from "@/components/reimbursement-queue";
 import { getUserMember } from "@/lib/get-user-member";
@@ -91,15 +90,10 @@ export default async function ReimbursementsPage({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <div className="flex items-start gap-4">
-          <BackToFinanceLink />
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900">Reimbursements</h1>
-            <p className="mt-2 text-zinc-600">
-              Out-of-pocket reimbursement requests and payment queue.
-            </p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-semibold text-zinc-900">Reimbursements</h1>
+        <p className="mt-2 text-zinc-600">
+          Out-of-pocket reimbursement requests and payment queue.
+        </p>
       </div>
 
       <ReimbursementLinkGenerator />

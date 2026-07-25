@@ -1,5 +1,4 @@
 import AddIncomeForm from "@/components/add-income-form";
-import BackToFinanceLink from "@/components/back-to-finance-link";
 import { getUserMember } from "@/lib/get-user-member";
 import {
   formatCurrency,
@@ -84,15 +83,10 @@ export default async function FinanceIncomePage({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <div className="flex items-start gap-4">
-          <BackToFinanceLink />
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900">Income</h1>
-            <p className="mt-2 text-zinc-600">
-              Income tracking for the {season} season.
-            </p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-semibold text-zinc-900">Income</h1>
+        <p className="mt-2 text-zinc-600">
+          Income tracking for the {season} season.
+        </p>
       </div>
 
       {incomeError ? (
