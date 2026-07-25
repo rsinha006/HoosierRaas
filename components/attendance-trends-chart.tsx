@@ -31,8 +31,14 @@ const FILTER_OPTIONS: FilterOption[] = [
   { key: "exec meeting", label: "Exec Meeting" },
 ];
 
-// Vertical room reserved below the plot for the x-axis tick labels.
-const X_TICK_ROW_HEIGHT = 20;
+// Both axes are spaced from these two constants so the chart reads the same in
+// either direction: the gap from the plot to its tick labels, and the gap from
+// the tick labels to the axis title.
+const AXIS_TICK_GAP = 8;
+const AXIS_TITLE_GAP = 8;
+// Explicit line height for the tick labels, so the row the x-axis labels occupy
+// can be reserved exactly rather than estimated.
+const TICK_LINE_HEIGHT = 16;
 
 function sessionSortKey(stat: SessionAttendanceStat) {
   return `${stat.session.session_date}T${stat.session.session_time}`;
@@ -128,9 +134,7 @@ export default function AttendanceTrendsChart({
 
   const hasStats = ascendingStats.length > 0;
 
-  // Reserve exactly enough room left of the plot for the widest y tick label.
   const maxGridValue = spec.gridlines[spec.gridlines.length - 1]?.value ?? 0;
-  const yAxisGutter = 10 + String(maxGridValue).length * 7;
 
   const dateRangeLabel =
     ascendingStats.length > 0
@@ -268,7 +272,7 @@ export default function AttendanceTrendsChart({
             </span>
           </div>
 
-          <div className="mt-5 flex gap-1.5 sm:gap-2">
+          <div className="mt-5 flex" style={{ gap: AXIS_TITLE_GAP }}>
             <div className="flex shrink-0 items-center" style={{ height: plotHeight }}>
               <span
                 className="whitespace-nowrap text-[11px] font-semibold text-zinc-500 sm:text-xs"
@@ -278,8 +282,35 @@ export default function AttendanceTrendsChart({
               </span>
             </div>
 
-            <div className="min-w-0 flex-1" style={{ paddingLeft: yAxisGutter }}>
-              <div ref={plotRef} className="relative w-full" style={{ height: plotHeight }}>
+            <div className="flex min-w-0 flex-1" style={{ gap: AXIS_TICK_GAP }}>
+              {/* An invisible copy of the widest tick label gives this column
+                  its exact width, so the gap left of it is the same constant
+                  the x axis puts below its own labels - no pixel guessing. */}
+              <div className="relative shrink-0" style={{ height: plotHeight }}>
+                <span
+                  aria-hidden
+                  className="invisible block whitespace-nowrap text-[11px] font-medium sm:text-xs"
+                  style={{ lineHeight: `${TICK_LINE_HEIGHT}px` }}
+                >
+                  {maxGridValue}
+                </span>
+                {spec.gridlines.map((grid) => (
+                  <div
+                    key={grid.value}
+                    className="absolute right-0 whitespace-nowrap text-[11px] font-medium text-zinc-600 sm:text-xs"
+                    style={{
+                      top: `${grid.yPercent}%`,
+                      lineHeight: `${TICK_LINE_HEIGHT}px`,
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {grid.value}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div ref={plotRef} className="relative w-full" style={{ height: plotHeight }}>
                 <svg
                   viewBox={`0 0 ${spec.width} ${spec.height}`}
                   className="absolute top-0 left-0 block h-full w-full overflow-visible"
@@ -398,21 +429,6 @@ export default function AttendanceTrendsChart({
                   ) : null}
                 </svg>
 
-                {spec.gridlines.map((grid) => (
-                  <div
-                    key={grid.value}
-                    className="absolute whitespace-nowrap text-[11px] font-medium text-zinc-600 sm:text-xs"
-                    style={{
-                      right: "100%",
-                      top: `${grid.yPercent}%`,
-                      marginRight: 6,
-                      transform: "translateY(-50%)",
-                    }}
-                  >
-                    {grid.value}
-                  </div>
-                ))}
-
                 {spec.xTicks.map((tick) => (
                   <div
                     key={tick.sessionId}
@@ -420,7 +436,8 @@ export default function AttendanceTrendsChart({
                     style={{
                       left: `${tick.xPercent}%`,
                       top: "100%",
-                      marginTop: 5,
+                      marginTop: AXIS_TICK_GAP,
+                      lineHeight: `${TICK_LINE_HEIGHT}px`,
                       transform: tickTranslate(tick.align),
                     }}
                   >
@@ -442,13 +459,19 @@ export default function AttendanceTrendsChart({
                     <p className="mt-1.5 text-xs text-zinc-700">{tooltip.metricLabel}</p>
                   </div>
                 ) : null}
+                </div>
+
+                {/* The tick labels are absolutely positioned, so reserve the
+                    row they occupy before the axis title follows in flow. */}
+                <div style={{ height: AXIS_TICK_GAP + TICK_LINE_HEIGHT }} />
+
+                <p
+                  className="text-center text-[11px] font-semibold text-zinc-500 sm:text-xs"
+                  style={{ marginTop: AXIS_TITLE_GAP }}
+                >
+                  Session date
+                </p>
               </div>
-
-              <div style={{ height: X_TICK_ROW_HEIGHT }} />
-
-              <p className="text-center text-[11px] font-semibold text-zinc-500 sm:text-xs">
-                Session date
-              </p>
             </div>
           </div>
         </>

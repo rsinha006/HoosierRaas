@@ -15,13 +15,13 @@ const MIN_PLOT_HEIGHT = 170;
 const MAX_PLOT_HEIGHT = 320;
 
 const OVERLAP_THRESHOLD_PX = 16;
-// Minimum pixel gap allowed between the last two x-axis tick labels (horizontal
-// "M/D" text at 11px) - used only to avoid crowding when the final session is
-// forced onto the axis so the range's end date always stays visible.
-const MIN_TICK_SPACING_PX = 44;
-// Horizontal room a single "M/D" tick label needs before it starts colliding
-// with its neighbour. Drives how many ticks the axis can hold at a given width.
-const TICK_LABEL_FOOTPRINT_PX = 46;
+// Horizontal room one "M/D" tick label needs to clear its neighbour. Sized for
+// the tightest pairing on the axis: the last label is right-aligned against the
+// plot edge while the one before it is centred on its tick, so that gap has to
+// cover a full label plus half of another (~34px + ~17px) rather than the ~34px
+// two centred labels would need. Drives both how many ticks fit at a given
+// width and whether the end label can be appended.
+const TICK_LABEL_FOOTPRINT_PX = 54;
 
 export const CHART_COLORS: Record<PracticeSessionType, string> = {
   practice: "#990000",
@@ -88,16 +88,54 @@ export function computeNiceMax(maxValue: number): number {
   return Math.max(4, Math.ceil(maxValue / 4) * 4);
 }
 
-function mondayOfWeek(date: Date): Date {
-  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const isoDayIndex = (monday.getDay() + 6) % 7; // 0 = Monday
-  monday.setDate(monday.getDate() - isoDayIndex);
-  return monday;
-}
+// Sessions are plotted at evenly spaced indices, so evenly spaced labels means
+// a constant index stride - every gap is exactly one stride wide.
+//
+// The stride is the smallest that fits the measured width, then raised by up to
+// 50% if a slightly wider one divides the range more cleanly. The cap matters:
+// without it a range whose length happens to be prime would collapse to a
+// single pair of labels.
+//
+// The last session is always labelled, so when the stride doesn't divide the
+// range exactly one gap ends up an odd width. Which way it is odd depends on
+// room: append the end label where it clears its neighbour, otherwise move the
+// last regular label to the end and leave one wider gap instead. Never a
+// narrower one - that is the case where the two labels would collide.
+function evenTickIndices(n: number, maxTicks: number, pointSpacingPx: number): number[] {
+  if (n <= 1) {
+    return n === 1 ? [0] : [];
+  }
+  const span = n - 1;
+  if (maxTicks < 3) {
+    return [0, span];
+  }
 
-function weeksBetween(from: Date, to: Date): number {
-  const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.round((mondayOfWeek(to).getTime() - mondayOfWeek(from).getTime()) / (7 * msPerDay));
+  const minStep = Math.max(1, Math.ceil(span / (maxTicks - 1)));
+  const stepLimit = Math.min(span, Math.floor(minStep * 1.5));
+  let step = minStep;
+  let leftover = span % minStep;
+  for (let candidate = minStep + 1; candidate <= stepLimit && leftover > 0; candidate += 1) {
+    if (span % candidate < leftover) {
+      step = candidate;
+      leftover = span % candidate;
+    }
+  }
+
+  const indices: number[] = [];
+  for (let index = 0; index <= span; index += step) {
+    indices.push(index);
+  }
+
+  const last = indices[indices.length - 1];
+  if (last !== span) {
+    if ((span - last) * pointSpacingPx >= TICK_LABEL_FOOTPRINT_PX || indices.length === 1) {
+      indices.push(span);
+    } else {
+      indices[indices.length - 1] = span;
+    }
+  }
+
+  return indices;
 }
 
 function buildPath(points: AttendanceChartPoint[]) {
@@ -106,11 +144,15 @@ function buildPath(points: AttendanceChartPoint[]) {
     .join(" ");
 }
 
+// Only the labels sitting exactly on the plot edges get pinned inward; every
+// other label is centred on its tick. Keyed off the endpoints rather than a
+// percentage band, so a short final gap can't right-align the second-to-last
+// label on top of the last one.
 function tickAlign(xPercent: number): TickAlign {
-  if (xPercent < 8) {
+  if (xPercent <= 0.01) {
     return "start";
   }
-  if (xPercent > 92) {
+  if (xPercent >= 99.99) {
     return "end";
   }
   return "middle";
@@ -147,41 +189,11 @@ export function buildAttendanceChartSpec(
     return { value, y, yPercent: (y / height) * 100 };
   });
 
-  // Label by calendar week rather than raw session count, so a busy week (5
-  // sessions) gets the same one label as a quiet week (1 session): find each
-  // week's first session, then keep only every Nth of those week-anchors.
+  // The number of labels adapts to the width, but their spacing never does:
+  // the stride is a constant number of sessions, so adding or removing sessions
+  // changes how many labels appear, not how evenly they sit.
   const pointSpacingPx = n > 1 ? width / (n - 1) : width;
-  const firstSessionDate = n > 0 ? new Date(`${stats[0].session.session_date}T12:00:00`) : null;
-
-  const weekAnchorIndices: number[] = [];
-  let lastWeekNumber: number | null = null;
-  stats.forEach((stat, index) => {
-    const date = new Date(`${stat.session.session_date}T12:00:00`);
-    const weekNumber = firstSessionDate ? weeksBetween(firstSessionDate, date) : 0;
-    if (weekNumber !== lastWeekNumber) {
-      lastWeekNumber = weekNumber;
-      weekAnchorIndices.push(index);
-    }
-  });
-
-  // Every other week is the widest labelling we ever want; on a narrow plot (or
-  // a long time window) widen the stride further so the labels can never
-  // collide - the axis thins out instead of turning into a smear of dates.
-  const maxTicks = getMaxTickCount(width);
-  const stride = Math.max(2, Math.ceil(weekAnchorIndices.length / maxTicks));
-  const tickIndices = weekAnchorIndices.filter((_, i) => i % stride === 0);
-
-  const lastRegularTick = tickIndices[tickIndices.length - 1];
-  if (n > 0 && lastRegularTick !== n - 1) {
-    const gapToEndPx = (n - 1 - lastRegularTick) * pointSpacingPx;
-    if (gapToEndPx < MIN_TICK_SPACING_PX && tickIndices.length > 1) {
-      // Too close to the previous tick to add both without crowding - swap in
-      // the final session so the range's end date still stays visible.
-      tickIndices[tickIndices.length - 1] = n - 1;
-    } else {
-      tickIndices.push(n - 1);
-    }
-  }
+  const tickIndices = evenTickIndices(n, getMaxTickCount(width), pointSpacingPx);
 
   const xTicks: AttendanceChartTick[] = tickIndices.map((index) => {
     const x = xFor(index);
