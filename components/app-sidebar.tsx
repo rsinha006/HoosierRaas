@@ -44,20 +44,32 @@ export default function AppSidebar({ user }: AppSidebarProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 lg:hidden">
-        <div>
+      <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 text-zinc-700 transition hover:bg-zinc-50"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+          </svg>
+        </button>
+        <div className="flex-1 text-right">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#990000]">
             HROS
           </p>
           <p className="text-sm font-medium text-zinc-900">{user.name}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700"
-        >
-          Menu
-        </button>
       </div>
 
       {mobileOpen && (
