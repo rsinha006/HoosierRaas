@@ -161,40 +161,67 @@ export default async function FinanceIncomePage({
             ) : duesStatusRows.length === 0 ? (
               <p className="mt-6 text-sm text-zinc-500">No active members on the roster yet.</p>
             ) : (
-              <div className="mt-6 overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-200 text-zinc-500">
-                      <th className="px-3 py-3 font-medium">Member</th>
-                      <th className="px-3 py-3 font-medium">Status</th>
-                      <th className="px-3 py-3 font-medium text-right">Paid</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {duesStatusRows.map((row) => (
-                      <tr key={row.member.id} className="border-b border-zinc-100">
-                        <td className="px-3 py-3 text-zinc-900">
-                          {formatMemberName(row.member)}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              row.hasPaid
-                                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                                : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                            }`}
-                          >
-                            {row.hasPaid ? "Paid" : "Not paid"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-right font-medium text-zinc-900">
-                          {formatCurrency(row.paid)}
-                        </td>
+              <>
+                <div className="mt-6 space-y-2 md:hidden">
+                  {duesStatusRows.map((row) => (
+                    <div
+                      key={row.member.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 p-3"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm text-zinc-900">
+                        {formatMemberName(row.member)}
+                      </span>
+                      <span
+                        className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          row.hasPaid
+                            ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                        }`}
+                      >
+                        {row.hasPaid ? "Paid" : "Not paid"}
+                      </span>
+                      <span className="shrink-0 text-right text-sm font-medium text-zinc-900">
+                        {formatCurrency(row.paid)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 hidden md:block">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-zinc-500">
+                        <th className="px-3 py-3 font-medium">Member</th>
+                        <th className="px-3 py-3 font-medium">Status</th>
+                        <th className="px-3 py-3 font-medium text-right">Paid</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {duesStatusRows.map((row) => (
+                        <tr key={row.member.id} className="border-b border-zinc-100">
+                          <td className="px-3 py-3 text-zinc-900">
+                            {formatMemberName(row.member)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                row.hasPaid
+                                  ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                                  : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                              }`}
+                            >
+                              {row.hasPaid ? "Paid" : "Not paid"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-right font-medium text-zinc-900">
+                            {formatCurrency(row.paid)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         </>

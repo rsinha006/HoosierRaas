@@ -238,90 +238,167 @@ export default function ArchiveSeasonDialog({
                   No staying members with exec login accounts to carry over.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-zinc-200">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-zinc-50 text-zinc-500">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Member</th>
-                        <th className="px-4 py-3 font-medium">Next access</th>
-                        <th className="px-4 py-3 font-medium">Delete login</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {accessEligible.map((member) => {
-                        const choice = accessChoices[member.memberId] ?? {
-                          nextExecTitle: member.execTitle ?? "none",
-                          deleteLogin: false,
-                        };
+                <>
+                  <div className="space-y-3 md:hidden">
+                    {accessEligible.map((member) => {
+                      const choice = accessChoices[member.memberId] ?? {
+                        nextExecTitle: member.execTitle ?? "none",
+                        deleteLogin: false,
+                      };
 
-                        return (
-                          <tr key={member.memberId} className="border-t border-zinc-100">
-                            <td className="px-4 py-3">
-                              <p className="font-medium text-zinc-900">{member.name}</p>
-                              <p className="text-xs text-zinc-500">{member.email}</p>
-                            </td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={choice.nextExecTitle}
-                                disabled={choice.deleteLogin}
-                                onChange={(event) =>
-                                  setAccessChoices((current) => ({
-                                    ...current,
-                                    [member.memberId]: {
-                                      ...choice,
-                                      nextExecTitle: event.target
-                                        .value as typeof choice.nextExecTitle,
-                                    },
-                                  }))
-                                }
-                                className={`${selectClassName} ${
-                                  choice.deleteLogin ? "opacity-50" : ""
-                                }`}
-                              >
-                                {ASSIGNABLE_EXEC_TITLES.map((title) => (
-                                  <option key={title.value} value={title.value}>
-                                    {title.label}
-                                  </option>
-                                ))}
-                                <option value="none">None</option>
-                              </select>
-                              {choice.deleteLogin ? (
-                                <p className="mt-1 text-xs text-zinc-500">
-                                  Login is being deleted — access will be None.
-                                </p>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3">
-                              <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
-                                <input
-                                  type="checkbox"
-                                  checked={choice.deleteLogin}
-                                  onChange={(event) => {
-                                    const deleteLogin = event.target.checked;
+                      return (
+                        <div
+                          key={member.memberId}
+                          className="rounded-xl border border-zinc-200 p-4"
+                        >
+                          <p className="font-medium text-zinc-900">{member.name}</p>
+                          <p className="text-xs text-zinc-500">{member.email}</p>
+
+                          <div className="mt-3">
+                            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                              Next access
+                            </label>
+                            <select
+                              value={choice.nextExecTitle}
+                              disabled={choice.deleteLogin}
+                              onChange={(event) =>
+                                setAccessChoices((current) => ({
+                                  ...current,
+                                  [member.memberId]: {
+                                    ...choice,
+                                    nextExecTitle: event.target
+                                      .value as typeof choice.nextExecTitle,
+                                  },
+                                }))
+                              }
+                              className={`${selectClassName} ${
+                                choice.deleteLogin ? "opacity-50" : ""
+                              }`}
+                            >
+                              {ASSIGNABLE_EXEC_TITLES.map((title) => (
+                                <option key={title.value} value={title.value}>
+                                  {title.label}
+                                </option>
+                              ))}
+                              <option value="none">None</option>
+                            </select>
+                            {choice.deleteLogin ? (
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Login is being deleted — access will be None.
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <label className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-700">
+                            <input
+                              type="checkbox"
+                              checked={choice.deleteLogin}
+                              onChange={(event) => {
+                                const deleteLogin = event.target.checked;
+                                setAccessChoices((current) => ({
+                                  ...current,
+                                  [member.memberId]: {
+                                    nextExecTitle: deleteLogin
+                                      ? "none"
+                                      : choice.nextExecTitle,
+                                    deleteLogin,
+                                  },
+                                }));
+                              }}
+                              className="rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
+                            />
+                            Delete login
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 md:block">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-zinc-50 text-zinc-500">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Member</th>
+                          <th className="px-4 py-3 font-medium">Next access</th>
+                          <th className="px-4 py-3 font-medium">Delete login</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {accessEligible.map((member) => {
+                          const choice = accessChoices[member.memberId] ?? {
+                            nextExecTitle: member.execTitle ?? "none",
+                            deleteLogin: false,
+                          };
+
+                          return (
+                            <tr key={member.memberId} className="border-t border-zinc-100">
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-zinc-900">{member.name}</p>
+                                <p className="text-xs text-zinc-500">{member.email}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  value={choice.nextExecTitle}
+                                  disabled={choice.deleteLogin}
+                                  onChange={(event) =>
                                     setAccessChoices((current) => ({
                                       ...current,
                                       [member.memberId]: {
-                                        // Checking "delete login" always resets access to
-                                        // None — you can't grant access and delete the
-                                        // login in the same step.
-                                        nextExecTitle: deleteLogin
-                                          ? "none"
-                                          : choice.nextExecTitle,
-                                        deleteLogin,
+                                        ...choice,
+                                        nextExecTitle: event.target
+                                          .value as typeof choice.nextExecTitle,
                                       },
-                                    }));
-                                  }}
-                                  className="rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
-                                />
-                                Delete login
-                              </label>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                    }))
+                                  }
+                                  className={`${selectClassName} ${
+                                    choice.deleteLogin ? "opacity-50" : ""
+                                  }`}
+                                >
+                                  {ASSIGNABLE_EXEC_TITLES.map((title) => (
+                                    <option key={title.value} value={title.value}>
+                                      {title.label}
+                                    </option>
+                                  ))}
+                                  <option value="none">None</option>
+                                </select>
+                                {choice.deleteLogin ? (
+                                  <p className="mt-1 text-xs text-zinc-500">
+                                    Login is being deleted — access will be None.
+                                  </p>
+                                ) : null}
+                              </td>
+                              <td className="px-4 py-3">
+                                <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={choice.deleteLogin}
+                                    onChange={(event) => {
+                                      const deleteLogin = event.target.checked;
+                                      setAccessChoices((current) => ({
+                                        ...current,
+                                        [member.memberId]: {
+                                          // Checking "delete login" always resets access to
+                                          // None — you can't grant access and delete the
+                                          // login in the same step.
+                                          nextExecTitle: deleteLogin
+                                            ? "none"
+                                            : choice.nextExecTitle,
+                                          deleteLogin,
+                                        },
+                                      }));
+                                    }}
+                                    className="rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
+                                  />
+                                  Delete login
+                                </label>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           ) : null}
