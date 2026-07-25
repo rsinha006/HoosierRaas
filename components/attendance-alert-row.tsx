@@ -146,22 +146,57 @@ function AlertBox({
 
   const showArrow = overflowing || expanded;
 
+  // Expanded, the names get the card's full width as a wrapped list of chips.
+  // Keeping them inline would squeeze every name into whatever narrow column is
+  // left beside the title, which on a phone is a one-word-per-line ribbon with
+  // a tall blank gap under the title.
+  if (expanded) {
+    return (
+      <div
+        ref={containerRef}
+        className={`min-w-0 rounded-xl border px-3.5 py-2.5 ${config.colorClasses}`}
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded
+          className="flex w-full items-center gap-2 border-none bg-transparent p-0 text-left text-inherit"
+        >
+          <span className="min-w-0 text-[13px] font-semibold">{config.title}</span>
+          <span className={`shrink-0 rounded-full px-1.5 py-px text-xs font-semibold ${config.badgeClasses}`}>
+            {badgeText}
+          </span>
+          <span aria-hidden className="ml-auto shrink-0 rotate-90 text-[15px] font-bold leading-none">
+            ›
+          </span>
+        </button>
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {config.members.map((member) => (
+            <li key={member.memberId}>
+              <Link
+                href={`/attendance/members/${member.memberId}`}
+                className="inline-block rounded-full bg-white/70 px-2 py-0.5 text-xs ring-1 ring-inset ring-black/5 hover:bg-white"
+                title={config.countLabel(member)}
+              >
+                {getLabel(member)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      className={`flex min-w-0 gap-2 overflow-hidden rounded-xl border px-3.5 py-2.5 ${expanded ? "items-start whitespace-normal" : "items-center whitespace-nowrap"} ${config.colorClasses}`}
+      className={`flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-xl border px-3.5 py-2.5 ${config.colorClasses}`}
     >
       <span className="shrink-0 text-[13px] font-semibold">{config.title}</span>
       <span className={`shrink-0 rounded-full px-1.5 py-px text-xs font-semibold ${config.badgeClasses}`}>
         {badgeText}
       </span>
-      <span
-        className={
-          expanded
-            ? "min-w-0 flex-1 whitespace-normal break-words text-xs opacity-80"
-            : "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs opacity-80"
-        }
-      >
+      <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs opacity-80">
         {config.members.map((member, index) => (
           <span key={member.memberId}>
             {index > 0 ? ", " : ""}
@@ -179,10 +214,11 @@ function AlertBox({
         <button
           type="button"
           onClick={onToggle}
-          className="ml-auto shrink-0 border-none bg-transparent px-0.5 text-[15px] font-bold text-inherit"
-          aria-label={expanded ? "Collapse alert" : "Expand alert"}
+          aria-expanded={false}
+          className="-my-1 ml-auto shrink-0 border-none bg-transparent px-1 py-1 text-[15px] font-bold leading-none text-inherit"
+          aria-label="Expand alert"
         >
-          {expanded ? "‹" : "›"}
+          ›
         </button>
       ) : null}
     </div>

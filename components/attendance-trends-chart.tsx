@@ -1,9 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatSessionType, type PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
-import { buildAttendanceChartSpec, CHART_COLORS, VIDEO_LINE_COLOR } from "@/lib/attendance-chart";
+import {
+  buildAttendanceChartSpec,
+  CHART_COLORS,
+  DEFAULT_PLOT_WIDTH,
+  getPlotHeight,
+  VIDEO_LINE_COLOR,
+  type TickAlign,
+} from "@/lib/attendance-chart";
 import { TIME_WINDOWS, TIME_WINDOW_LABELS, type TimeWindow } from "@/lib/attendance-time-window";
 
 type AttendanceTrendsChartProps = {
@@ -23,6 +30,9 @@ const FILTER_OPTIONS: FilterOption[] = [
   { key: "fundraiser", label: "Fundraiser" },
   { key: "exec meeting", label: "Exec Meeting" },
 ];
+
+// Vertical room reserved below the plot for the x-axis tick labels.
+const X_TICK_ROW_HEIGHT = 20;
 
 function sessionSortKey(stat: SessionAttendanceStat) {
   return `${stat.session.session_date}T${stat.session.session_time}`;
@@ -53,6 +63,41 @@ function videoOpacity(activeFilter: PracticeSessionType | "all") {
   return activeFilter !== "all" && activeFilter !== "practice" ? 0.15 : 0.45;
 }
 
+function tickTranslate(align: TickAlign) {
+  if (align === "start") {
+    return "translateX(0)";
+  }
+  if (align === "end") {
+    return "translateX(-100%)";
+  }
+  return "translateX(-50%)";
+}
+
+// The SVG is sized in CSS pixels so it renders at scale 1 - that keeps stroke
+// widths true and lets the tick labels be positioned in the same units the
+// geometry uses, instead of guessing how a viewBox unit maps to a pixel.
+function usePlotWidth() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(DEFAULT_PLOT_WIDTH);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const next = entries[0]?.contentRect.width ?? 0;
+      if (next > 0) {
+        setWidth(Math.round(next));
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, width };
+}
+
 export default function AttendanceTrendsChart({
   stats,
   activeFilter,
@@ -62,6 +107,7 @@ export default function AttendanceTrendsChart({
   onTimeWindowChange,
 }: AttendanceTrendsChartProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const { ref: plotRef, width: plotWidth } = usePlotWidth();
 
   const ascendingStats = useMemo(
     () => [...stats].sort((left, right) => sessionSortKey(left).localeCompare(sessionSortKey(right))),
@@ -73,12 +119,18 @@ export default function AttendanceTrendsChart({
     [ascendingStats],
   );
 
+  const plotHeight = getPlotHeight(plotWidth);
+
   const spec = useMemo(
-    () => buildAttendanceChartSpec(ascendingStats, xLabels),
-    [ascendingStats, xLabels],
+    () => buildAttendanceChartSpec(ascendingStats, xLabels, plotWidth, plotHeight),
+    [ascendingStats, xLabels, plotWidth, plotHeight],
   );
 
   const hasStats = ascendingStats.length > 0;
+
+  // Reserve exactly enough room left of the plot for the widest y tick label.
+  const maxGridValue = spec.gridlines[spec.gridlines.length - 1]?.value ?? 0;
+  const yAxisGutter = 10 + String(maxGridValue).length * 7;
 
   const dateRangeLabel =
     ascendingStats.length > 0
@@ -96,6 +148,7 @@ export default function AttendanceTrendsChart({
   let tooltip: {
     xPercent: number;
     yPercent: number;
+    transform: string;
     dateLabel: string;
     typeLabel: string;
     metricLabel: string;
@@ -114,9 +167,19 @@ export default function AttendanceTrendsChart({
         ? `Video submission: ${hoverStat.video?.submittedCount ?? 0} of ${hoverStat.video?.expectedCount ?? 0} (${hoverStat.video?.percent ?? 0}%)`
         : `Attendance: ${hoverStat.presentCount} of ${hoverStat.expectedCount} (${hoverStat.attendancePercent}%)`;
 
+      const xPercent = (point.x / spec.width) * 100;
+      const yPercent = (point.y / spec.height) * 100;
+
+      // Pin the tooltip inside the plot near the edges - a card this narrow has
+      // no room for a centered bubble to hang off the side, and a point near the
+      // top has nowhere to put a bubble above it.
+      const horizontal = xPercent < 25 ? "0" : xPercent > 75 ? "-100%" : "-50%";
+      const vertical = yPercent < 32 ? "16px" : "calc(-100% - 12px)";
+
       tooltip = {
-        xPercent: (point.x / spec.width) * 100,
-        yPercent: (point.y / spec.height) * 100,
+        xPercent,
+        yPercent,
+        transform: `translate(${horizontal}, ${vertical})`,
         dateLabel: formatDateShort(hoverStat.session.session_date),
         typeLabel: formatSessionType(hoverStat.session.type),
         metricLabel,
@@ -132,13 +195,13 @@ export default function AttendanceTrendsChart({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Attendance trends
           </p>
-          <h2 className="mt-1.5 text-xl font-semibold text-zinc-900">
+          <h2 className="mt-1.5 text-lg font-semibold text-zinc-900 sm:text-xl">
             {hasStats ? `${ascendingStats.length} sessions · ${dateRangeLabel}` : "No sessions in this window"}
           </h2>
         </div>
@@ -183,214 +246,212 @@ export default function AttendanceTrendsChart({
         </p>
       ) : (
         <>
-      <div className="mt-5 flex flex-wrap gap-5 text-[13px] text-zinc-600">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS.practice }} />
-          Practice attendance
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS.fundraiser }} />
-          Fundraiser attendance
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS["exec meeting"] }} />
-          Exec meeting attendance
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span
-            className="inline-block h-0 w-4 border-t-2 border-dashed opacity-55"
-            style={{ borderColor: VIDEO_LINE_COLOR }}
-          />
-          Practice video submission
-        </span>
-      </div>
-
-      <div className="relative mt-5" style={{ aspectRatio: `${spec.width} / ${spec.height}` }}>
-        <div
-          className="absolute whitespace-nowrap text-xs font-semibold text-zinc-500"
-          style={{
-            left: `${spec.axisXPercent}%`,
-            top: `${spec.axisLabelCenterPercent}%`,
-            transform: "translate(calc(-100% - 36px), -50%) rotate(180deg)",
-            writingMode: "vertical-rl",
-          }}
-        >
-          Members present
-        </div>
-
-        <svg
-          viewBox={`0 0 ${spec.width} ${spec.height}`}
-          className="absolute top-0 left-0 block h-full w-full overflow-visible"
-        >
-          {spec.gridlines.map((grid) => (
-            <line
-              key={grid.value}
-              x1={48}
-              x2={spec.width - 20}
-              y1={grid.y}
-              y2={grid.y}
-              stroke="#e4e4e7"
-              strokeWidth={1}
-            />
-          ))}
-          {spec.vGridLines.map((grid, index) => (
-            <line
-              key={index}
-              x1={grid.x}
-              x2={grid.x}
-              y1={24}
-              y2={spec.plotBottom}
-              stroke="#e4e4e7"
-              strokeWidth={1}
-            />
-          ))}
-          <line x1={48} x2={48} y1={24} y2={spec.plotBottom} stroke="#d4d4d8" strokeWidth={1.5} />
-          <line
-            x1={48}
-            x2={spec.width - 20}
-            y1={spec.plotBottom}
-            y2={spec.plotBottom}
-            stroke="#d4d4d8"
-            strokeWidth={1.5}
-          />
-
-          {spec.videoLine ? (
-            <path
-              d={spec.videoLine.path}
-              fill="none"
-              stroke={VIDEO_LINE_COLOR}
-              strokeWidth={1.5}
-              strokeDasharray="5,4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={videoOpacity(activeFilter)}
-            />
-          ) : null}
-
-          {spec.lines.map((line) => (
-            <path
-              key={line.type}
-              d={line.path}
-              fill="none"
-              stroke={line.color}
-              strokeWidth={LINE_STYLE[line.type].strokeWidth}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={lineOpacity(line.type, activeFilter)}
-            />
-          ))}
-
-          {/* Invisible hit-targets - markers are hidden until hovered, but the
-              hit area stays generous so hovering/clicking a date stays easy. */}
-          {spec.videoLine?.points.map((point) => {
-            const key = `video-${point.sessionId}`;
-            const interactable = activeFilter === "all" || activeFilter === "practice";
-            return (
-              <circle
-                key={key}
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill="transparent"
-                style={{
-                  cursor: interactable ? "pointer" : "default",
-                  pointerEvents: interactable ? "auto" : "none",
-                }}
-                onMouseEnter={interactable ? () => setHoveredKey(key) : undefined}
-                onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
-                onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
+          <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-zinc-600 sm:gap-x-5 sm:text-[13px]">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS.practice }} />
+              Practice attendance
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS.fundraiser }} />
+              Fundraiser attendance
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-4" style={{ backgroundColor: CHART_COLORS["exec meeting"] }} />
+              Exec meeting attendance
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-0 w-4 border-t-2 border-dashed opacity-55"
+                style={{ borderColor: VIDEO_LINE_COLOR }}
               />
-            );
-          })}
-
-          {spec.lines.flatMap((line) => {
-            const interactable = activeFilter === "all" || activeFilter === line.type;
-            return line.points.map((point) => (
-              <circle
-                key={point.sessionId}
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill="transparent"
-                style={{
-                  cursor: interactable ? "pointer" : "default",
-                  pointerEvents: interactable ? "auto" : "none",
-                }}
-                onMouseEnter={interactable ? () => setHoveredKey(point.sessionId) : undefined}
-                onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
-                onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
-              />
-            ));
-          })}
-
-          {hoverPoint ? (
-            <circle
-              cx={hoverPoint.x}
-              cy={hoverPoint.y}
-              r={6}
-              fill={hoverPoint.isVideo ? "white" : hoverPoint.color}
-              stroke={hoverPoint.isVideo ? hoverPoint.color : "white"}
-              strokeWidth={hoverPoint.isVideo ? 2 : 1.5}
-              style={{ pointerEvents: "none" }}
-            />
-          ) : null}
-        </svg>
-
-        {spec.gridlines.map((grid) => (
-          <div
-            key={grid.value}
-            className="absolute whitespace-nowrap text-xs font-medium text-zinc-600"
-            style={{
-              left: `${spec.axisXPercent}%`,
-              top: `${grid.yPercent}%`,
-              transform: "translate(calc(-100% - 8px), -50%)",
-            }}
-          >
-            {grid.value}
+              Practice video submission
+            </span>
           </div>
-        ))}
 
-        {spec.xTicks.map((tick) => (
-          <div
-            key={tick.sessionId}
-            className="absolute whitespace-nowrap text-[11px] font-medium text-zinc-600"
-            style={{
-              left: `${tick.xPercent}%`,
-              top: `calc(${spec.axisYPercent}% + 8px)`,
-              transform: "translate(-50%,0)",
-            }}
-          >
-            {tick.label}
+          <div className="mt-5 flex gap-1.5 sm:gap-2">
+            <div className="flex shrink-0 items-center" style={{ height: plotHeight }}>
+              <span
+                className="whitespace-nowrap text-[11px] font-semibold text-zinc-500 sm:text-xs"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+              >
+                Members present
+              </span>
+            </div>
+
+            <div className="min-w-0 flex-1" style={{ paddingLeft: yAxisGutter }}>
+              <div ref={plotRef} className="relative w-full" style={{ height: plotHeight }}>
+                <svg
+                  viewBox={`0 0 ${spec.width} ${spec.height}`}
+                  className="absolute top-0 left-0 block h-full w-full overflow-visible"
+                >
+                  {spec.gridlines.map((grid) => (
+                    <line
+                      key={grid.value}
+                      x1={0}
+                      x2={spec.width}
+                      y1={grid.y}
+                      y2={grid.y}
+                      stroke="#e4e4e7"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  {spec.vGridLines.map((grid, index) => (
+                    <line
+                      key={index}
+                      x1={grid.x}
+                      x2={grid.x}
+                      y1={0}
+                      y2={spec.height}
+                      stroke="#e4e4e7"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  <line x1={0} x2={0} y1={0} y2={spec.height} stroke="#d4d4d8" strokeWidth={1.5} />
+                  <line
+                    x1={0}
+                    x2={spec.width}
+                    y1={spec.height}
+                    y2={spec.height}
+                    stroke="#d4d4d8"
+                    strokeWidth={1.5}
+                  />
+
+                  {spec.videoLine ? (
+                    <path
+                      d={spec.videoLine.path}
+                      fill="none"
+                      stroke={VIDEO_LINE_COLOR}
+                      strokeWidth={1.5}
+                      strokeDasharray="5,4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={videoOpacity(activeFilter)}
+                    />
+                  ) : null}
+
+                  {spec.lines.map((line) => (
+                    <path
+                      key={line.type}
+                      d={line.path}
+                      fill="none"
+                      stroke={line.color}
+                      strokeWidth={LINE_STYLE[line.type].strokeWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={lineOpacity(line.type, activeFilter)}
+                    />
+                  ))}
+
+                  {/* Invisible hit-targets - markers are hidden until hovered, but the
+                      hit area stays generous so hovering/tapping a date stays easy. */}
+                  {spec.videoLine?.points.map((point) => {
+                    const key = `video-${point.sessionId}`;
+                    const interactable = activeFilter === "all" || activeFilter === "practice";
+                    return (
+                      <circle
+                        key={key}
+                        cx={point.x}
+                        cy={point.y}
+                        r={12}
+                        fill="transparent"
+                        style={{
+                          cursor: interactable ? "pointer" : "default",
+                          pointerEvents: interactable ? "auto" : "none",
+                        }}
+                        onMouseEnter={interactable ? () => setHoveredKey(key) : undefined}
+                        onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
+                        onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
+                      />
+                    );
+                  })}
+
+                  {spec.lines.flatMap((line) => {
+                    const interactable = activeFilter === "all" || activeFilter === line.type;
+                    return line.points.map((point) => (
+                      <circle
+                        key={point.sessionId}
+                        cx={point.x}
+                        cy={point.y}
+                        r={12}
+                        fill="transparent"
+                        style={{
+                          cursor: interactable ? "pointer" : "default",
+                          pointerEvents: interactable ? "auto" : "none",
+                        }}
+                        onMouseEnter={interactable ? () => setHoveredKey(point.sessionId) : undefined}
+                        onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
+                        onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
+                      />
+                    ));
+                  })}
+
+                  {hoverPoint ? (
+                    <circle
+                      cx={hoverPoint.x}
+                      cy={hoverPoint.y}
+                      r={6}
+                      fill={hoverPoint.isVideo ? "white" : hoverPoint.color}
+                      stroke={hoverPoint.isVideo ? hoverPoint.color : "white"}
+                      strokeWidth={hoverPoint.isVideo ? 2 : 1.5}
+                      style={{ pointerEvents: "none" }}
+                    />
+                  ) : null}
+                </svg>
+
+                {spec.gridlines.map((grid) => (
+                  <div
+                    key={grid.value}
+                    className="absolute whitespace-nowrap text-[11px] font-medium text-zinc-600 sm:text-xs"
+                    style={{
+                      right: "100%",
+                      top: `${grid.yPercent}%`,
+                      marginRight: 6,
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {grid.value}
+                  </div>
+                ))}
+
+                {spec.xTicks.map((tick) => (
+                  <div
+                    key={tick.sessionId}
+                    className="absolute whitespace-nowrap text-[11px] font-medium text-zinc-600"
+                    style={{
+                      left: `${tick.xPercent}%`,
+                      top: "100%",
+                      marginTop: 5,
+                      transform: tickTranslate(tick.align),
+                    }}
+                  >
+                    {tick.label}
+                  </div>
+                ))}
+
+                {tooltip ? (
+                  <div
+                    className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-zinc-200 bg-white px-3 py-2.5 shadow-lg"
+                    style={{
+                      left: `${tooltip.xPercent}%`,
+                      top: `${tooltip.yPercent}%`,
+                      transform: tooltip.transform,
+                    }}
+                  >
+                    <p className="text-xs font-semibold text-zinc-900">{tooltip.dateLabel}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">{tooltip.typeLabel}</p>
+                    <p className="mt-1.5 text-xs text-zinc-700">{tooltip.metricLabel}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ height: X_TICK_ROW_HEIGHT }} />
+
+              <p className="text-center text-[11px] font-semibold text-zinc-500 sm:text-xs">
+                Session date
+              </p>
+            </div>
           </div>
-        ))}
-
-        <div
-          className="absolute whitespace-nowrap text-xs font-semibold text-zinc-500"
-          style={{
-            left: `${((48 + (spec.width - 68) / 2) / spec.width) * 100}%`,
-            top: `calc(${spec.axisYPercent}% + 54px)`,
-            transform: "translate(-50%,-50%)",
-          }}
-        >
-          Session date
-        </div>
-
-        {tooltip ? (
-          <div
-            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-zinc-200 bg-white px-3 py-2.5 shadow-lg"
-            style={{
-              left: `${tooltip.xPercent}%`,
-              top: `${tooltip.yPercent}%`,
-              transform: "translate(-50%,-120%)",
-            }}
-          >
-            <p className="text-xs font-semibold text-zinc-900">{tooltip.dateLabel}</p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">{tooltip.typeLabel}</p>
-            <p className="mt-1.5 text-xs text-zinc-700">{tooltip.metricLabel}</p>
-          </div>
-        ) : null}
-      </div>
-      </>
+        </>
       )}
     </div>
   );

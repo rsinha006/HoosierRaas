@@ -1,19 +1,27 @@
 import { PRACTICE_SESSION_TYPES, type PracticeSessionType } from "@/lib/attendance";
 import type { SessionAttendanceStat } from "@/lib/attendance-stats";
 
-export const CHART_VIEWBOX_WIDTH = 900;
-export const CHART_VIEWBOX_HEIGHT = 380;
+// The spec describes the plot area only - axis titles, tick labels and their
+// gutters are laid out in CSS by the chart component. Keeping the viewBox equal
+// to the plot area's measured CSS pixel size means the SVG renders at scale 1,
+// so stroke widths stay true and nothing has to guess how far a label sits from
+// an axis at an arbitrary viewport width.
+export const DEFAULT_PLOT_WIDTH = 860;
 
-const PAD_LEFT = 48;
-const PAD_RIGHT = 20;
-const PAD_TOP = 24;
-const PAD_BOTTOM = 50;
-const NUDGE_PX = 6;
+// Plot aspect on wide screens; clamped so a narrow phone still gets a plot tall
+// enough to read a trend in.
+const PLOT_ASPECT = 2.7;
+const MIN_PLOT_HEIGHT = 170;
+const MAX_PLOT_HEIGHT = 320;
+
 const OVERLAP_THRESHOLD_PX = 16;
 // Minimum pixel gap allowed between the last two x-axis tick labels (horizontal
 // "M/D" text at 11px) - used only to avoid crowding when the final session is
 // forced onto the axis so the range's end date always stays visible.
 const MIN_TICK_SPACING_PX = 44;
+// Horizontal room a single "M/D" tick label needs before it starts colliding
+// with its neighbour. Drives how many ticks the axis can hold at a given width.
+const TICK_LABEL_FOOTPRINT_PX = 46;
 
 export const CHART_COLORS: Record<PracticeSessionType, string> = {
   practice: "#990000",
@@ -24,6 +32,14 @@ export const CHART_COLORS: Record<PracticeSessionType, string> = {
 // Distinct from CHART_COLORS.practice (validated CVD-safe pair) since the video
 // line frequently overlaps the practice line on the same days.
 export const VIDEO_LINE_COLOR = "#1baf7a";
+
+export function getPlotHeight(width: number): number {
+  return Math.round(Math.min(MAX_PLOT_HEIGHT, Math.max(MIN_PLOT_HEIGHT, width / PLOT_ASPECT)));
+}
+
+export function getMaxTickCount(width: number): number {
+  return Math.max(2, Math.floor(width / TICK_LABEL_FOOTPRINT_PX));
+}
 
 export type AttendanceChartPoint = {
   sessionId: string;
@@ -46,20 +62,21 @@ export type AttendanceChartGridline = {
   yPercent: number;
 };
 
+// "start"/"end" pin the first and last labels inside the plot box instead of
+// letting a centered label hang off the edge of the card.
+export type TickAlign = "start" | "middle" | "end";
+
 export type AttendanceChartTick = {
   sessionId: string;
   x: number;
   xPercent: number;
   label: string;
+  align: TickAlign;
 };
 
 export type AttendanceChartSpec = {
   width: number;
   height: number;
-  axisXPercent: number;
-  axisYPercent: number;
-  plotBottom: number;
-  axisLabelCenterPercent: number;
   gridlines: AttendanceChartGridline[];
   vGridLines: { x: number }[];
   xTicks: AttendanceChartTick[];
@@ -89,18 +106,31 @@ function buildPath(points: AttendanceChartPoint[]) {
     .join(" ");
 }
 
+function tickAlign(xPercent: number): TickAlign {
+  if (xPercent < 8) {
+    return "start";
+  }
+  if (xPercent > 92) {
+    return "end";
+  }
+  return "middle";
+}
+
 export function buildAttendanceChartSpec(
   stats: SessionAttendanceStat[],
   xLabels: string[],
+  plotWidth: number = DEFAULT_PLOT_WIDTH,
+  plotHeight: number = getPlotHeight(DEFAULT_PLOT_WIDTH),
 ): AttendanceChartSpec {
-  const width = CHART_VIEWBOX_WIDTH;
-  const height = CHART_VIEWBOX_HEIGHT;
-  const innerWidth = width - PAD_LEFT - PAD_RIGHT;
-  const innerHeight = height - PAD_TOP - PAD_BOTTOM;
+  const width = Math.max(1, plotWidth);
+  const height = Math.max(1, plotHeight);
   const n = stats.length;
 
-  const xFor = (index: number) =>
-    PAD_LEFT + (n <= 1 ? innerWidth / 2 : (index / (n - 1)) * innerWidth);
+  // Markers sit right on the plot edges, so the nudge that separates an
+  // overlapping practice/video pair has to stay small on a phone-width plot.
+  const nudgePx = width < 400 ? 4 : 6;
+
+  const xFor = (index: number) => (n <= 1 ? width / 2 : (index / (n - 1)) * width);
 
   const maxRaw = Math.max(
     0,
@@ -109,16 +139,7 @@ export function buildAttendanceChartSpec(
   );
   const gridStep = Math.max(1, Math.ceil(computeNiceMax(maxRaw) / 4));
   const yMax = gridStep * 4;
-  const yFor = (count: number) => PAD_TOP + ((yMax - count) / yMax) * innerHeight;
-
-  const axisXPercent = (PAD_LEFT / width) * 100;
-  const plotBottom = height - PAD_BOTTOM;
-  const axisYPercent = (plotBottom / height) * 100;
-  // Vertical center of the plot area (between the top pad and the x-axis line),
-  // used to center the "Members present" axis label on the plotted range rather
-  // than on the whole SVG canvas (which is padded further at the bottom for
-  // tick labels and the "Session date" caption).
-  const axisLabelCenterPercent = ((PAD_TOP + plotBottom) / 2 / height) * 100;
+  const yFor = (count: number) => ((yMax - count) / yMax) * height;
 
   const gridlines: AttendanceChartGridline[] = [0, 1, 2, 3, 4].map((i) => {
     const value = gridStep * i;
@@ -128,8 +149,8 @@ export function buildAttendanceChartSpec(
 
   // Label by calendar week rather than raw session count, so a busy week (5
   // sessions) gets the same one label as a quiet week (1 session): find each
-  // week's first session, then keep only every 2nd of those week-anchors.
-  const pointSpacingPx = n > 1 ? innerWidth / (n - 1) : innerWidth;
+  // week's first session, then keep only every Nth of those week-anchors.
+  const pointSpacingPx = n > 1 ? width / (n - 1) : width;
   const firstSessionDate = n > 0 ? new Date(`${stats[0].session.session_date}T12:00:00`) : null;
 
   const weekAnchorIndices: number[] = [];
@@ -143,7 +164,13 @@ export function buildAttendanceChartSpec(
     }
   });
 
-  const tickIndices = weekAnchorIndices.filter((_, i) => i % 2 === 0);
+  // Every other week is the widest labelling we ever want; on a narrow plot (or
+  // a long time window) widen the stride further so the labels can never
+  // collide - the axis thins out instead of turning into a smear of dates.
+  const maxTicks = getMaxTickCount(width);
+  const stride = Math.max(2, Math.ceil(weekAnchorIndices.length / maxTicks));
+  const tickIndices = weekAnchorIndices.filter((_, i) => i % stride === 0);
+
   const lastRegularTick = tickIndices[tickIndices.length - 1];
   if (n > 0 && lastRegularTick !== n - 1) {
     const gapToEndPx = (n - 1 - lastRegularTick) * pointSpacingPx;
@@ -156,12 +183,17 @@ export function buildAttendanceChartSpec(
     }
   }
 
-  const xTicks: AttendanceChartTick[] = tickIndices.map((index) => ({
-    sessionId: stats[index].session.id,
-    x: xFor(index),
-    xPercent: (xFor(index) / width) * 100,
-    label: xLabels[index] ?? "",
-  }));
+  const xTicks: AttendanceChartTick[] = tickIndices.map((index) => {
+    const x = xFor(index);
+    const xPercent = (x / width) * 100;
+    return {
+      sessionId: stats[index].session.id,
+      x,
+      xPercent,
+      label: xLabels[index] ?? "",
+      align: tickAlign(xPercent),
+    };
+  });
 
   const vGridLines = tickIndices.map((index) => ({ x: xFor(index) }));
 
@@ -178,7 +210,7 @@ export function buildAttendanceChartSpec(
       .filter(({ stat }) => stat.session.type === type);
 
     const points: AttendanceChartPoint[] = entries.map(({ stat, index }) => {
-      const nudge = type === "practice" && overlapsVideo(stat) ? NUDGE_PX : 0;
+      const nudge = type === "practice" && overlapsVideo(stat) ? nudgePx : 0;
       return {
         sessionId: stat.session.id,
         x: xFor(index) + nudge,
@@ -196,7 +228,7 @@ export function buildAttendanceChartSpec(
     .filter(({ stat }) => stat.video !== null);
 
   const videoPoints: AttendanceChartPoint[] = videoEntries.map(({ stat, index }) => {
-    const nudge = overlapsVideo(stat) ? -NUDGE_PX : 0;
+    const nudge = overlapsVideo(stat) ? -nudgePx : 0;
     return {
       sessionId: stat.session.id,
       x: xFor(index) + nudge,
@@ -211,10 +243,6 @@ export function buildAttendanceChartSpec(
   return {
     width,
     height,
-    axisXPercent,
-    axisYPercent,
-    plotBottom,
-    axisLabelCenterPercent,
     gridlines,
     vGridLines,
     xTicks,
