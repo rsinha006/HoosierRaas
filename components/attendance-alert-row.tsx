@@ -91,19 +91,17 @@ export default function AttendanceAlertRow({ groups }: AttendanceAlertRowProps) 
   }
 
   return (
-    <div className="flex flex-nowrap gap-3">
-      {boxes.map((box) =>
-        expandedAlert === null || expandedAlert === box.key ? (
-          <AlertBox
-            key={box.key}
-            config={box}
-            expanded={expandedAlert === box.key}
-            onToggle={() =>
-              setExpandedAlert((current) => (current === box.key ? null : box.key))
-            }
-          />
-        ) : null,
-      )}
+    <div className="flex flex-col gap-3">
+      {boxes.map((box) => (
+        <AlertBox
+          key={box.key}
+          config={box}
+          expanded={expandedAlert === box.key}
+          onToggle={() =>
+            setExpandedAlert((current) => (current === box.key ? null : box.key))
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -148,7 +146,6 @@ function AlertBox({
     <div
       ref={containerRef}
       className={`flex min-w-0 gap-2 overflow-hidden rounded-xl border px-3.5 py-2.5 ${expanded ? "items-start whitespace-normal" : "items-center whitespace-nowrap"} ${config.colorClasses}`}
-      style={{ flex: expanded ? "1 1 100%" : "1 1 0" }}
     >
       <span className="shrink-0 text-[13px] font-semibold">{config.title}</span>
       <span className={`shrink-0 rounded-full px-1.5 py-px text-xs font-semibold ${config.badgeClasses}`}>
