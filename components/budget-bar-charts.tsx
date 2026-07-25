@@ -138,7 +138,7 @@ export default function BudgetBarCharts({
   iufbSegments,
 }: BudgetBarChartsProps) {
   return (
-    <section className="grid items-start gap-4 lg:grid-cols-2">
+    <section className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       <BudgetBarChart
         title="General Pool"
         subtitle="Allocated budget by category with proportional spend."
