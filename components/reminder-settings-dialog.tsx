@@ -123,16 +123,15 @@ export default function ReminderSettingsDialog({
             Deadline reminder emails
           </h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Captains and team managers get an email this many days before each
+            The HR gmail will receive an email this many days before each
             pending deadline is due.
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <p className="text-xs text-zinc-500">
-            Each lead time below sends its own email. Most teams pick just one —
-            adding more than one means multiple reminder emails for the same
-            deadline.
+            Each lead time below sends its own email. Adding more than one means
+            multiple reminder emails for the same deadline.
           </p>
 
           <div className="flex flex-wrap gap-2">
