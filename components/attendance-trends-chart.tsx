@@ -284,6 +284,7 @@ export default function AttendanceTrendsChart({
               hit area stays generous so hovering/clicking a date stays easy. */}
           {spec.videoLine?.points.map((point) => {
             const key = `video-${point.sessionId}`;
+            const interactable = activeFilter === "all" || activeFilter === "practice";
             return (
               <circle
                 key={key}
@@ -291,29 +292,36 @@ export default function AttendanceTrendsChart({
                 cy={point.y}
                 r={10}
                 fill="transparent"
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => setHoveredKey(key)}
-                onMouseLeave={() => setHoveredKey(null)}
-                onClick={() => onPointClick(point.sessionId)}
+                style={{
+                  cursor: interactable ? "pointer" : "default",
+                  pointerEvents: interactable ? "auto" : "none",
+                }}
+                onMouseEnter={interactable ? () => setHoveredKey(key) : undefined}
+                onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
+                onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
               />
             );
           })}
 
-          {spec.lines.flatMap((line) =>
-            line.points.map((point) => (
+          {spec.lines.flatMap((line) => {
+            const interactable = activeFilter === "all" || activeFilter === line.type;
+            return line.points.map((point) => (
               <circle
                 key={point.sessionId}
                 cx={point.x}
                 cy={point.y}
                 r={10}
                 fill="transparent"
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => setHoveredKey(point.sessionId)}
-                onMouseLeave={() => setHoveredKey(null)}
-                onClick={() => onPointClick(point.sessionId)}
+                style={{
+                  cursor: interactable ? "pointer" : "default",
+                  pointerEvents: interactable ? "auto" : "none",
+                }}
+                onMouseEnter={interactable ? () => setHoveredKey(point.sessionId) : undefined}
+                onMouseLeave={interactable ? () => setHoveredKey(null) : undefined}
+                onClick={interactable ? () => onPointClick(point.sessionId) : undefined}
               />
-            )),
-          )}
+            ));
+          })}
 
           {hoverPoint ? (
             <circle
