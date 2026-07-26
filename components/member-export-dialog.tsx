@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Member } from "@/lib/members";
 import { formatMemberName } from "@/lib/members";
@@ -31,6 +32,7 @@ export default function MemberExportDialog({ open, onClose, members }: MemberExp
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const wasOpenRef = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (open && !wasOpenRef.current) {
@@ -101,6 +103,9 @@ export default function MemberExportDialog({ open, onClose, members }: MemberExp
 
       setSubmitting(false);
       onClose();
+      // The export just wrote an audit entry; pull it into the log below the roster
+      // so the person who ran it sees their own export recorded.
+      router.refresh();
     } catch {
       setErrorMessage("Export failed. Please try again.");
       setSubmitting(false);

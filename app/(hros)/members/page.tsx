@@ -3,8 +3,13 @@ import MembersTable from "@/components/members-table";
 import AddMemberButton from "@/components/add-member-button";
 import OnboardingLinkGenerator from "@/components/onboarding-link-generator";
 import PendingOnboardingReviews from "@/components/pending-onboarding-reviews";
+import MemberExportLog from "@/components/member-export-log";
 import { getUserMember } from "@/lib/get-user-member";
-import type { Member, MemberStatus } from "@/lib/members";
+import {
+  MEMBER_EXPORT_LOG_LIMIT,
+  type MemberExportLogEntry,
+} from "@/lib/member-export-log";
+import { formatMemberName, type Member, type MemberStatus } from "@/lib/members";
 import { getActiveSeason, getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 import { hasWriteAccess } from "@/lib/rbac";
@@ -51,6 +56,7 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
   const [
     { data, error },
     { data: pendingData, error: pendingError },
+    { data: exportLogData, error: exportLogError },
   ] = await Promise.all([
     supabase
       .from("season_memberships")
@@ -70,6 +76,11 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
           .eq("pending_review", true)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("member_export_log")
+      .select("*")
+      .order("exported_at", { ascending: false })
+      .limit(MEMBER_EXPORT_LOG_LIMIT),
   ]);
 
   const members = ((data ?? []) as SeasonMembershipMemberRow[])
@@ -83,6 +94,40 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
       return left.first_name.localeCompare(right.first_name);
     });
   const pendingMembers = (pendingData ?? []) as Member[];
+  const exportLogEntries = (exportLogData ?? []) as MemberExportLogEntry[];
+
+  // The log stores bare member ids, so it needs names to be readable. Most of those
+  // ids belong to people already loaded above, so seed from them and only spend a
+  // round trip on the leftovers — alumni exported in a past season, or an exporter
+  // who has since rolled off the roster.
+  const memberNames: Record<string, string> = {};
+  for (const member of [...members, ...pendingMembers]) {
+    memberNames[member.id] = formatMemberName(member);
+  }
+
+  const unresolvedMemberIds = [
+    ...new Set(
+      exportLogEntries
+        .flatMap((entry) => [entry.exported_by_member_id, ...entry.member_ids])
+        .filter((id): id is string => !!id && !memberNames[id]),
+    ),
+  ];
+
+  if (unresolvedMemberIds.length > 0) {
+    const { data: exportedMemberData } = await supabase
+      .from("members")
+      .select("id, first_name, last_name")
+      .in("id", unresolvedMemberIds);
+
+    const exportedMembers = (exportedMemberData ?? []) as Pick<
+      Member,
+      "id" | "first_name" | "last_name"
+    >[];
+
+    for (const member of exportedMembers) {
+      memberNames[member.id] = formatMemberName(member);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -141,6 +186,15 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
             currentMemberId={userMember?.id ?? ""}
           />
         </div>
+      )}
+
+      {exportLogError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <p className="font-medium">Could not load the export log</p>
+          <p className="mt-1 text-sm">{exportLogError.message}</p>
+        </div>
+      ) : (
+        <MemberExportLog entries={exportLogEntries} memberNames={memberNames} />
       )}
     </div>
   );
