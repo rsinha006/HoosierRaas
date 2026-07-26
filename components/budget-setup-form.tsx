@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   EXPENSE_CATEGORIES,
+  exceedsAvailable,
   formatCurrency,
   type CategoryReimbursement,
   type ExpenseCategory,
@@ -78,6 +79,8 @@ export default function BudgetSetupForm({
       ? initialLineItems.map((item) => createEditableLineItem(item))
       : [],
   );
+  const [acknowledgedOverAllocation, setAcknowledgedOverAllocation] =
+    useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -110,12 +113,19 @@ export default function BudgetSetupForm({
     0,
   );
 
+  const generalPoolRemaining = generalPoolAvailable - totalGeneralPoolAllocated;
+  const generalPoolOverAllocated = exceedsAvailable(
+    totalGeneralPoolAllocated,
+    generalPoolAvailable,
+  );
+
   const totalIufbApproved = lineItems.reduce((sum, item) => {
     const amount = parseAmount(item.approvedAmount);
     return sum + (Number.isNaN(amount) ? 0 : amount);
   }, 0);
 
   const iufbRemaining = iufbAvailable - totalIufbApproved;
+  const iufbOverAllocated = exceedsAvailable(totalIufbApproved, iufbAvailable);
 
   // Initial setup (going from unset to a value) isn't logged as an "adjustment" —
   // only changing an allocation that was already set requires a reason.
@@ -193,9 +203,20 @@ export default function BudgetSetupForm({
       }
     }
 
-    if (totalIufbApproved > iufbAvailable) {
+    if (iufbOverAllocated) {
       setSaveError(
         "Total IUFB approved exceeds available IUFB income. Reduce line item amounts before saving.",
+      );
+      return;
+    }
+
+    // Not a hard stop, unlike IUFB: general pool income arrives across the season as
+    // dues come in, so budgeting ahead of it is ordinary. Budgeting past it by
+    // accident is not, and nothing downstream will stop an expense being approved
+    // against a category with no money behind it.
+    if (generalPoolOverAllocated && !acknowledgedOverAllocation) {
+      setSaveError(
+        `Allocations total ${formatCurrency(totalGeneralPoolAllocated)} against ${formatCurrency(generalPoolAvailable)} of general pool income. Confirm below that you meant to, or reduce them before saving.`,
       );
       return;
     }
@@ -325,11 +346,40 @@ export default function BudgetSetupForm({
               {formatCurrency(generalPoolAvailable)}
             </p>
             <p className="mt-2 text-zinc-500">Total allocated</p>
-            <p className="mt-1 font-semibold text-zinc-900">
+            <p
+              className={`mt-1 font-semibold ${
+                generalPoolOverAllocated ? "text-red-600" : "text-zinc-900"
+              }`}
+            >
               {formatCurrency(totalGeneralPoolAllocated)}
+            </p>
+            <p className="mt-2 text-zinc-500">Left to allocate</p>
+            <p
+              className={`mt-1 font-semibold ${
+                generalPoolOverAllocated ? "text-red-600" : "text-zinc-900"
+              }`}
+            >
+              {formatCurrency(generalPoolRemaining)}
             </p>
           </div>
         </div>
+
+        {generalPoolOverAllocated ? (
+          <div
+            role="status"
+            className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            <p className="font-medium">
+              This budget allocates {formatCurrency(-generalPoolRemaining)} more than
+              the team has taken in.
+            </p>
+            <p className="mt-1">
+              Income counts once it is recorded, so allocating ahead of dues arriving
+              is normal. Be aware that nothing later on will stop an expense being
+              approved against a category with no money behind it.
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-6 space-y-3 md:hidden">
           {categoryRows.map((row) => (
@@ -440,9 +490,7 @@ export default function BudgetSetupForm({
                 <p className="text-zinc-500">Total IUFB approved</p>
                 <p
                   className={`mt-1 font-semibold ${
-                    totalIufbApproved > iufbAvailable
-                      ? "text-red-600"
-                      : "text-zinc-900"
+                    iufbOverAllocated ? "text-red-600" : "text-zinc-900"
                   }`}
                 >
                   {formatCurrency(totalIufbApproved)}
@@ -450,9 +498,11 @@ export default function BudgetSetupForm({
               </div>
             </div>
             <p className="mt-2 text-zinc-500">Remaining envelope</p>
+            {/* Crimson is the brand colour, not a status colour. A healthy envelope
+                rendered in it next to a genuine red error read as an alarm. */}
             <p
               className={`mt-1 font-semibold ${
-                iufbRemaining < 0 ? "text-red-600" : "text-[#990000]"
+                iufbRemaining < 0 ? "text-red-600" : "text-zinc-900"
               }`}
             >
               {formatCurrency(iufbRemaining)}
@@ -547,6 +597,28 @@ export default function BudgetSetupForm({
           ) : null}
         </div>
       </section>
+
+      {canWrite && generalPoolOverAllocated ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={acknowledgedOverAllocation}
+              onChange={(event) =>
+                setAcknowledgedOverAllocation(event.target.checked)
+              }
+              className="mt-0.5 rounded border-zinc-300 text-[#990000] focus:ring-[#990000]"
+            />
+            <span className="text-sm text-amber-900">
+              <span className="font-semibold">
+                Save a budget larger than the income recorded so far.
+              </span>{" "}
+              {formatCurrency(totalGeneralPoolAllocated)} allocated against{" "}
+              {formatCurrency(generalPoolAvailable)} of general pool income.
+            </span>
+          </label>
+        </section>
+      ) : null}
 
       {canWrite && changedCategories.length > 0 ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">

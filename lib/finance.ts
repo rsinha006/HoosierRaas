@@ -222,6 +222,14 @@ export function getCategoryBudgetSummary(
   };
 }
 
+/** Whether a budget allocates more than the income behind it. Allocating every last
+ *  dollar is a normal thing to do, and summing a column of decimals can leave the
+ *  total a fraction of a cent above the money it is measured against — anything under
+ *  half a cent is that, not an over-allocation. */
+export function exceedsAvailable(total: number, available: number) {
+  return total - available > 0.005;
+}
+
 export function getBudgetOverage(amount: number, remaining: number) {
   if (amount <= remaining) {
     return null;
