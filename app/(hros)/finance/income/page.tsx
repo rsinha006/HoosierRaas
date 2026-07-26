@@ -8,6 +8,7 @@ import {
 } from "@/lib/finance";
 import { formatMemberName } from "@/lib/members";
 import { hasWriteAccess } from "@/lib/rbac";
+import { fetchSeasonRoster } from "@/lib/season-roster";
 import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,13 +41,10 @@ export default async function FinanceIncomePage({
       .select("amount, category, member_id")
       .gte("date_received", start)
       .lte("date_received", end),
-    supabase
-      .from("members")
-      .select("id, first_name, last_name")
-      .eq("status", "active")
-      .eq("pending_review", false)
-      .order("last_name", { ascending: true })
-      .order("first_name", { ascending: true }),
+    // Who owes dues is this season's roster, not every active row in the
+    // members table - that one is not season-scoped, so it carries every
+    // dancer from every past season. See lib/season-roster.
+    fetchSeasonRoster(supabase, season),
   ]);
 
   const incomeEntries = (incomeData ?? []) as Pick<
@@ -59,11 +57,7 @@ export default async function FinanceIncomePage({
   );
   const categoryBreakdown = sumIncomeByCategory(incomeEntries);
 
-  const activeMembers = (membersData ?? []) as {
-    id: string;
-    first_name: string;
-    last_name: string;
-  }[];
+  const activeMembers = membersData;
   const duesPaidByMember = new Map<string, number>();
   for (const entry of incomeEntries) {
     if (entry.category !== "dues" || !entry.member_id) {

@@ -21,9 +21,9 @@ import {
   getNonResponderMembers,
   getSessionResponseRate,
   getVoluntaryResponses,
-  type MemberSummary,
 } from "@/lib/attendance-stats";
 import { hasWriteAccess } from "@/lib/rbac";
+import { fetchSeasonRoster } from "@/lib/season-roster";
 import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
@@ -65,20 +65,14 @@ export default async function PracticeSessionDetailPage({
     getActiveSeason(),
   ]);
 
-  const [{ data: sessionData, error }, { data: attendanceData }, { data: memberData }] =
-    await Promise.all([
-      supabase.from("practice_sessions").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("attendance_records")
-        .select("*")
-        .eq("session_id", id)
-        .order("respondent_name", { ascending: true }),
-      supabase
-        .from("members")
-        .select("id, first_name, last_name, email, roles")
-        .eq("status", "active")
-        .order("last_name", { ascending: true }),
-    ]);
+  const [{ data: sessionData, error }, { data: attendanceData }] = await Promise.all([
+    supabase.from("practice_sessions").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("session_id", id)
+      .order("respondent_name", { ascending: true }),
+  ]);
 
   if (error || !sessionData) {
     notFound();
@@ -89,7 +83,11 @@ export default async function PracticeSessionDetailPage({
     hasWriteAccess(userMember?.exec_title ?? null, "attendance") &&
     session.season === activeSeason.label;
   const records = (attendanceData ?? []) as AttendanceRecord[];
-  const members = (memberData ?? []) as MemberSummary[];
+
+  // Expected attendees are this session's own season's roster - not every
+  // active row in the members table, which is not season-scoped. The season
+  // comes off the session, so this cannot go out with the queries above.
+  const { data: members } = await fetchSeasonRoster(supabase, session.season);
   const audienceLabel = getAudienceLabel(session.type);
   const responseRate = getSessionResponseRate(members, session, records);
   const voluntaryResponses = getVoluntaryResponses(records);
