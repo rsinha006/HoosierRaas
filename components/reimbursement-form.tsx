@@ -11,6 +11,7 @@ import { isValidEmail } from "@/lib/members";
 import {
   getReceiptStoragePath,
   getSubmitterStorageKey,
+  isFuturePurchaseDate,
   isOutsideSubmissionWindow,
   MAX_REIMBURSEMENT_AMOUNT,
   validateReceiptFile,
@@ -114,6 +115,9 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
 
     if (!dateOfPurchase) {
       errors.dateOfPurchase = "Date of purchase is required.";
+    } else if (isFuturePurchaseDate(dateOfPurchase)) {
+      errors.dateOfPurchase =
+        "Date of purchase can't be in the future. Enter the day you actually paid.";
     } else if (isOutsideSubmissionWindow(dateOfPurchase)) {
       errors.dateOfPurchase =
         "Reimbursements must be submitted within 24 hours of the purchase date. This purchase is outside that window and can't be submitted — contact your finance chair directly.";
