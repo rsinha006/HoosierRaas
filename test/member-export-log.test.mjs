@@ -32,13 +32,15 @@ test("no authenticated user can write to the export log", () => {
     readOnlyMigration,
     /drop policy if exists "Team managers can log member exports" on public\.member_export_log/,
   );
+  // truncate is the one that bypasses RLS entirely - no policy gates it, so the
+  // grant alone would let a role empty the log.
   assert.match(
     readOnlyMigration,
-    /revoke insert, update, delete on public\.member_export_log from authenticated/,
+    /revoke insert, update, delete, truncate, references, trigger\s+on public\.member_export_log from authenticated/,
   );
   assert.match(
     readOnlyMigration,
-    /revoke insert, update, delete on public\.member_export_log from anon/,
+    /revoke insert, update, delete, truncate, references, trigger\s+on public\.member_export_log from anon/,
   );
 });
 

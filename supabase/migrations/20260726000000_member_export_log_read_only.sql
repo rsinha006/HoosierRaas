@@ -9,8 +9,19 @@
 
 drop policy if exists "Team managers can log member exports" on public.member_export_log;
 
-revoke insert, update, delete on public.member_export_log from authenticated;
-revoke insert, update, delete on public.member_export_log from anon;
+-- truncate and trigger matter as much as the write privileges here. RLS only
+-- filters select, insert, update and delete, so a truncate grant is not gated by
+-- any policy - it would let a role empty the whole log in one statement, which is
+-- the exact failure the log exists to survive. trigger would let one be attached
+-- that rewrites rows on the way in. Supabase's default grant on public hands both
+-- to anon and authenticated, so they have to be taken back explicitly.
+revoke insert, update, delete, truncate, references, trigger
+  on public.member_export_log from authenticated;
+revoke insert, update, delete, truncate, references, trigger
+  on public.member_export_log from anon;
+
+-- select stays granted and stays gated by the read policy above, which is scoped
+-- to authenticated, so the grant anon carries never resolves to a row.
 
 -- The view reads the newest exports first, capped to a page's worth.
 create index if not exists member_export_log_exported_at_idx
