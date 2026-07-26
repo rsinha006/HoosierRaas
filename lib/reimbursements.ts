@@ -223,3 +223,24 @@ export function formatReimbursementTimestamp(value: string) {
     minute: "2-digit",
   });
 }
+
+/** Today's date where the team is, as YYYY-MM-DD. en-CA formats in that order, so it
+ *  compares directly against the value an <input type="date"> produces. */
+export function getTeamToday(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TEAM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** The submission window only catches purchases that are too old — a date years ahead
+ *  is inside it, since no time has elapsed against it yet. */
+export function isFuturePurchaseDate(dateOfPurchase: string, now = new Date()) {
+  if (!dateOfPurchase) {
+    return false;
+  }
+
+  return dateOfPurchase > getTeamToday(now);
+}
