@@ -14,17 +14,16 @@ import {
   getTeamAttendancePercentage,
   getTeamAttendanceTrend,
   type AttendanceStatRecordWithSession,
-  type MemberSummary,
 } from "@/lib/attendance-stats";
+import { ATTENDANCE_PAGE_SIZE, fetchAllPages } from "@/lib/attendance-records";
 import { hasWriteAccess } from "@/lib/rbac";
+import { fetchSeasonRoster } from "@/lib/season-roster";
 import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type AttendancePageProps = {
   searchParams: Promise<{ created?: string; season?: string }>;
 };
-
-const PAGE_SIZE = 1000;
 
 // Only the columns the statistics read. Selecting * here pulled every free-text
 // column (excuses, override reasons) for every record in the season.
@@ -44,74 +43,30 @@ const STAT_COLUMNS = `
   )
 `;
 
-// How many pages to request at once past the first.
-const PAGE_BATCH = 4;
-
-// PostgREST caps unpaginated selects at 1000 rows. A full season of attendance
-// records comfortably exceeds that, so without paging the oldest sessions in
-// the season would silently drop out of every stat on this page.
-//
-// The pages used to be fetched one at a time, each waiting on the last. They
-// are now requested in parallel batches. Batching rather than deriving the page
-// count from an exact count keeps this correct without asking Postgres to count
-// the whole table on every page load - and an undercount would silently drop
-// records, which is the exact bug the paging exists to prevent.
-async function fetchAllAttendanceRecords(
+function fetchAllAttendanceRecords(
   supabase: Awaited<ReturnType<typeof createClient>>,
   season: string,
 ) {
   // response_timestamp alone is not a total order - ties would let a record
   // land in two ranges (or neither) once the pages stop being sequential, so
   // id breaks the tie and makes the ranges partition cleanly.
-  const page = (offset: number) =>
-    supabase
-      .from("attendance_records")
-      .select(STAT_COLUMNS)
-      .eq("practice_sessions.season", season)
-      .order("response_timestamp", { ascending: false })
-      .order("id", { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
+  return fetchAllPages<AttendanceStatRecordWithSession>(
+    async (from, to) => {
+      const { data, error } = await supabase
+        .from("attendance_records")
+        .select(STAT_COLUMNS)
+        .eq("practice_sessions.season", season)
+        .order("response_timestamp", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to);
 
-  const all: AttendanceStatRecordWithSession[] = [];
-
-  // Most seasons fit in a single page, so the first one goes out alone rather
-  // than firing a whole batch of requests that would come back empty.
-  const first = await page(0);
-
-  if (first.error) {
-    return { data: all, error: first.error };
-  }
-
-  const firstRows = (first.data ?? []) as unknown as AttendanceStatRecordWithSession[];
-  all.push(...firstRows);
-
-  let nextPage = 1;
-  let mayHaveMore = firstRows.length === PAGE_SIZE;
-
-  while (mayHaveMore) {
-    const batch = await Promise.all(
-      Array.from({ length: PAGE_BATCH }, (_, index) =>
-        page((nextPage + index) * PAGE_SIZE),
-      ),
-    );
-
-    mayHaveMore = false;
-
-    for (const result of batch) {
-      if (result.error) {
-        return { data: all, error: result.error };
-      }
-
-      const rows = (result.data ?? []) as unknown as AttendanceStatRecordWithSession[];
-      all.push(...rows);
-      // Only a full final page means another batch could still be waiting.
-      mayHaveMore = rows.length === PAGE_SIZE;
-    }
-
-    nextPage += PAGE_BATCH;
-  }
-
-  return { data: all, error: null };
+      return {
+        data: (data ?? []) as unknown as AttendanceStatRecordWithSession[],
+        error,
+      };
+    },
+    ATTENDANCE_PAGE_SIZE,
+  );
 }
 
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
@@ -145,16 +100,14 @@ export default async function AttendancePage({ searchParams }: AttendancePagePro
       .order("session_date", { ascending: false })
       .order("session_time", { ascending: false }),
     fetchAllAttendanceRecords(supabase, season),
-    supabase
-      .from("members")
-      .select("id, first_name, last_name, email, roles")
-      .eq("status", "active")
-      .order("last_name", { ascending: true }),
+    // Scoped to this season's roster, not every active row in the members
+    // table - see lib/season-roster.
+    fetchSeasonRoster(supabase, season),
   ]);
 
   const sessions = (sessionData ?? []) as PracticeSession[];
   const records = recordData;
-  const members = (memberData ?? []) as MemberSummary[];
+  const members = memberData;
   const dancerMembers = members.filter((member) => member.roles.includes("dancer"));
 
   const sessionStats = buildSessionAttendanceStats(members, sessions, records);
