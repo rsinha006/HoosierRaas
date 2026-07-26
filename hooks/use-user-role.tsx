@@ -6,8 +6,6 @@ import type { ExecTitle } from "@/lib/members";
 type UserRoleState = {
   roles: string[];
   execTitle: ExecTitle | null;
-  loading: boolean;
-  error: string | null;
 };
 
 const UserRoleContext = createContext<UserRoleState | null>(null);
@@ -31,7 +29,7 @@ export function UserRoleProvider({
   children,
 }: UserRoleProviderProps) {
   const value = useMemo<UserRoleState>(
-    () => ({ roles, execTitle, loading: false, error: null }),
+    () => ({ roles, execTitle }),
     [roles, execTitle],
   );
 

@@ -12,15 +12,7 @@ type AppSidebarProps = {
 };
 
 function RoleBadge() {
-  const { execTitle, loading } = useUserRole();
-
-  if (loading) {
-    return (
-      <span className="mt-2 inline-flex rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
-        Loading role...
-      </span>
-    );
-  }
+  const { execTitle } = useUserRole();
 
   if (!execTitle) {
     return (
