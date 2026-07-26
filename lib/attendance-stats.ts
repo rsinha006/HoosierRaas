@@ -85,6 +85,47 @@ export function getExpectedMembers(
   );
 }
 
+/**
+ * Expected-attendee ids per session type, computed once per call rather than
+ * once per session. There are only three types, so the cache is at most three
+ * entries against a session list that is hundreds long.
+ */
+function expectedMemberIdLookup(members: MemberSummary[]) {
+  const cache = new Map<PracticeSessionType, Set<string>>();
+
+  return (sessionType: PracticeSessionType) => {
+    const cached = cache.get(sessionType);
+    if (cached) {
+      return cached;
+    }
+
+    const ids = new Set(
+      getExpectedMembers(members, sessionType).map((member) => member.id),
+    );
+    cache.set(sessionType, ids);
+    return ids;
+  };
+}
+
+/**
+ * The records that count toward a session's rate: those belonging to someone
+ * the session actually applied to.
+ *
+ * Counting every record against a roster-sized denominator lets a rate exceed
+ * 100%. That used to be reachable from outside - the public form accepted any
+ * name and email - and is still reachable from data alone, through a response
+ * by someone since removed from the roster, or by a dancer answering an exec
+ * meeting. Numerator and denominator now come from the same population.
+ */
+function countableSessionRecords<T extends Pick<AttendanceRecord, "member_id">>(
+  sessionRecords: T[],
+  expectedIds: Set<string>,
+) {
+  return sessionRecords.filter(
+    (record) => record.member_id !== null && expectedIds.has(record.member_id),
+  );
+}
+
 export function hasVoluntarySubmission(
   records: Pick<AttendanceRecord, "member_id" | "respondent_email" | "auto_flagged">[],
   member: MemberSummary,
@@ -246,16 +287,17 @@ function attendancePercentForSessions(
   }
 
   const recordsBySession = groupRecordsBySession(records);
+  const expectedIdsFor = expectedMemberIdLookup(members);
   let denominator = 0;
   let numerator = 0;
 
   for (const session of sessions) {
-    const expectedCount = getExpectedMembers(members, session.type).length;
-    denominator += expectedCount;
+    const expectedIds = expectedIdsFor(session.type);
+    denominator += expectedIds.size;
 
     const sessionRecords = recordsBySession.get(session.id) ?? [];
-    numerator += sessionRecords.filter((record) =>
-      isPositiveAttendance(record.attendance_status),
+    numerator += countableSessionRecords(sessionRecords, expectedIds).filter(
+      (record) => isPositiveAttendance(record.attendance_status),
     ).length;
   }
 
@@ -372,10 +414,15 @@ export function buildSessionAttendanceStats(
   records: AttendanceStatRecord[],
 ): SessionAttendanceStat[] {
   const recordsBySession = groupRecordsBySession(records);
+  const expectedIdsFor = expectedMemberIdLookup(members);
 
   return sessions.map((session) => {
-    const sessionRecords = recordsBySession.get(session.id) ?? [];
-    const expectedCount = getExpectedMembers(members, session.type).length;
+    const expectedIds = expectedIdsFor(session.type);
+    const sessionRecords = countableSessionRecords(
+      recordsBySession.get(session.id) ?? [],
+      expectedIds,
+    );
+    const expectedCount = expectedIds.size;
     const presentCount = sessionRecords.filter((record) =>
       isPositiveAttendance(record.attendance_status),
     ).length;
