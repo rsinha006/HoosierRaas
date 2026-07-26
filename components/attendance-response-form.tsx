@@ -21,6 +21,9 @@ const requiredMark = <span className="text-[#990000]">*</span>;
 
 type AttendanceResponseFormProps = {
   session: PublicAttendanceSession;
+  /** The shareable link's token. It, not the session id, is what authorises a
+   *  submission - the id appears in exec-facing URLs and is not a secret. */
+  token: string;
 };
 
 type FormView = "form" | "success" | "duplicate";
@@ -84,7 +87,10 @@ function RadioOption({
   );
 }
 
-export default function AttendanceResponseForm({ session }: AttendanceResponseFormProps) {
+export default function AttendanceResponseForm({
+  session,
+  token,
+}: AttendanceResponseFormProps) {
   const showVideoSection = useMemo(
     () => isVideoDeadlineDay(new Date(`${session.session_date}T12:00:00`)),
     [session.session_date],
@@ -163,7 +169,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
     const { data: alreadySubmitted, error: duplicateError } = await supabase.rpc(
       "attendance_already_submitted",
       {
-        p_session_id: session.id,
+        p_token: token,
         p_email: normalizedEmail,
       },
     );
@@ -187,7 +193,7 @@ export default function AttendanceResponseForm({ session }: AttendanceResponseFo
     );
 
     const { error } = await supabase.rpc("submit_attendance_response", {
-      p_session_id: session.id,
+      p_token: token,
       p_respondent_name: `${firstName.trim()} ${lastName.trim()}`,
       p_respondent_email: normalizedEmail,
       p_attendance_status: attendanceStatus,
