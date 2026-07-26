@@ -151,14 +151,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         receiptFile.name,
       );
 
-      await uploadReceipt({
-        supabase,
-        path: receiptPath,
-        file: receiptFile,
-        onProgress: setUploadProgress,
-      });
-
-      const { error } = await supabase.rpc("submit_public_reimbursement", {
+      const submission = {
         p_id: reimbursementId,
         p_description: description.trim(),
         p_amount: Number(amount),
@@ -167,8 +160,32 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         p_submitter_name: submitterName,
         p_submitter_email: normalizedEmail,
         p_date_of_purchase: dateOfPurchase,
-        p_receipt_url: receiptPath,
         p_notes: notes.trim() || null,
+      };
+
+      // Run the server's checks before the receipt goes up. A public submitter can
+      // write to the receipts bucket but cannot delete from it, so a file uploaded
+      // ahead of a rejected submission stays there forever with nothing pointing at it.
+      const { error: validationError } = await supabase.rpc(
+        "submit_public_reimbursement",
+        { ...submission, p_receipt_url: null, p_validate_only: true },
+      );
+
+      if (validationError) {
+        throw new Error(validationError.message);
+      }
+
+      await uploadReceipt({
+        supabase,
+        path: receiptPath,
+        file: receiptFile,
+        onProgress: setUploadProgress,
+      });
+
+      const { error } = await supabase.rpc("submit_public_reimbursement", {
+        ...submission,
+        p_receipt_url: receiptPath,
+        p_validate_only: false,
       });
 
       if (error) {

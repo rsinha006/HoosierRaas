@@ -62,6 +62,12 @@ export type ReimbursementQueueItem = ReimbursementWithRelations & {
   isReceiptImage: boolean;
 };
 
+/** The team is in Bloomington, so every purchase-date comparison is anchored there —
+ *  in the browser, and in the database constraint that has the final say. Anchoring to
+ *  whatever clock happens to be running instead makes the two disagree: the browser is
+ *  on Indiana time, the database runs on UTC. */
+export const TEAM_TIME_ZONE = "America/Indiana/Indianapolis";
+
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export function validateReceiptFile(file: File | null) {
@@ -137,13 +143,67 @@ export function isReceiptImagePath(path: string) {
   );
 }
 
+/** How far `timeZone` was from UTC at that instant, in milliseconds. Intl is the only
+ *  timezone database a browser has, so the offset is read back out of a formatted
+ *  date rather than calculated. */
+function getZoneOffsetMs(instantMs: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(instantMs));
+
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  const wallClockAsUtc = Date.UTC(
+    read("year"),
+    read("month") - 1,
+    read("day"),
+    read("hour"),
+    read("minute"),
+    read("second"),
+  );
+
+  return wallClockAsUtc - Math.floor(instantMs / 1000) * 1000;
+}
+
+/** The instant midnight fell on `date` in `timeZone`, as epoch milliseconds. */
+export function getZonedMidnightMs(date: string, timeZone: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const utcMidnight = Date.UTC(year, month - 1, day);
+
+  if (Number.isNaN(utcMidnight)) {
+    return Number.NaN;
+  }
+
+  // The offset is itself a function of the instant, so the first reading is taken at
+  // the wrong one — a day whose UTC midnight sits on the far side of a DST change
+  // would come back an hour out. Reading it again at the candidate fixes that.
+  const candidate = utcMidnight - getZoneOffsetMs(utcMidnight, timeZone);
+  return utcMidnight - getZoneOffsetMs(candidate, timeZone);
+}
+
+/** Mirrors the reimbursement_submission_window check constraint. Both measure from
+ *  midnight in TEAM_TIME_ZONE, so a purchase submitted the same day passes here and
+ *  in the database, whatever time zone the submitter's device is set to. */
 export function isOutsideSubmissionWindow(
   dateOfPurchase: string,
   submissionTimestamp = new Date(),
 ) {
-  const purchaseAt = new Date(`${dateOfPurchase}T00:00:00`);
+  const purchaseMidnightMs = getZonedMidnightMs(dateOfPurchase, TEAM_TIME_ZONE);
+
+  if (Number.isNaN(purchaseMidnightMs)) {
+    return false;
+  }
+
   return (
-    submissionTimestamp.getTime() - purchaseAt.getTime() > TWENTY_FOUR_HOURS_MS
+    submissionTimestamp.getTime() - purchaseMidnightMs > TWENTY_FOUR_HOURS_MS
   );
 }
 
