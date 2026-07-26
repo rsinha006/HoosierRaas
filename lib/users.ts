@@ -53,6 +53,58 @@ export function isAssignableExecTitle(value: string): value is AssignableExecTit
   return ASSIGNABLE_EXEC_TITLES.some((title) => title.value === value);
 }
 
+/** The titles that can administer HROS - including handing out roles. Finance
+ *  writes to Finance only, so it cannot restore anyone's access. */
+export const ADMIN_EXEC_TITLES = ["captain", "team_manager"] as const;
+
+export function isAdminExecTitle(value: string | null | undefined): boolean {
+  return (ADMIN_EXEC_TITLES as readonly string[]).includes(value ?? "");
+}
+
+/**
+ * Whether a role change would leave the season with nobody who can hand out
+ * roles.
+ *
+ * Only Captain and Team Manager can assign access, so once the last one is
+ * demoted or revoked - including by themselves, which nothing prevented - there
+ * is no way back in through the app and the org needs direct database access to
+ * recover. A confirmation prompt does not help here: the person means to do it,
+ * they just cannot see that it is one-way.
+ *
+ * Handing off still works, because it goes the other way round: promote the
+ * successor first, then step down.
+ */
+export function wouldRemoveLastAdmin(
+  currentExecTitle: string | null | undefined,
+  nextExecTitle: string | null | undefined,
+  otherAdminCount: number,
+): boolean {
+  if (!isAdminExecTitle(currentExecTitle)) {
+    return false;
+  }
+
+  if (isAdminExecTitle(nextExecTitle)) {
+    return false;
+  }
+
+  return otherAdminCount === 0;
+}
+
+/**
+ * Type-to-confirm check for permission changes. Trimmed and case-insensitive:
+ * the point is to force the person to look at whose row they are on, not to
+ * test their typing.
+ */
+export function matchesConfirmationName(typed: string, expected: string): boolean {
+  const target = expected.trim().toLowerCase();
+
+  if (!target) {
+    return false;
+  }
+
+  return typed.trim().toLowerCase() === target;
+}
+
 export function buildUserRowFromProfile(
   profile: {
     id: string;

@@ -299,6 +299,9 @@ export default function UsersTable({
                             <UserRoleAssign
                               userId={user.id}
                               currentExecTitle={user.exec_title}
+                              fullName={user.full_name}
+                              email={user.email}
+                              isSelf={user.id === currentUserId}
                             />
                             <UserDeleteButton
                               userId={user.id}
@@ -380,6 +383,9 @@ export default function UsersTable({
                       <UserRoleAssign
                         userId={user.id}
                         currentExecTitle={user.exec_title}
+                        fullName={user.full_name}
+                        email={user.email}
+                        isSelf={user.id === currentUserId}
                       />
                     </div>
                   ) : null}
