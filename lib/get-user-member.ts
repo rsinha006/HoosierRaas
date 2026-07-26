@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { getAuthUser } from "@/lib/supabase/auth-user";
 import { createClient } from "@/lib/supabase/server";
 import type { ExecTitle } from "@/lib/members";
 import { getActiveSeasonMembershipExecTitle } from "@/lib/season-memberships";
@@ -9,23 +11,25 @@ export type UserMember = {
   exec_title: ExecTitle | null;
 };
 
-export async function getUserMember(): Promise<UserMember | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getUserMember = cache(async (): Promise<UserMember | null> => {
+  const user = await getAuthUser();
 
   if (!user?.email) {
     return null;
   }
 
-  const { label: activeSeason } = await getActiveSeason();
+  const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("members")
-    .select("id, roles")
-    .eq("email", user.email.toLowerCase())
-    .maybeSingle();
+  // The season lookup does not depend on the member row, so both go out at once
+  // rather than stacking two round trips.
+  const [{ label: activeSeason }, { data, error }] = await Promise.all([
+    getActiveSeason(),
+    supabase
+      .from("members")
+      .select("id, roles")
+      .eq("email", user.email.toLowerCase())
+      .maybeSingle(),
+  ]);
 
   if (error) {
     throw error;
@@ -46,4 +50,4 @@ export async function getUserMember(): Promise<UserMember | null> {
     roles: Array.isArray(data.roles) ? data.roles : [],
     exec_title,
   };
-}
+});

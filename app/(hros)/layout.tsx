@@ -10,23 +10,30 @@ export default async function AuthenticatedLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUserProfile();
+  // None of these three depend on each other, so they all go out at once
+  // instead of stacking three waves of Supabase round trips before anything
+  // renders. The season is awaited last so the auth redirects still take
+  // precedence over the error it throws when there is no readable season.
+  const userPromise = getUserProfile();
+  const memberPromise = getUserMember();
+  const viewingSeasonPromise = getViewingSeason();
+  viewingSeasonPromise.catch(() => {});
+
+  const [user, member] = await Promise.all([userPromise, memberPromise]);
 
   if (!user) {
     redirect("/login");
   }
 
-  const member = await getUserMember();
-
   if (!hasAppAccess(member)) {
     redirect("/pending-access");
   }
 
-  const viewingSeason = await getViewingSeason();
+  const viewingSeason = await viewingSeasonPromise;
   const archivedSeasonLabel = viewingSeason.is_active ? null : viewingSeason.label;
 
   return (
-    <AppShell user={user} archivedSeasonLabel={archivedSeasonLabel}>
+    <AppShell user={user} member={member} archivedSeasonLabel={archivedSeasonLabel}>
       {children}
     </AppShell>
   );

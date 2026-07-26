@@ -38,10 +38,12 @@ export async function updateSession(request: NextRequest) {
   let user: { id: string } | null = null;
 
   try {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    user = authUser;
+    // getClaims() verifies the access token locally against a cached JWKS
+    // (the project signs with ES256), so this no longer costs an Auth server
+    // round trip on every single request. It still refreshes the session when
+    // the token is close to expiring.
+    const { data } = await supabase.auth.getClaims();
+    user = data?.claims?.sub ? { id: data.claims.sub } : null;
   } catch {
     // Bad env vars or transient Supabase/network errors should not 500 the site.
     return supabaseResponse;

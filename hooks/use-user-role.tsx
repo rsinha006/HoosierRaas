@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { ExecTitle } from "@/lib/members";
-import { normalizeMembershipExecTitle } from "@/lib/season-memberships";
 
 type UserRoleState = {
   roles: string[];
@@ -20,95 +12,31 @@ type UserRoleState = {
 
 const UserRoleContext = createContext<UserRoleState | null>(null);
 
-export function UserRoleProvider({ children }: { children: ReactNode }) {
-  const [roles, setRoles] = useState<string[]>([]);
-  const [execTitle, setExecTitle] = useState<ExecTitle | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type UserRoleProviderProps = {
+  roles: string[];
+  execTitle: ExecTitle | null;
+  children: ReactNode;
+};
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchUserRole() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user?.email) {
-        if (!cancelled) {
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: activeSeason, error: activeSeasonError } = await supabase
-        .from("seasons")
-        .select("label")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (activeSeasonError) {
-        setError(activeSeasonError.message);
-        setLoading(false);
-        return;
-      }
-
-      const { data: member, error: fetchError } = await supabase
-        .from("members")
-        .select("id, roles")
-        .eq("email", user.email.toLowerCase())
-        .maybeSingle();
-
-      if (cancelled) {
-        return;
-      }
-
-      if (fetchError) {
-        setError(fetchError.message);
-        setLoading(false);
-        return;
-      }
-
-      let execTitle: ExecTitle | null = null;
-
-      if (member && activeSeason?.label) {
-        const { data: membership, error: membershipError } = await supabase
-          .from("season_memberships")
-          .select("exec_title")
-          .eq("member_id", member.id)
-          .eq("season", activeSeason.label)
-          .maybeSingle();
-
-        if (cancelled) {
-          return;
-        }
-
-        if (membershipError) {
-          setError(membershipError.message);
-          setLoading(false);
-          return;
-        }
-
-        execTitle = (membership?.exec_title as ExecTitle | null) ?? null;
-      }
-
-      setRoles(Array.isArray(member?.roles) ? member.roles : []);
-      setExecTitle(normalizeMembershipExecTitle(execTitle));
-      setLoading(false);
-    }
-
-    fetchUserRole();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+/**
+ * The role used to be fetched from the browser on mount, which cost four
+ * sequential Supabase round trips (auth, seasons, members, season_memberships)
+ * on every page - and re-derived exactly what the server already resolved in
+ * getUserMember(). It is now handed down from the layout, so the role is
+ * present in the first paint and stays correct across router.refresh().
+ */
+export function UserRoleProvider({
+  roles,
+  execTitle,
+  children,
+}: UserRoleProviderProps) {
+  const value = useMemo<UserRoleState>(
+    () => ({ roles, execTitle, loading: false, error: null }),
+    [roles, execTitle],
+  );
 
   return (
-    <UserRoleContext.Provider value={{ roles, execTitle, loading, error }}>
-      {children}
-    </UserRoleContext.Provider>
+    <UserRoleContext.Provider value={value}>{children}</UserRoleContext.Provider>
   );
 }
 

@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { getAuthUser } from "@/lib/supabase/auth-user";
 import { createClient } from "@/lib/supabase/server";
 
 export type UserProfile = {
@@ -8,23 +10,21 @@ export type UserProfile = {
   isExec: boolean;
 };
 
-export async function getUserProfile(): Promise<UserProfile | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getUserProfile = cache(async (): Promise<UserProfile | null> => {
+  const user = await getAuthUser();
 
   if (!user) {
     return null;
   }
 
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, role, roles")
     .eq("id", user.id)
     .maybeSingle();
 
-  const metadata = user.user_metadata ?? {};
+  const metadata = user.metadata;
   const email = user.email ?? "";
   const fallbackName = email.split("@")[0] || "User";
 
@@ -39,4 +39,4 @@ export async function getUserProfile(): Promise<UserProfile | null> {
       (typeof metadata.role === "string" ? metadata.role : "Executive Board"),
     isExec: Array.isArray(profile?.roles) && profile.roles.includes("exec"),
   };
-}
+});

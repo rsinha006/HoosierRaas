@@ -19,3 +19,29 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Pending hint for sidebar links. It starts invisible and only fades in after
+ * 150ms, so a prefetched (instant) navigation never flashes a spinner - the
+ * hint appears only when the server is actually taking a while.
+ */
+/*
+ * This has to be a transition, not an animation: the spinner uses Tailwind's
+ * animate-spin, and an `animation` here would override it and leave a static
+ * ring. The 200ms delay is what debounces - if the navigation resolves first
+ * the class is removed before the delay elapses, so nothing ever appears.
+ */
+.link-hint {
+  opacity: 0;
+  transition: opacity 150ms linear 200ms;
+}
+
+.link-hint.is-pending {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link-hint {
+    transition: none;
+  }
+}
