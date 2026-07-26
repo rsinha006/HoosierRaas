@@ -17,6 +17,53 @@ export type AttendanceRecordWithSession = AttendanceRecord & {
   >;
 };
 
+/**
+ * The columns the dashboard statistics actually read. The attendance dashboard
+ * loads every record in the season, so it selects only these rather than the
+ * whole row - the free-text columns (excuse_text, override_reason,
+ * practice_video_excuse) are dead weight multiplied by thousands of rows.
+ *
+ * Full AttendanceRecord values still satisfy this, so callers that do need the
+ * whole row (the member detail page) pass them through unchanged.
+ */
+export type AttendanceStatRecord = Pick<
+  AttendanceRecord,
+  | "session_id"
+  | "member_id"
+  | "respondent_email"
+  | "attendance_status"
+  | "practice_video_status"
+  | "auto_flagged"
+>;
+
+export type AttendanceStatRecordWithSession = AttendanceStatRecord & {
+  session: Pick<PracticeSession, "id" | "season" | "session_date" | "type" | "status">;
+};
+
+/**
+ * Indexes records by session once, instead of re-scanning the full record list
+ * for every session. The dashboard has O(sessions x records) worth of work
+ * otherwise - a full season is easily 100 sessions against several thousand
+ * records, and the scan repeats for each statistic on the page.
+ */
+function groupRecordsBySession<T extends Pick<AttendanceRecord, "session_id">>(
+  records: T[],
+): Map<string, T[]> {
+  const bySession = new Map<string, T[]>();
+
+  for (const record of records) {
+    const existing = bySession.get(record.session_id);
+
+    if (existing) {
+      existing.push(record);
+    } else {
+      bySession.set(record.session_id, [record]);
+    }
+  }
+
+  return bySession;
+}
+
 export function getExpectedAudienceRole(sessionType: PracticeSessionType) {
   return sessionType === "exec meeting" ? "exec" : "dancer";
 }
@@ -52,8 +99,8 @@ export function hasVoluntarySubmission(
   );
 }
 
-export function getVoluntaryResponses(
-  records: AttendanceRecord[],
+export function getVoluntaryResponses<T extends Pick<AttendanceRecord, "auto_flagged">>(
+  records: T[],
 ) {
   return records.filter((record) => !record.auto_flagged);
 }
@@ -76,7 +123,7 @@ export function getSessionResponseRate(
   records: Pick<AttendanceRecord, "member_id" | "respondent_email" | "auto_flagged">[],
 ) {
   const expectedCount = getExpectedMembers(members, session.type).length;
-  const responseCount = getVoluntaryResponses(records as AttendanceRecord[]).length;
+  const responseCount = getVoluntaryResponses(records).length;
 
   const audienceLabel = getAudienceLabel(session.type);
 
@@ -113,7 +160,7 @@ export type DancerAttendanceSummary = {
 
 export function summarizeDancerAttendance(
   members: MemberSummary[],
-  records: AttendanceRecordWithSession[],
+  records: AttendanceStatRecordWithSession[],
   season: string,
 ) {
   const seasonRecords = records.filter(
@@ -192,12 +239,13 @@ export function buildAttendanceAlertGroups(
 function attendancePercentForSessions(
   members: MemberSummary[],
   sessions: PracticeSession[],
-  records: AttendanceRecord[],
+  records: AttendanceStatRecord[],
 ) {
   if (sessions.length === 0) {
     return null;
   }
 
+  const recordsBySession = groupRecordsBySession(records);
   let denominator = 0;
   let numerator = 0;
 
@@ -205,7 +253,7 @@ function attendancePercentForSessions(
     const expectedCount = getExpectedMembers(members, session.type).length;
     denominator += expectedCount;
 
-    const sessionRecords = records.filter((record) => record.session_id === session.id);
+    const sessionRecords = recordsBySession.get(session.id) ?? [];
     numerator += sessionRecords.filter((record) =>
       isPositiveAttendance(record.attendance_status),
     ).length;
@@ -221,7 +269,7 @@ function attendancePercentForSessions(
 export function getTeamAttendancePercentage(
   members: MemberSummary[],
   sessions: PracticeSession[],
-  records: AttendanceRecord[],
+  records: AttendanceStatRecord[],
   season: string,
 ) {
   return attendancePercentForSessions(members, getClosedSeasonSessions(sessions, season), records);
@@ -249,7 +297,7 @@ function calendarMonthRange(reference: Date, monthOffset: number) {
 export function getTeamAttendanceTrend(
   members: MemberSummary[],
   sessions: PracticeSession[],
-  records: AttendanceRecord[],
+  records: AttendanceStatRecord[],
   season: string,
   referenceDate: Date = new Date(),
 ): AttendanceTrend {
@@ -321,10 +369,12 @@ function isVideoApplicableSession(
 export function buildSessionAttendanceStats(
   members: MemberSummary[],
   sessions: PracticeSession[],
-  records: AttendanceRecord[],
+  records: AttendanceStatRecord[],
 ): SessionAttendanceStat[] {
+  const recordsBySession = groupRecordsBySession(records);
+
   return sessions.map((session) => {
-    const sessionRecords = records.filter((record) => record.session_id === session.id);
+    const sessionRecords = recordsBySession.get(session.id) ?? [];
     const expectedCount = getExpectedMembers(members, session.type).length;
     const presentCount = sessionRecords.filter((record) =>
       isPositiveAttendance(record.attendance_status),
