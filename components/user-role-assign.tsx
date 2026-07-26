@@ -2,25 +2,51 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import RoleChangeConfirmDialog from "@/components/role-change-confirm-dialog";
 import type { ExecTitle } from "@/lib/members";
-import { NONE_ROLE_VALUE, ROLE_SELECT_OPTIONS, type RoleSelectValue } from "@/lib/users";
+import {
+  NONE_ROLE_VALUE,
+  ROLE_SELECT_OPTIONS,
+  type RoleSelectValue,
+} from "@/lib/users";
 
 type UserRoleAssignProps = {
   userId: string;
   currentExecTitle: ExecTitle | null;
+  /** Shown in the dialog and typed back to confirm. */
+  fullName: string | null;
+  email: string;
+  isSelf: boolean;
 };
 
-export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAssignProps) {
+function roleLabel(value: RoleSelectValue) {
+  return (
+    ROLE_SELECT_OPTIONS.find((option) => option.value === value)?.label ?? value
+  );
+}
+
+export default function UserRoleAssign({
+  userId,
+  currentExecTitle,
+  fullName,
+  email,
+  isSelf,
+}: UserRoleAssignProps) {
   const router = useRouter();
   const [execTitle, setExecTitle] = useState<RoleSelectValue>(
     currentExecTitle ?? NONE_ROLE_VALUE,
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currentValue: RoleSelectValue = currentExecTitle ?? NONE_ROLE_VALUE;
   const isUnchanged = currentValue === execTitle;
   const isRevoking = execTitle === NONE_ROLE_VALUE;
+
+  // A login that signed up but never filled in a name still has to be
+  // confirmable, so fall back to the address it was created with.
+  const confirmationName = fullName?.trim() || email;
 
   async function handleAssign() {
     setLoading(true);
@@ -42,6 +68,8 @@ export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAss
         return;
       }
 
+      setConfirmOpen(false);
+      setLoading(false);
       router.refresh();
     } catch {
       setError("Could not assign this role.");
@@ -65,22 +93,45 @@ export default function UserRoleAssign({ userId, currentExecTitle }: UserRoleAss
         </select>
         <button
           type="button"
-          onClick={handleAssign}
+          // Opens the confirmation rather than saving. Changing someone's
+          // access used to be one dropdown and one click, with no step in
+          // between to notice you were on the wrong row.
+          onClick={() => {
+            setError(null);
+            setConfirmOpen(true);
+          }}
           disabled={loading || isUnchanged}
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
             isRevoking ? "bg-zinc-700 hover:bg-zinc-800" : "bg-[#990000] hover:bg-[#7a0000]"
           }`}
         >
-          {loading
-            ? "Saving..."
-            : isRevoking
-              ? "Revoke access"
-              : currentExecTitle
-                ? "Update"
-                : "Assign"}
+          {isRevoking ? "Revoke access" : currentExecTitle ? "Update" : "Assign"}
         </button>
       </div>
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+
+      {/* Errors from a rejected save show inside the dialog; this covers the
+          case where it has since been dismissed. */}
+      {error && !confirmOpen ? (
+        <p className="text-xs text-red-600">{error}</p>
+      ) : null}
+
+      <RoleChangeConfirmDialog
+        open={confirmOpen}
+        confirmationName={confirmationName}
+        currentRoleLabel={roleLabel(currentValue)}
+        nextRoleLabel={roleLabel(execTitle)}
+        isRevoking={isRevoking}
+        isSelf={isSelf}
+        submitting={loading}
+        error={error}
+        onConfirm={handleAssign}
+        onClose={() => {
+          if (loading) {
+            return;
+          }
+          setConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }

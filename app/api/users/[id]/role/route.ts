@@ -5,10 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { hasWriteAccess } from "@/lib/rbac";
 import { getActiveSeason } from "@/lib/seasons";
 import {
+  ADMIN_EXEC_TITLES,
   isAssignableExecTitle,
   mergeExecRole,
   NONE_ROLE_VALUE,
   splitFullName,
+  wouldRemoveLastAdmin,
 } from "@/lib/users";
 
 type RouteContext = {
@@ -64,6 +66,44 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (isRevoke && !existingMember) {
     // Nothing to revoke — this profile never had a member record or access.
     return NextResponse.json({ success: true });
+  }
+
+  // Runs before any write: a half-applied demotion that then fails the guard
+  // would be worse than the demotion itself.
+  if (existingMember) {
+    const { data: currentMembership } = await supabase
+      .from("season_memberships")
+      .select("exec_title")
+      .eq("member_id", existingMember.id)
+      .eq("season", activeSeason)
+      .maybeSingle();
+
+    const { count: otherAdminCount, error: adminCountError } = await supabase
+      .from("season_memberships")
+      .select("member_id", { count: "exact", head: true })
+      .eq("season", activeSeason)
+      .in("exec_title", ADMIN_EXEC_TITLES)
+      .neq("member_id", existingMember.id);
+
+    if (adminCountError) {
+      return NextResponse.json({ error: adminCountError.message }, { status: 500 });
+    }
+
+    if (
+      wouldRemoveLastAdmin(
+        currentMembership?.exec_title,
+        isRevoke ? null : execTitle,
+        otherAdminCount ?? 0,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This is the only Captain or Team Manager left, so removing this role would lock everyone out of HROS with no way back in. Give someone else Captain or Team Manager first, then change this one.",
+        },
+        { status: 409 },
+      );
+    }
   }
 
   let memberId = existingMember?.id ?? null;
