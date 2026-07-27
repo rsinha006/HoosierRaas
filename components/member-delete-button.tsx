@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import MemberDeleteConfirmDialog from "@/components/member-delete-confirm-dialog";
 import { formatMemberName, type Member } from "@/lib/members";
 
 type MemberDeleteButtonProps = {
@@ -14,24 +15,15 @@ export default function MemberDeleteButton({
   currentMemberId,
 }: MemberDeleteButtonProps) {
   const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isSelf = member.id === currentMemberId;
   const memberName = formatMemberName(member);
 
-  async function handleDelete(event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-
+  async function handleDelete() {
     if (isSelf) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete ${memberName} (${member.email})?\n\nThis will permanently remove their member profile, uploaded documents, and login account if one exists. This cannot be undone.`,
-    );
-
-    if (!confirmed) {
       return;
     }
 
@@ -50,6 +42,7 @@ export default function MemberDeleteButton({
         return;
       }
 
+      setConfirmOpen(false);
       router.refresh();
     } catch {
       setError("Could not delete this member.");
@@ -64,14 +57,36 @@ export default function MemberDeleteButton({
     >
       <button
         type="button"
-        onClick={handleDelete}
+        onClick={() => {
+          setError(null);
+          setConfirmOpen(true);
+        }}
         disabled={loading || isSelf}
         title={isSelf ? "You cannot delete your own member record" : undefined}
         className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Deleting..." : "Delete"}
       </button>
-      {error ? <p className="max-w-40 text-right text-xs text-red-600">{error}</p> : null}
+      {error && !confirmOpen ? (
+        <p className="max-w-40 text-right text-xs text-red-600">{error}</p>
+      ) : null}
+
+      <MemberDeleteConfirmDialog
+        open={confirmOpen}
+        confirmationName={memberName}
+        email={member.email}
+        submitting={loading}
+        error={error}
+        onConfirm={handleDelete}
+        onClose={() => {
+          if (loading) {
+            return;
+          }
+
+          setConfirmOpen(false);
+          setError(null);
+        }}
+      />
     </div>
   );
 }
