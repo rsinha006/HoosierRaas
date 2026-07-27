@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import RegistrationPacketFileField from "@/components/registration-packet-file-field";
@@ -49,6 +50,13 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
   const [packetFile, setPacketFile] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Set once the competition row exists. From then on this form cannot be
+   *  submitted again - the duplicate-name check would refuse it - so what is
+   *  left is the packet, and that is finished on the competition's own page. */
+  const [createdCompetition, setCreatedCompetition] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Creating...");
@@ -120,6 +128,13 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // The row already exists; pressing Enter in a field must not go and ask the
+    // database for a second one.
+    if (createdCompetition) {
+      return;
+    }
+
     setSaveError(null);
 
     if (!validateForm()) {
@@ -205,10 +220,14 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
       } catch (uploadError) {
         setLoading(false);
         setUploadProgress(0);
+        // The competition itself is saved. Say so, and hand over to the page
+        // that can retry the upload - pressing Submit again from here only
+        // produces "a competition named X already exists this season".
+        setCreatedCompetition({ id: competition.id, name: trimmedName });
         setSaveError(
           uploadError instanceof Error
             ? uploadError.message
-            : "Competition was created, but the packet upload failed.",
+            : "The packet upload failed.",
         );
         return;
       }
@@ -432,27 +451,59 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
         </div>
       </div>
 
-      {saveError ? (
+      {createdCompetition ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">
+            {createdCompetition.name} was created. The registration packet was
+            not uploaded.
+          </p>
+          {saveError ? <p className="mt-1">{saveError}</p> : null}
+          <p className="mt-2">
+            Nothing here needs entering again - creating it a second time would
+            be refused as a duplicate. Upload the packet on the competition
+            page, whenever suits.
+          </p>
+        </div>
+      ) : saveError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {saveError}
         </div>
       ) : null}
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? loadingMessage : "Create competition"}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/team-manager/competitions")}
-          className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-        >
-          Cancel
-        </button>
+        {createdCompetition ? (
+          <>
+            <Link
+              href={`/team-manager/competitions/${createdCompetition.id}`}
+              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+            >
+              Upload the packet
+            </Link>
+            <Link
+              href="/team-manager/competitions"
+              className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              Back to competitions
+            </Link>
+          </>
+        ) : (
+          <>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? loadingMessage : "Create competition"}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/team-manager/competitions")}
+              className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              Cancel
+            </button>
+          </>
+        )}
       </div>
     </form>
   );
