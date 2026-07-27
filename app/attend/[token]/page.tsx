@@ -8,11 +8,15 @@ import {
   type PracticeSessionStatus,
   type PublicAttendanceSession,
 } from "@/lib/attendance";
+import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 import { createClient } from "@/lib/supabase/server";
 
+// This is the one public link that is a real secret. An indexed attendance URL
+// would hand the token to anyone who searched for it.
 export const metadata: Metadata = {
   title: "Attendance | HoosierRaas",
   description: "Submit your practice session attendance response.",
+  robots: PUBLIC_PAGE_ROBOTS,
 };
 
 type PublicAttendPageProps = {

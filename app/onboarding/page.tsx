@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import DancerOnboardingForm from "@/components/dancer-onboarding-form";
+import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 
 export const metadata: Metadata = {
   title: "Dancer Onboarding | HoosierRaas",
   description: "Submit your season onboarding information for HoosierRaas.",
+  robots: PUBLIC_PAGE_ROBOTS,
 };
 
 export default function OnboardingPage() {
