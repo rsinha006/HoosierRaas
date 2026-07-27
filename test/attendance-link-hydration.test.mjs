@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 const link = read("components/shareable-session-link.tsx");
 const hook = read("hooks/use-origin.ts");
+const sessionPage = read("app/(hros)/attendance/[id]/page.tsx");
 
 /**
  * The reported flaw: the attendance link was built from window.location.origin
@@ -38,4 +39,22 @@ test("the hook is marked as client code", () => {
 test("the copied link is the one on screen", () => {
   assert.match(link, /navigator\.clipboard\.writeText\(attendUrl\)/);
   assert.equal(link.match(/\/attend\/\$\{shareableToken\}/g)?.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// One rendering, not two
+// ---------------------------------------------------------------------------
+
+/** The component shipped with a second, compact layout behind a `prominent` flag.
+ *  Its only caller has always passed the flag, so that branch never rendered once. */
+test("there is no unused second layout", () => {
+  assert.doesNotMatch(link, /prominent/);
+  assert.equal(link.match(/^  return \(/gm)?.length, 1);
+});
+
+test("the session page renders it without a variant flag", () => {
+  assert.match(
+    sessionPage,
+    /<ShareableSessionLink shareableToken=\{session\.shareable_token\} \/>/,
+  );
 });

@@ -188,7 +188,7 @@ export default async function PracticeSessionDetailPage({
       </div>
 
       {session.status === "open" ? (
-        <ShareableSessionLink shareableToken={session.shareable_token} prominent />
+        <ShareableSessionLink shareableToken={session.shareable_token} />
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-zinc-600">
           <p className="text-sm">
