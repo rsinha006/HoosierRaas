@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useOrigin } from "@/hooks/use-origin";
 
 type ShareableSessionLinkProps = {
   shareableToken: string;
@@ -13,18 +14,19 @@ export default function ShareableSessionLink({
 }: ShareableSessionLinkProps) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const origin = useOrigin();
 
-  const attendUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/attend/${shareableToken}`
-      : `/attend/${shareableToken}`;
+  // Empty on the server and through hydration, so this starts as the bare path
+  // and fills in once mounted.
+  const attendUrl = `${origin}/attend/${shareableToken}`;
 
   async function handleCopy() {
     setError(null);
 
     try {
-      const url = `${window.location.origin}/attend/${shareableToken}`;
-      await navigator.clipboard.writeText(url);
+      // The same string that is on screen. A click can only happen after mount,
+      // so the origin is filled in by the time this runs.
+      await navigator.clipboard.writeText(attendUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
