@@ -35,6 +35,16 @@ test("the RPC returns the active season's competitions only", () => {
   assert.match(migration, /order by c\.competition_date;/);
 });
 
+/** Every row in the database carries the label '2025-2026', including the one
+ *  dated June 2006. Filtering on the label alone would still offer a dancer a
+ *  twenty-year-old competition, so the date has to agree with the season too. */
+test("the RPC also requires the date to fall inside the season", () => {
+  assert.match(
+    migration,
+    /and c\.competition_date between s\.starts_on and s\.ends_on/,
+  );
+});
+
 test("the RPC is callable by an unauthenticated dancer", () => {
   assert.match(
     migration,
