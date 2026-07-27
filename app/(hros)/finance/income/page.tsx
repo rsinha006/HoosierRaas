@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AddIncomeForm from "@/components/add-income-form";
 import { getUserMember } from "@/lib/get-user-member";
 import {
@@ -77,7 +78,13 @@ export default async function FinanceIncomePage({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-zinc-900">Income</h1>
+        <Link
+          href="/finance"
+          className="text-sm font-medium text-[#990000] transition hover:text-[#7a0000]"
+        >
+          ← Back to finance
+        </Link>
+        <h1 className="mt-3 text-2xl font-semibold text-zinc-900">Income</h1>
         <p className="mt-2 text-zinc-600">
           Income tracking for the {season} season.
         </p>
