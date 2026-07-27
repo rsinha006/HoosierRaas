@@ -303,7 +303,8 @@ type ReimbursementQueueProps = {
   canReview: boolean;
   reviewerMemberId: string | null;
   hasMorePaid: boolean;
-  loadMorePaidHref: string;
+  /** Null once the list is as long as it goes — there is no further page to link to. */
+  loadMorePaidHref: string | null;
 };
 
 export default function ReimbursementQueue({
@@ -435,12 +436,19 @@ export default function ReimbursementQueue({
 
           {hasMorePaid ? (
             <div className="mt-4 text-center">
-              <Link
-                href={loadMorePaidHref}
-                className="text-sm font-medium text-[#990000] hover:underline"
-              >
-                Load more
-              </Link>
+              {loadMorePaidHref ? (
+                <Link
+                  href={loadMorePaidHref}
+                  className="text-sm font-medium text-[#990000] hover:underline"
+                >
+                  Load more
+                </Link>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Showing the {paidReimbursements.length} most recent paid
+                  reimbursements for this season.
+                </p>
+              )}
             </div>
           ) : null}
         </section>

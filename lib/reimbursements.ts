@@ -62,6 +62,27 @@ export type ReimbursementQueueItem = ReimbursementWithRelations & {
   isReceiptImage: boolean;
 };
 
+/** How many paid reimbursements the queue shows before the "Load more" link appears. */
+export const PAID_PAGE_SIZE = 25;
+
+/** ...and the most it will ever show at once. Every row on the page costs a signed
+ *  receipt URL, so `?paidCount=100000` would otherwise ask storage to mint one for
+ *  every reimbursement the team has ever paid, on a page nobody can read anyway. */
+export const MAX_PAID_COUNT = 200;
+
+export const DENIED_PAGE_SIZE = 25;
+
+/** The count comes from the address bar, so it is whatever someone typed. */
+export function parsePaidCount(value: string | undefined) {
+  const parsed = Number(value);
+
+  if (!value || !Number.isFinite(parsed) || parsed < PAID_PAGE_SIZE) {
+    return PAID_PAGE_SIZE;
+  }
+
+  return Math.min(Math.floor(parsed), MAX_PAID_COUNT);
+}
+
 /** The team is in Bloomington, so every purchase-date comparison is anchored there —
  *  in the browser, and in the database constraint that has the final say. Anchoring to
  *  whatever clock happens to be running instead makes the two disagree: the browser is
