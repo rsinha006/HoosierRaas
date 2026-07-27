@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import PublicLinkNotice from "@/components/public-link-notice";
+import { PUBLIC_LINK_PATHS } from "@/lib/public-links";
 
 export default function ExpenseLinkGenerator() {
   const [copied, setCopied] = useState(false);
@@ -10,7 +12,7 @@ export default function ExpenseLinkGenerator() {
     setError(null);
 
     try {
-      const url = `${window.location.origin}/expenses`;
+      const url = `${window.location.origin}${PUBLIC_LINK_PATHS.expenses}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
@@ -20,17 +22,23 @@ export default function ExpenseLinkGenerator() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="rounded-lg bg-[#990000] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
-      >
-        Copy Expense Request Link
-      </button>
-      {copied ? (
-        <span className="text-sm font-medium text-green-700">Copied to clipboard!</span>
-      ) : null}
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded-lg bg-[#990000] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+        >
+          Copy Expense Request Link
+        </button>
+        {copied ? (
+          <span className="text-sm font-medium text-green-700">Copied to clipboard!</span>
+        ) : null}
+      </div>
+      <PublicLinkNotice
+        path={PUBLIC_LINK_PATHS.expenses}
+        className="max-w-xs text-right"
+      />
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>
   );

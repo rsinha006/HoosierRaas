@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import ExpenseRequestForm from "@/components/expense-request-form";
 import { buildPublicExpenseCategories } from "@/lib/finance";
+import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
 export const metadata: Metadata = {
   title: "Expense Request | HoosierRaas",
   description: "Submit a pre-approval expense request for HoosierRaas.",
+  robots: PUBLIC_PAGE_ROBOTS,
 };
 
 export default async function PublicExpenseRequestPage() {

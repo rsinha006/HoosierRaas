@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import PublicLinkNotice from "@/components/public-link-notice";
+import { PUBLIC_LINK_PATHS } from "@/lib/public-links";
 
 export default function OnboardingLinkGenerator() {
   const [copied, setCopied] = useState(false);
@@ -10,7 +12,7 @@ export default function OnboardingLinkGenerator() {
     setError(null);
 
     try {
-      const url = `${window.location.origin}/onboarding`;
+      const url = `${window.location.origin}${PUBLIC_LINK_PATHS.onboarding}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
@@ -26,8 +28,12 @@ export default function OnboardingLinkGenerator() {
         onClick={handleCopy}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] sm:min-h-0 sm:w-auto"
       >
-        Generate Onboarding Link
+        Copy Onboarding Link
       </button>
+      <PublicLinkNotice
+        path={PUBLIC_LINK_PATHS.onboarding}
+        className="max-w-xs sm:text-right"
+      />
       {copied ? (
         <span className="text-sm font-medium text-green-700">Copied to clipboard!</span>
       ) : null}

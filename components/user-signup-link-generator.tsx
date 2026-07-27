@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import PublicLinkNotice from "@/components/public-link-notice";
+import { PUBLIC_LINK_PATHS } from "@/lib/public-links";
 
 export default function UserSignupLinkGenerator() {
   const [copied, setCopied] = useState(false);
@@ -10,7 +12,7 @@ export default function UserSignupLinkGenerator() {
     setError(null);
 
     try {
-      const url = `${window.location.origin}/signup`;
+      const url = `${window.location.origin}${PUBLIC_LINK_PATHS.signup}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
@@ -28,6 +30,10 @@ export default function UserSignupLinkGenerator() {
       >
         Copy signup link
       </button>
+      <PublicLinkNotice
+        path={PUBLIC_LINK_PATHS.signup}
+        className="max-w-xs text-right"
+      />
       {copied ? (
         <span className="text-sm font-medium text-green-700">Copied to clipboard!</span>
       ) : null}

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import ReimbursementForm from "@/components/reimbursement-form";
+import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
 
 export const metadata: Metadata = {
   title: "Reimbursement Request | HoosierRaas",
   description: "Submit an out-of-pocket reimbursement request for HoosierRaas.",
+  robots: PUBLIC_PAGE_ROBOTS,
 };
 
 export default async function PublicReimbursementsPage() {

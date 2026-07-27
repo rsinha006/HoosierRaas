@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import UserSignupForm from "@/components/user-signup-form";
+import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 
 export const metadata: Metadata = {
   title: "Create Account | HoosierRaas",
   description: "Create your HROS login account.",
+  robots: PUBLIC_PAGE_ROBOTS,
 };
 
 export default function SignupPage() {
