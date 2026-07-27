@@ -15,7 +15,11 @@ export default async function NewCompetitionPage() {
 
   const member = await getUserMember();
   const canWrite = hasWriteAccess(member?.exec_title ?? null, "team-manager");
-  const { label: season } = await getActiveSeason();
+  const {
+    label: season,
+    starts_on: seasonStartsOn,
+    ends_on: seasonEndsOn,
+  } = await getActiveSeason();
 
   if (!canWrite) {
     return (
@@ -50,7 +54,11 @@ export default async function NewCompetitionPage() {
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <CompetitionCreateForm season={season} />
+        <CompetitionCreateForm
+          season={season}
+          seasonStartsOn={seasonStartsOn}
+          seasonEndsOn={seasonEndsOn}
+        />
       </div>
     </div>
   );
