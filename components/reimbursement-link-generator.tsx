@@ -1,25 +1,16 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import PublicLinkNotice from "@/components/public-link-notice";
+import { useOrigin } from "@/hooks/use-origin";
 import { PUBLIC_LINK_PATHS } from "@/lib/public-links";
-
-/** The origin only exists in the browser, and reaching for it while rendering makes
- *  the first client pass disagree with the HTML it is hydrating - React throws that
- *  tree away and rebuilds it. This is the one hook that takes a server snapshot, so
- *  both sides start from the path and the full URL arrives once mounted. */
-const subscribeToNothing = () => () => {};
-const readOrigin = () => window.location.origin;
-const readOriginOnServer = () => "";
 
 export default function ReimbursementLinkGenerator() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const origin = useSyncExternalStore(
-    subscribeToNothing,
-    readOrigin,
-    readOriginOnServer,
-  );
+  // Empty on the server and through hydration, so this starts as the bare path
+  // and fills in once mounted.
+  const origin = useOrigin();
 
   const reimbursementUrl = `${origin}${PUBLIC_LINK_PATHS.reimbursements}`;
 

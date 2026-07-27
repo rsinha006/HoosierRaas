@@ -71,13 +71,16 @@ test("the reimbursement card shows the link it is handing out", () => {
 });
 
 /** The origin only exists in the browser. Reading it during render makes the first
- *  client pass disagree with the server's HTML, and React discards that tree. */
-test("the origin is read through a hook that has a server snapshot", () => {
+ *  client pass disagree with the server's HTML, and React discards that tree.
+ *  useOrigin is the one place that knows how to do this safely - see
+ *  test/attendance-link-hydration.test.mjs for what the hook itself guarantees. */
+test("the origin is read through the shared hook", () => {
+  assert.match(generators.reimbursements, /const origin = useOrigin\(\)/);
   assert.match(
     generators.reimbursements,
-    /useSyncExternalStore\(\s+subscribeToNothing,\s+readOrigin,\s+readOriginOnServer,\s+\)/,
+    /import \{ useOrigin \} from "@\/hooks\/use-origin"/,
   );
-  assert.match(generators.reimbursements, /const readOriginOnServer = \(\) => ""/);
+  assert.doesNotMatch(generators.reimbursements, /useSyncExternalStore/);
   assert.doesNotMatch(generators.reimbursements, /typeof window !== "undefined"/);
 });
 
