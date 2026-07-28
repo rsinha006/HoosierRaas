@@ -14,7 +14,7 @@ export default function PendingOnboardingReviews({
 }: PendingOnboardingReviewsProps) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">
             Pending onboarding reviews

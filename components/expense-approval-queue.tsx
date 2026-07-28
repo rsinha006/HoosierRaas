@@ -218,7 +218,7 @@ function PendingRequestCard({
 
   return (
     <article className="rounded-xl border border-zinc-200 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-zinc-500">{requesterName}</p>
           <h3 className="mt-1 text-lg font-semibold text-zinc-900">
@@ -516,7 +516,7 @@ export default function ExpenseApprovalQueue({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Approval Queue</h2>
             <p className="mt-1 text-sm text-zinc-600">

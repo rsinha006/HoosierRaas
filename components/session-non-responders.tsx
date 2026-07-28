@@ -55,7 +55,7 @@ export default function SessionNonResponders({
       <ul className="mt-4 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
         {nonResponders.map((person) => (
           <li key={person.id} className="px-4 py-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               {person.memberId ? (
                 <Link
                   href={`/attendance/members/${person.memberId}`}
