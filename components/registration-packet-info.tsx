@@ -197,6 +197,18 @@ export default function RegistrationPacketInfo({
         parsed.warnings,
       );
       savePacketReviewDraft(reviewState);
+
+      // Best-effort: sessionStorage is the fast path for the common case (same
+      // tab that just extracted), but it doesn't survive a second tab or a
+      // browser crash. Persisting the merged draft on the competition row means
+      // the review screen can still recover it even when sessionStorage can't -
+      // a failure here shouldn't block the reviewer from continuing with the
+      // draft they already have in this tab.
+      await supabase
+        .from("competitions")
+        .update({ pending_packet_extraction: reviewState })
+        .eq("id", competitionId);
+
       router.push(`/team-manager/competitions/${competitionId}/review-packet`);
     } catch (caughtError) {
       setError(toUserFacingExtractionError(caughtError));

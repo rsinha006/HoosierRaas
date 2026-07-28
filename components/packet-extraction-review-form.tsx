@@ -14,6 +14,7 @@ import {
   validatePacketReviewFormState,
 } from "@/lib/packet-review";
 import { saveCompetitionPacketData } from "@/lib/save-competition-packet-data";
+import { createClient } from "@/lib/supabase/client";
 import { toUserFacingSaveError } from "@/lib/user-facing-errors";
 
 const inputClassName =
@@ -50,6 +51,12 @@ export default function PacketExtractionReviewForm({
 
   function handleCancel() {
     clearPacketReviewDraft();
+    // Best-effort — an abandoned draft left on the row just gets overwritten
+    // the next time extraction runs, or replaced on the next confirm.
+    void createClient()
+      .from("competitions")
+      .update({ pending_packet_extraction: null })
+      .eq("id", formState.competitionId);
     router.push(`/team-manager/competitions/${formState.competitionId}`);
   }
 
