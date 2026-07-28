@@ -38,6 +38,23 @@ test("a save redirects back to the profile with an update confirmation", () => {
   assert.match(editForm, /router\.push\(`\/members\/\$\{member\.id\}\?updated=1`\)/);
 });
 
+test("the member profile shows exec title for the viewing season, not always the active one", () => {
+  assert.match(profilePage, /getViewingSeason\(seasonParam\)/);
+  assert.match(
+    profilePage,
+    /\.from\("season_memberships"\)\s*\.select\("exec_title"\)\s*\.eq\("member_id", member\.id\)\s*\.eq\("season", viewingSeason\.label\)/,
+  );
+  assert.match(profilePage, /season=\{viewingSeason\.label\}/);
+});
+
+test("the member profile links to that member's attendance history", () => {
+  assert.match(
+    profilePage,
+    /href=\{`\/attendance\/members\/\$\{member\.id\}`\}/,
+  );
+  assert.match(profilePage, /View attendance/);
+});
+
 test("the edit page is gated the same way the create-member page is", () => {
   assert.match(
     editPage,

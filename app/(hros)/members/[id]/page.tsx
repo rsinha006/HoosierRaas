@@ -3,12 +3,12 @@ import MemberDetailView from "@/components/member-detail-view";
 import { getUserMember } from "@/lib/get-user-member";
 import { formatMemberName, type Member } from "@/lib/members";
 import { hasWriteAccess } from "@/lib/rbac";
-import { getActiveSeason } from "@/lib/seasons";
+import { getViewingSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type MemberDetailPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ updated?: string }>;
+  searchParams: Promise<{ updated?: string; season?: string }>;
 };
 
 export default async function MemberDetailPage({
@@ -16,12 +16,12 @@ export default async function MemberDetailPage({
   searchParams,
 }: MemberDetailPageProps) {
   const { id } = await params;
-  const { updated } = await searchParams;
+  const { updated, season: seasonParam } = await searchParams;
   const showUpdated = updated === "1";
 
-  const [supabase, activeSeason, userMember] = await Promise.all([
+  const [supabase, viewingSeason, userMember] = await Promise.all([
     createClient(),
-    getActiveSeason(),
+    getViewingSeason(seasonParam),
     getUserMember(),
   ]);
   const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "members");
@@ -53,7 +53,7 @@ export default async function MemberDetailPage({
     .from("season_memberships")
     .select("exec_title")
     .eq("member_id", member.id)
-    .eq("season", activeSeason.label)
+    .eq("season", viewingSeason.label)
     .maybeSingle();
 
   return (
@@ -73,14 +73,22 @@ export default async function MemberDetailPage({
             <p className="mt-2 text-zinc-600">{member.email}</p>
           </div>
 
-          {canWrite ? (
+          <div className="flex flex-wrap gap-3">
             <Link
-              href={`/members/${member.id}/edit`}
-              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+              href={`/attendance/members/${member.id}`}
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
             >
-              Edit member
+              View attendance
             </Link>
-          ) : null}
+            {canWrite ? (
+              <Link
+                href={`/members/${member.id}/edit`}
+                className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+              >
+                Edit member
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -96,7 +104,7 @@ export default async function MemberDetailPage({
       <MemberDetailView
         member={member}
         seasonExecTitle={membership?.exec_title ?? null}
-        season={activeSeason.label}
+        season={viewingSeason.label}
       />
     </div>
   );

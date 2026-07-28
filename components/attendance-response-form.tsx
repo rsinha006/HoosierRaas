@@ -135,6 +135,10 @@ export default function AttendanceResponseForm({
       errors.email = "Enter a valid email address.";
     }
 
+    if (showExcuseFields && !excuseText.trim()) {
+      errors.excuseText = "Please describe the reason for your absence or lateness.";
+    }
+
     if (showVideoSection) {
       if (practiceVideoStatus === null) {
         errors.practiceVideoStatus =
@@ -356,7 +360,7 @@ export default function AttendanceResponseForm({
           <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
             <div className="space-y-2">
               <label htmlFor="excuse-text" className={labelClassName}>
-                Please describe the reason (optional)
+                Please describe the reason {requiredMark}
               </label>
               <textarea
                 id="excuse-text"

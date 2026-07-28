@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findDeadlinesDueForReminder, reminderKey } from "@/lib/deadline-reminders";
 import { sendReminderEmail } from "@/lib/send-reminder-email";
-import type { DeadlineRow } from "@/lib/deadline-types";
+import { stripCompetitionJoin, type DeadlineRow } from "@/lib/deadline-types";
 import { DEFAULT_REMINDER_LEAD_DAYS } from "@/lib/reminder-types";
 
 type CompetitionRef = { id: string; name: string; season: string };
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     (sentRows ?? []).map((row) => reminderKey(row.deadline_id, row.lead_days)),
   );
 
-  const plainDeadlines: DeadlineRow[] = rows.map(({ competitions: _competitions, ...deadline }) => deadline);
+  const plainDeadlines: DeadlineRow[] = rows.map(stripCompetitionJoin);
   const dueReminders = findDeadlinesDueForReminder(plainDeadlines, leadDays, alreadySentKeys);
 
   if (dueReminders.length === 0) {

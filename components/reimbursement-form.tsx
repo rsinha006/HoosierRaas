@@ -3,9 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  EXPENSE_CATEGORIES,
   formatCurrency,
   type ExpenseCategory,
+  type PublicExpenseCategoryOption,
 } from "@/lib/finance";
 import { isValidEmail } from "@/lib/members";
 import {
@@ -31,6 +31,7 @@ const requiredMark = <span className="text-[#990000]">*</span>;
 
 type ReimbursementFormProps = {
   competitions: Pick<Competition, "id" | "name" | "competition_date">[];
+  generalPoolCategories: PublicExpenseCategoryOption[];
 };
 
 function SectionHeading({
@@ -58,8 +59,12 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-sm text-red-600">{message}</p>;
 }
 
-export default function ReimbursementForm({ competitions }: ReimbursementFormProps) {
+export default function ReimbursementForm({
+  competitions,
+  generalPoolCategories,
+}: ReimbursementFormProps) {
   const [view, setView] = useState<FormView>("form");
+  const canSubmit = generalPoolCategories.length > 0;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -67,7 +72,9 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [dateOfPurchase, setDateOfPurchase] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>("miscellaneous");
+  const [category, setCategory] = useState<ExpenseCategory | "">(
+    generalPoolCategories[0]?.value ?? "",
+  );
   const [competitionId, setCompetitionId] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -124,6 +131,10 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         "Reimbursements must be submitted within 24 hours of the purchase date. This purchase is outside that window and can't be submitted — contact your finance chair directly.";
     }
 
+    if (!category) {
+      errors.category = "Select a category.";
+    }
+
     const receiptError = validateReceiptFile(receiptFile);
     if (receiptError) {
       errors.receipt = receiptError;
@@ -137,7 +148,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
     event.preventDefault();
     setSaveError(null);
 
-    if (!validateForm() || !receiptFile || submitLockRef.current) {
+    if (!canSubmit || !validateForm() || !receiptFile || submitLockRef.current) {
       return;
     }
 
@@ -215,6 +226,18 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
         <h2 className="text-2xl font-semibold text-zinc-900">Request submitted</h2>
         <p className="text-zinc-600">
           Finance will review your reimbursement and follow up about payment.
+        </p>
+      </div>
+    );
+  }
+
+  if (!canSubmit) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-sm text-zinc-600">
+        <p className="font-medium text-zinc-900">No budget categories available yet.</p>
+        <p className="mt-1">
+          Finance hasn&apos;t set up general pool category budgets for this season
+          yet. Check back soon or contact your finance chair.
         </p>
       </div>
     );
@@ -350,12 +373,13 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
             onChange={(event) => setCategory(event.target.value as ExpenseCategory)}
             className={inputClassName}
           >
-            {EXPENSE_CATEGORIES.map((item) => (
+            {generalPoolCategories.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>
             ))}
           </select>
+          <FieldError message={fieldErrors.category} />
         </div>
 
         <div className="space-y-2">

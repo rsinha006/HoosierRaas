@@ -14,7 +14,6 @@ import {
   getPaymentMethodLabel,
   getReimbursementSubmitterEmail,
   getReimbursementSubmitterLabel,
-  isOutsideSubmissionWindow,
   REIMBURSEMENT_PAYMENT_METHODS,
   type ReimbursementPaymentMethod,
   type ReimbursementQueueItem,
@@ -42,11 +41,6 @@ function PendingReimbursementCard({
 
   const submitterName = getReimbursementSubmitterLabel(reimbursement);
   const submitterEmail = getReimbursementSubmitterEmail(reimbursement);
-
-  const outsideWindow = isOutsideSubmissionWindow(
-    reimbursement.date_of_purchase,
-    new Date(reimbursement.submission_timestamp),
-  );
 
   async function handleMarkPaid() {
     if (submitLockRef.current) {
@@ -156,13 +150,6 @@ function PendingReimbursementCard({
         <div className="mt-4 rounded-lg bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
           <p className="font-medium text-zinc-900">Notes</p>
           <p className="mt-1 whitespace-pre-wrap">{reimbursement.notes}</p>
-        </div>
-      ) : null}
-
-      {outsideWindow ? (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This purchase is outside the 24-hour submission window. Reimbursement
-          may not be approved.
         </div>
       ) : null}
 

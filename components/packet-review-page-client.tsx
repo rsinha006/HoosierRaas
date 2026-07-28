@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PacketExtractionReviewForm from "@/components/packet-extraction-review-form";
@@ -16,30 +16,50 @@ type PacketReviewPageClientProps = {
   serverDraft: PacketReviewFormState | null;
 };
 
+function getDraftSnapshot(
+  competitionId: string,
+  serverDraft: PacketReviewFormState | null,
+): PacketReviewFormState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const draft = loadPacketReviewDraft(competitionId) ?? serverDraft;
+  if (!draft || draft.competitionId !== competitionId) {
+    return null;
+  }
+
+  return draft;
+}
+
+function getServerDraftSnapshot(
+  competitionId: string,
+  serverDraft: PacketReviewFormState | null,
+): PacketReviewFormState | null {
+  if (!serverDraft || serverDraft.competitionId !== competitionId) {
+    return null;
+  }
+
+  return serverDraft;
+}
+
 export default function PacketReviewPageClient({
   competitionId,
   competitionName,
   serverDraft,
 }: PacketReviewPageClientProps) {
   const router = useRouter();
-  const [formState, setFormState] = useState<PacketReviewFormState | null>(null);
+  const formState = useSyncExternalStore(
+    () => () => {},
+    () => getDraftSnapshot(competitionId, serverDraft),
+    () => getServerDraftSnapshot(competitionId, serverDraft),
+  );
 
   useEffect(() => {
-    // sessionStorage isn't available during SSR, so this genuinely needs an
-    // effect — the brief "Loading..." flash is an unavoidable consequence of
-    // that, not a sign of a real bug.
-    //
-    // sessionStorage is the fast path (same tab that just extracted); the
-    // draft persisted on the competition row is the fallback for a second tab
-    // or a browser crash, where sessionStorage never had it to begin with.
-    const draft = loadPacketReviewDraft(competitionId) ?? serverDraft;
-    if (!draft || draft.competitionId !== competitionId) {
+    if (!formState) {
       router.replace(`/team-manager/competitions/${competitionId}`);
-      return;
     }
-
-    setFormState(draft);
-  }, [competitionId, router, serverDraft]);
+  }, [competitionId, formState, router]);
 
   if (!formState) {
     return (

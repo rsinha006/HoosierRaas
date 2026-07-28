@@ -1,4 +1,8 @@
-import type { DeadlineRow, PressingDeadlineGroup } from "@/lib/deadline-types";
+import {
+  stripCompetitionJoin,
+  type DeadlineRow,
+  type PressingDeadlineGroup,
+} from "@/lib/deadline-types";
 import { dayDiff, sortDeadlines } from "@/lib/deadline-checklist";
 
 const MAX_COMPETITIONS = 4;
@@ -85,8 +89,7 @@ export function buildPressingDeadlineGroups(
       deadlines: [],
     };
 
-    const { competitions: _competitions, ...deadline } = row;
-    existing.deadlines.push(deadline);
+    existing.deadlines.push(stripCompetitionJoin(row));
     byCompetition.set(row.competition_id, existing);
   }
 
