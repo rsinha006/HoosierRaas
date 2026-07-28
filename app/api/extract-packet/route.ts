@@ -104,11 +104,6 @@ export async function POST(request: Request) {
     }
   }
 
-  await supabase
-    .from("competitions")
-    .update({ last_packet_extraction_at: new Date().toISOString() })
-    .eq("id", competitionId);
-
   const { data: fileData, error: downloadError } = await supabase.storage
     .from(REGISTRATION_PACKETS_BUCKET)
     .download(storagePath);
@@ -171,6 +166,15 @@ export async function POST(request: Request) {
     }
 
     const { data, warnings } = parseExtractedPacketResponse(responseText);
+
+    // Only a successful extraction spends the cooldown. Setting this earlier -
+    // before the download, the file checks, or the AI call - meant any failure
+    // along the way still left the reviewer waiting the full two minutes to
+    // retry something that never actually ran.
+    await supabase
+      .from("competitions")
+      .update({ last_packet_extraction_at: new Date().toISOString() })
+      .eq("id", competitionId);
 
     return NextResponse.json({ data, warnings });
   } catch (error) {

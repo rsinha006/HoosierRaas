@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import PacketReviewPageClient from "@/components/packet-review-page-client";
 import { getUserMember } from "@/lib/get-user-member";
+import type { PacketReviewFormState } from "@/lib/packet-review";
 import { hasWriteAccess } from "@/lib/rbac";
 import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
@@ -24,11 +25,15 @@ export default async function ReviewPacketPage({ params }: ReviewPacketPageProps
 
   const { data, error } = await supabase
     .from("competitions")
-    .select("id, name, season")
+    .select("id, name, season, pending_packet_extraction")
     .eq("id", id)
     .maybeSingle();
 
-  const competition = data as Pick<Competition, "id" | "name" | "season"> | null;
+  const competition = data as
+    | (Pick<Competition, "id" | "name" | "season"> & {
+        pending_packet_extraction: PacketReviewFormState | null;
+      })
+    | null;
 
   if (error || !competition) {
     notFound();
@@ -42,6 +47,7 @@ export default async function ReviewPacketPage({ params }: ReviewPacketPageProps
     <PacketReviewPageClient
       competitionId={competition.id}
       competitionName={competition.name}
+      serverDraft={competition.pending_packet_extraction}
     />
   );
 }
