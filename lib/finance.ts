@@ -51,6 +51,12 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]["value"];
 
+/** A pre-approval expense request is a whole budget line item (a hotel block,
+ *  a van rental, a team registration fee), not a small out-of-pocket
+ *  purchase, so this stays generous - it's a sanity ceiling against an
+ *  obviously wrong entry, not a real spending limit. */
+export const MAX_EXPENSE_REQUEST_AMOUNT = 10000;
+
 export type IufbLineItem = {
   id: string;
   season: string;

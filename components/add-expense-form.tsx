@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  formatCurrency,
+  MAX_EXPENSE_REQUEST_AMOUNT,
   type ExpenseCategory,
   type ExpenseFundingPool,
   type PopulatedGeneralPoolCategory,
@@ -81,6 +83,8 @@ export default function AddExpenseForm({
       errors.amount = "Amount is required.";
     } else if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
       errors.amount = "Enter a valid amount greater than zero.";
+    } else if (Number(amount) > MAX_EXPENSE_REQUEST_AMOUNT) {
+      errors.amount = `Enter an amount of ${formatCurrency(MAX_EXPENSE_REQUEST_AMOUNT)} or less.`;
     }
 
     if (fundingPool === "general_pool" && !category) {
