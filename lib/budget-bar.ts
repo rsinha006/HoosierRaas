@@ -1,6 +1,8 @@
 import {
   buildPopulatedGeneralPoolCategories,
+  getCategoryBudgetSummary,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseRequest,
   type IufbLineItem,
 } from "@/lib/finance";
@@ -21,15 +23,16 @@ export function buildGeneralPoolBarSegments(
     ExpenseRequest,
     "category" | "amount" | "iufb_line_item_id"
   >[],
+  paidReimbursements: CategoryReimbursement[] = [],
 ): BudgetBarSegment[] {
   return buildPopulatedGeneralPoolCategories(budgets).map(
     ({ value, label, allocated }) => {
-      const spent = approvedRequests
-        .filter(
-          (request) =>
-            request.category === value && !request.iufb_line_item_id,
-        )
-        .reduce((sum, request) => sum + Number(request.amount), 0);
+      const { spent } = getCategoryBudgetSummary(
+        value,
+        budgets,
+        approvedRequests,
+        paidReimbursements,
+      );
 
       return { label, allocated, spent };
     },
