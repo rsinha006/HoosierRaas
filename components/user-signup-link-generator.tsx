@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import PublicLinkNotice from "@/components/public-link-notice";
 import { PUBLIC_LINK_PATHS } from "@/lib/public-links";
 
 export default function UserSignupLinkGenerator() {
@@ -30,10 +29,6 @@ export default function UserSignupLinkGenerator() {
       >
         Copy signup link
       </button>
-      <PublicLinkNotice
-        path={PUBLIC_LINK_PATHS.signup}
-        className="max-w-xs text-right"
-      />
       {copied ? (
         <span className="text-sm font-medium text-green-700">Copied to clipboard!</span>
       ) : null}
