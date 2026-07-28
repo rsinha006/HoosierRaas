@@ -34,6 +34,35 @@ export function formatCompetitionDate(date: string) {
   });
 }
 
+/**
+ * Whether a competition date falls outside the season it is being filed under.
+ *
+ * Nothing checked this, so the list holds a competition dated June 2006 and
+ * another dated March 2025, both filed under 2025-2026 - and both show up in
+ * the public expense and reimbursement dropdowns a dancer picks from.
+ *
+ * Both bounds are inclusive: a competition on the first or last day of the
+ * season belongs to it. Dates are ISO (YYYY-MM-DD) throughout, which compares
+ * correctly as text and avoids re-reading the season boundary through a
+ * timezone. A missing date is left to the required-field check, and missing
+ * season bounds mean there is nothing to measure against.
+ */
+export function isOutsideSeasonWindow(
+  competitionDate: string,
+  startsOn: string | null | undefined,
+  endsOn: string | null | undefined,
+) {
+  if (!competitionDate || !startsOn || !endsOn) {
+    return false;
+  }
+
+  return competitionDate < startsOn || competitionDate > endsOn;
+}
+
+export function formatSeasonWindow(startsOn: string, endsOn: string) {
+  return `${formatCompetitionDate(startsOn)} to ${formatCompetitionDate(endsOn)}`;
+}
+
 export function formatCompetitionStatus(status: CompetitionStatus) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }

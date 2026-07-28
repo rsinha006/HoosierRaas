@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import RegistrationPacketFileField from "@/components/registration-packet-file-field";
 import {
   COMPETITION_STATUSES,
+  formatSeasonWindow,
+  isOutsideSeasonWindow,
   type CompetitionStatus,
 } from "@/lib/competitions";
 import {
@@ -31,9 +33,15 @@ function parseOptionalInteger(value: string) {
 
 type CompetitionCreateFormProps = {
   season: string;
+  seasonStartsOn: string;
+  seasonEndsOn: string;
 };
 
-export default function CompetitionCreateForm({ season }: CompetitionCreateFormProps) {
+export default function CompetitionCreateForm({
+  season,
+  seasonStartsOn,
+  seasonEndsOn,
+}: CompetitionCreateFormProps) {
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -53,6 +61,8 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Creating...");
 
+  const seasonWindow = formatSeasonWindow(seasonStartsOn, seasonEndsOn);
+
   function validateForm() {
     const errors: Record<string, string> = {};
 
@@ -62,6 +72,8 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
 
     if (!competitionDate) {
       errors.competitionDate = "Competition date is required.";
+    } else if (isOutsideSeasonWindow(competitionDate, seasonStartsOn, seasonEndsOn)) {
+      errors.competitionDate = `Competition date must fall within the ${season} season (${seasonWindow}).`;
     }
 
     const minDuration = parseOptionalInteger(minPerformanceDuration);
@@ -283,9 +295,15 @@ export default function CompetitionCreateForm({ season }: CompetitionCreateFormP
           id="competition-date"
           type="date"
           value={competitionDate}
+          min={seasonStartsOn}
+          max={seasonEndsOn}
           onChange={(event) => setCompetitionDate(event.target.value)}
+          aria-describedby="competition-date-window"
           className={inputClassName}
         />
+        <p id="competition-date-window" className="text-sm text-zinc-600">
+          The {season} season runs {seasonWindow}.
+        </p>
         {fieldErrors.competitionDate ? (
           <p className="text-sm text-red-600">{fieldErrors.competitionDate}</p>
         ) : null}
