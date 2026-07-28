@@ -26,7 +26,7 @@ export default function UserDeleteButton({
     }
 
     const confirmed = window.confirm(
-      `Delete login account for ${email}? Their email will be available to sign up again. They will remain on the roster if listed in Members. This cannot be undone.`,
+      `Delete user account for ${email}?\nThis permanently removes their login. After deletion, the same email can be used to sign up again.\nNote: they may still appear on the roster if they are listed under Members.\nThis deletion cannot be undone.`,
     );
 
     if (!confirmed) {
