@@ -14,6 +14,7 @@ import {
   sumGeneralPoolIncome,
   sumPaidReimbursements,
   type Budget,
+  type CategoryReimbursement,
   type ExpenseRequest,
   type IncomeEntry,
   type IufbLineItem,
@@ -71,7 +72,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .eq("season", season),
     supabase
       .from("reimbursements")
-      .select("amount")
+      .select("category, amount")
       .eq("status", "paid")
       .gte("payment_timestamp", expenseStart)
       .lte("payment_timestamp", expenseEnd),
@@ -92,9 +93,10 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
     IncomeEntry,
     "amount" | "category"
   >[];
-  const paidReimbursements = (paidReimbursementData ?? []) as {
-    amount: number | string;
-  }[];
+  const paidReimbursements = (paidReimbursementData ?? []) as Pick<
+    CategoryReimbursement,
+    "category" | "amount"
+  >[];
   const approvedRequests = (approvedExpenseData ?? []) as Pick<
     ExpenseRequest,
     "amount" | "category" | "iufb_line_item_id"
@@ -125,6 +127,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
   const generalPoolSegments = buildGeneralPoolBarSegments(
     budgets,
     approvedRequests,
+    paidReimbursements,
   );
   const iufbSegments = buildIufbBarSegments(lineItems);
   const budgetLoadError = budgetError ?? lineItemError;
