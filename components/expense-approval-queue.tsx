@@ -424,6 +424,7 @@ export default function ExpenseApprovalQueue({
                         <th className="px-3 py-2 font-medium">Date</th>
                         <th className="px-3 py-2 font-medium">Requester</th>
                         <th className="px-3 py-2 font-medium">Description</th>
+                        <th className="px-3 py-2 font-medium">Source</th>
                         <th className="px-3 py-2 font-medium text-right">Amount</th>
                         <th className="px-3 py-2 font-medium">Status</th>
                       </tr>
@@ -442,6 +443,9 @@ export default function ExpenseApprovalQueue({
                             </td>
                             <td className="max-w-[8rem] truncate px-3 py-2 text-zinc-900">
                               {request.description}
+                            </td>
+                            <td className="max-w-[6rem] truncate px-3 py-2 text-zinc-600">
+                              {getExpenseRequestFundingLabel(request)}
                             </td>
                             <td className="whitespace-nowrap px-3 py-2 text-right font-medium text-zinc-900">
                               {formatCurrency(Number(request.amount))}
@@ -483,15 +487,20 @@ export default function ExpenseApprovalQueue({
                             {formatCurrency(Number(request.amount))}
                           </p>
                         </div>
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            request.status === "approved"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {request.status === "approved" ? "Approved" : "Denied"}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              request.status === "approved"
+                                ? "bg-green-50 text-green-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {request.status === "approved" ? "Approved" : "Denied"}
+                          </span>
+                          <span className="text-[11px] text-zinc-500">
+                            {getExpenseRequestFundingLabel(request)}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
