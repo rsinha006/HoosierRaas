@@ -23,7 +23,7 @@ export default async function FinanceIncomePage({
   const params = await searchParams;
   const viewingSeason = await getViewingSeason(params.season);
   const season = viewingSeason.label;
-  const { start, end } = getSeasonDateRange(season);
+  const { start, end } = getSeasonDateRange(viewingSeason);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),

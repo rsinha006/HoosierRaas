@@ -20,9 +20,9 @@ export async function loadArchiveFinancePreview(
 ): Promise<ArchiveFinancePreview> {
   const activeSeasonLabel = activeSeason.label;
   const supabase = await createClient();
-  const { start, end } = getSeasonDateRange(activeSeasonLabel);
+  const { start, end } = getSeasonDateRange(activeSeason);
   const { start: expenseStart, end: expenseEnd } =
-    getSeasonTimestampBounds(activeSeasonLabel);
+    getSeasonTimestampBounds(activeSeason);
 
   const [
     { data: incomeData },
@@ -46,8 +46,7 @@ export async function loadArchiveFinancePreview(
       .from("reimbursements")
       .select("amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", activeSeasonLabel),
     supabase
       .from("budgets")
       .select("*", { count: "exact", head: true })
