@@ -349,17 +349,18 @@ export function getCurrentSeason(referenceDate = new Date()) {
   return `${year - 1}-${year}`;
 }
 
-export function getSeasonDateRange(season: string) {
-  const [startYearText] = season.split("-");
-  const startYear = Number(startYearText);
+export type SeasonDateBounds = { starts_on: string; ends_on: string };
 
+/** The seasons table holds the real start/end dates; a season is never assumed
+ *  to run Aug 1 - Jul 31 just because most of them do. */
+export function getSeasonDateRange(season: SeasonDateBounds) {
   return {
-    start: `${startYear}-08-01`,
-    end: `${startYear + 1}-07-31`,
+    start: season.starts_on,
+    end: season.ends_on,
   };
 }
 
-export function isDateInSeason(date: string, season: string) {
+export function isDateInSeason(date: string, season: SeasonDateBounds) {
   const { start, end } = getSeasonDateRange(season);
   return date >= start && date <= end;
 }
@@ -387,7 +388,7 @@ export function sumIncomeByCategory(
   }));
 }
 
-export function getSeasonTimestampBounds(season: string) {
+export function getSeasonTimestampBounds(season: SeasonDateBounds) {
   const { start, end } = getSeasonDateRange(season);
 
   return {

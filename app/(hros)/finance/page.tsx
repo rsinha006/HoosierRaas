@@ -31,8 +31,8 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
   const params = await searchParams;
   const viewingSeason = await getViewingSeason(params.season);
   const season = viewingSeason.label;
-  const { start, end } = getSeasonDateRange(season);
-  const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
+  const { start, end } = getSeasonDateRange(viewingSeason);
+  const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(viewingSeason);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
@@ -74,8 +74,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
       .from("reimbursements")
       .select("category, amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", season),
     supabase
       .from("expense_requests")
       .select("amount")

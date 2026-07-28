@@ -26,8 +26,8 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
   const params = await searchParams;
   const viewingSeason = await getViewingSeason(params.season);
   const season = viewingSeason.label;
-  const { start, end } = getSeasonDateRange(season);
-  const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(season);
+  const { start, end } = getSeasonDateRange(viewingSeason);
+  const { start: expenseStart, end: expenseEnd } = getSeasonTimestampBounds(viewingSeason);
 
   const [supabase, userMember] = await Promise.all([
     createClient(),
@@ -65,8 +65,7 @@ export default async function BudgetSetupPage({ searchParams }: BudgetSetupPageP
       .from("reimbursements")
       .select("category, amount")
       .eq("status", "paid")
-      .gte("payment_timestamp", expenseStart)
-      .lte("payment_timestamp", expenseEnd),
+      .eq("season", season),
   ]);
 
   const budgets = (budgetData ?? []) as Pick<Budget, "category" | "allocated_amount">[];
