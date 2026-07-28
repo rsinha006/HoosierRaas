@@ -131,6 +131,7 @@ export function toUserFacingMemberDeleteError(error: unknown): string {
   }
 
   if (
+    message.includes("member_has_linked_income_entries") ||
     message.includes("expense_requests") ||
     message.includes("reimbursements") ||
     message.includes("income_entries") ||
@@ -140,7 +141,11 @@ export function toUserFacingMemberDeleteError(error: unknown): string {
     message.includes("violates foreign key") ||
     message.includes("still referenced")
   ) {
-    if (message.includes("income_entries") || message.includes("dues_requires_member")) {
+    if (
+      message.includes("member_has_linked_income_entries") ||
+      message.includes("income_entries") ||
+      message.includes("dues_requires_member")
+    ) {
       return "This member cannot be deleted because they have linked income records that could not be removed.";
     }
 
