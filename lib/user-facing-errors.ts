@@ -100,6 +100,20 @@ export function toUserFacingMemberSaveError(error: unknown): string {
   return "We could not confirm this member. Please try again.";
 }
 
+export function toUserFacingMemberEditError(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  if (message.includes("row-level security") || message.includes("permission")) {
+    return "You do not have permission to edit this member.";
+  }
+
+  if (message.includes("duplicate") || message.includes("unique")) {
+    return "Another member already uses this email address.";
+  }
+
+  return "We could not save your changes. Please try again.";
+}
+
 export function toUserFacingMemberDeleteError(error: unknown): string {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
 

@@ -1,17 +1,30 @@
 import Link from "next/link";
 import MemberDetailView from "@/components/member-detail-view";
+import { getUserMember } from "@/lib/get-user-member";
 import { formatMemberName, type Member } from "@/lib/members";
+import { hasWriteAccess } from "@/lib/rbac";
 import { getActiveSeason } from "@/lib/seasons";
 import { createClient } from "@/lib/supabase/server";
 
 type MemberDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ updated?: string }>;
 };
 
-export default async function MemberDetailPage({ params }: MemberDetailPageProps) {
+export default async function MemberDetailPage({
+  params,
+  searchParams,
+}: MemberDetailPageProps) {
   const { id } = await params;
+  const { updated } = await searchParams;
+  const showUpdated = updated === "1";
 
-  const [supabase, activeSeason] = await Promise.all([createClient(), getActiveSeason()]);
+  const [supabase, activeSeason, userMember] = await Promise.all([
+    createClient(),
+    getActiveSeason(),
+    getUserMember(),
+  ]);
+  const canWrite = hasWriteAccess(userMember?.exec_title ?? null, "members");
 
   const { data, error } = await supabase.from("members").select("*").eq("id", id).maybeSingle();
 
@@ -46,17 +59,39 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <Link
-          href="/members"
-          className="text-sm font-medium text-[#990000] transition hover:text-[#7a0000]"
-        >
-          ← Back to members
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-zinc-900">
-          {formatMemberName(member)}
-        </h1>
-        <p className="mt-2 text-zinc-600">{member.email}</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Link
+              href="/members"
+              className="text-sm font-medium text-[#990000] transition hover:text-[#7a0000]"
+            >
+              ← Back to members
+            </Link>
+            <h1 className="mt-4 text-2xl font-semibold text-zinc-900">
+              {formatMemberName(member)}
+            </h1>
+            <p className="mt-2 text-zinc-600">{member.email}</p>
+          </div>
+
+          {canWrite ? (
+            <Link
+              href={`/members/${member.id}/edit`}
+              className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000]"
+            >
+              Edit member
+            </Link>
+          ) : null}
+        </div>
       </div>
+
+      {showUpdated && (
+        <div
+          role="status"
+          className="rounded-2xl border border-green-200 bg-green-50 px-6 py-4 text-green-800"
+        >
+          <p className="font-medium">Member updated successfully.</p>
+        </div>
+      )}
 
       <MemberDetailView
         member={member}
