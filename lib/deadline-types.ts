@@ -15,3 +15,11 @@ export type PressingDeadlineGroup = {
   competitionName: string;
   deadlines: DeadlineRow[];
 };
+
+export function stripCompetitionJoin(
+  row: DeadlineRow & { competitions: unknown },
+): DeadlineRow {
+  const { competitions, ...deadline } = row;
+  void competitions;
+  return deadline;
+}

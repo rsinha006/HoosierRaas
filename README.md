@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HROS — HoosierRaas Operating System
 
-## Getting Started
+HROS is the internal executive board tool for [HoosierRaas](https://hoosierRaas.com), Indiana University's competitive Raas/Garba team. It handles roster management, attendance tracking, competition logistics, and team finances — reimbursements, expense requests, budgets, and IUFB tracking.
 
-First, run the development server:
+Built with Next.js (App Router), React, TypeScript, Tailwind CSS, and Supabase (Postgres, Auth, Storage).
+
+## Prerequisites
+
+- Node.js 20+
+- npm
+- A Supabase project (local via the [Supabase CLI](https://supabase.com/docs/guides/cli) or hosted)
+
+## Getting started
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+2. Create a `.env.local` file in the project root with the variables listed below.
+
+3. Apply database migrations (if using Supabase locally):
+
+```bash
+supabase db reset
+```
+
+4. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). New users sign up at `/signup` and must be granted a role by a Captain or Team Manager before they can access the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Description |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous (publishable) key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
+| `GOOGLE_GEMINI_API_KEY` | For AI packet extraction | Google Gemini API key |
+| `GOOGLE_GEMINI_MODEL` | No | Gemini model name (defaults to `gemini-2.5-flash-lite`) |
+| `RESEND_API_KEY` | For deadline reminders | Resend API key for outbound email |
+| `REMINDER_FROM_EMAIL` | For deadline reminders | Sender address for reminder emails |
+| `REMINDER_CRON_SECRET` | For deadline reminders | Shared secret for the `/api/reminders/send` cron endpoint |
+| `APP_URL` | For deadline reminders | Public app URL (e.g. `https://hros-peach.vercel.app`) |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Production build |
+| `npm run start` | Run the production build |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run the test suite |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/` — Next.js App Router pages and API routes
+- `components/` — React components
+- `lib/` — Shared business logic, Supabase clients, and utilities
+- `supabase/migrations/` — Postgres schema migrations
+- `test/` — Node.js test runner tests
 
-## Deploy on Vercel
+## Roles
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+HROS uses role-based access control. Roles include Captain, Team Manager, Finance, and Dancer (no access). Write permissions are enforced in both the application layer and Postgres row-level security policies.

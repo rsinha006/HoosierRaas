@@ -115,7 +115,7 @@ test("the client only bounces back to the competition page when neither sessionS
   );
   assert.match(
     reviewPageClient,
-    /if \(!draft \|\| draft\.competitionId !== competitionId\) \{\s*router\.replace/,
+    /if \(!formState\) \{\s*router\.replace/,
   );
 });
 

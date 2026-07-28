@@ -13,7 +13,7 @@ export const APP_MODULES: AppModule[] = [
   {
     name: "Team Manager",
     href: "/team-manager",
-    description: "Competition logistics, attendance, member management",
+    description: "Competitions and deadlines",
   },
   {
     name: "Finance",

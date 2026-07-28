@@ -64,7 +64,7 @@ export default async function TeamManagerPage({ searchParams }: TeamManagerPageP
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold text-zinc-900">Team Manager</h1>
         <p className="mt-2 text-zinc-600">
-          Competition logistics and attendance.
+          Competitions and deadlines.
         </p>
       </div>
 
