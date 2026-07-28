@@ -13,10 +13,12 @@ export const metadata: Metadata = {
 export default async function PublicReimbursementsPage() {
   const supabase = await createClient();
 
-  const { data: competitionData, error: competitionError } = await supabase
-    .from("competitions")
-    .select("id, name, competition_date")
-    .order("competition_date", { ascending: true });
+  // Active season only. Reading public.competitions from here would list every
+  // competition HROS has ever held, and this page cannot filter by season itself -
+  // public.seasons is readable by authenticated users only.
+  const { data: competitionData, error: competitionError } = await supabase.rpc(
+    "list_active_season_competitions",
+  );
 
   const competitions = (competitionData ?? []) as Pick<
     Competition,

@@ -19,10 +19,11 @@ export default async function PublicExpenseRequestPage() {
     { data: categoryData, error: categoryError },
     { data: lineItemData, error: lineItemError },
   ] = await Promise.all([
-    supabase
-      .from("competitions")
-      .select("id, name, competition_date")
-      .order("competition_date", { ascending: true }),
+    // Active season only, like the two RPCs below it. Reading public.competitions
+    // from here would list every competition HROS has ever held, and this page
+    // cannot filter by season itself - public.seasons is readable by
+    // authenticated users only.
+    supabase.rpc("list_active_season_competitions"),
     supabase.rpc("list_active_season_expense_categories"),
     supabase.rpc("list_active_season_iufb_line_items"),
   ]);
