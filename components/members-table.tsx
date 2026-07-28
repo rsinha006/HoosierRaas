@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Member, MemberRole, MemberStatus } from "@/lib/members";
 import { formatExecTitle, formatMemberName, formatRole } from "@/lib/members";
 import MemberDeleteButton from "@/components/member-delete-button";
@@ -26,7 +26,6 @@ export default function MembersTable({
   canExport,
   currentMemberId,
 }: MembersTableProps) {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
@@ -151,17 +150,21 @@ export default function MembersTable({
                   {canDelete ? (
                     <th className="px-4 py-3 font-medium text-zinc-700">Actions</th>
                   ) : null}
+                  <th className="px-4 py-3">
+                    <span className="sr-only">Open profile</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 bg-white">
                 {filteredMembers.map((member) => (
-                  <tr
-                    key={member.id}
-                    onClick={() => router.push(`/members/${member.id}`)}
-                    className="cursor-pointer transition hover:bg-zinc-50/80"
-                  >
+                  <tr key={member.id} className="relative transition hover:bg-zinc-50/80">
                     <td className="px-4 py-3 font-medium text-zinc-900">
-                      {formatMemberName(member)}
+                      <Link
+                        href={`/members/${member.id}`}
+                        className="after:absolute after:inset-0 after:content-['']"
+                      >
+                        {formatMemberName(member)}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-zinc-600">{member.email}</td>
                     <td className="px-4 py-3 text-zinc-600">{member.graduation_year}</td>
@@ -181,13 +184,16 @@ export default function MembersTable({
                       {formatExecTitle(member.exec_title) ?? "—"}
                     </td>
                     {canDelete ? (
-                      <td className="px-4 py-3">
+                      <td className="relative z-10 px-4 py-3">
                         <MemberDeleteButton
                           member={member}
                           currentMemberId={currentMemberId}
                         />
                       </td>
                     ) : null}
+                    <td className="px-4 py-3 text-zinc-300" aria-hidden="true">
+                      ›
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -198,12 +204,18 @@ export default function MembersTable({
             {filteredMembers.map((member) => (
               <div
                 key={member.id}
-                onClick={() => router.push(`/members/${member.id}`)}
-                className="flex cursor-pointer items-start gap-3 px-4 py-4 transition hover:bg-zinc-50/80"
+                className="relative flex items-start gap-3 px-4 py-4 transition hover:bg-zinc-50/80"
               >
                 <div className="min-w-0 flex-1 space-y-2">
                   <div>
-                    <p className="font-medium text-zinc-900">{formatMemberName(member)}</p>
+                    <p className="font-medium text-zinc-900">
+                      <Link
+                        href={`/members/${member.id}`}
+                        className="after:absolute after:inset-0 after:content-['']"
+                      >
+                        {formatMemberName(member)}
+                      </Link>
+                    </p>
                     <p className="text-sm break-words text-zinc-600">{member.email}</p>
                   </div>
 
@@ -232,13 +244,17 @@ export default function MembersTable({
                 </div>
 
                 {canDelete ? (
-                  <div className="shrink-0">
+                  <div className="relative z-10 shrink-0">
                     <MemberDeleteButton
                       member={member}
                       currentMemberId={currentMemberId}
                     />
                   </div>
                 ) : null}
+
+                <span className="mt-1 shrink-0 text-zinc-300" aria-hidden="true">
+                  ›
+                </span>
               </div>
             ))}
           </div>
