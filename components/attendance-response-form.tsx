@@ -11,6 +11,7 @@ import {
   type PracticeVideoStatus,
   type PublicAttendanceSession,
 } from "@/lib/attendance";
+import { toUserFacingAttendanceResponseError } from "@/lib/user-facing-errors";
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-3 text-base text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -176,7 +177,7 @@ export default function AttendanceResponseForm({
 
     if (duplicateError) {
       setLoading(false);
-      setSaveError(duplicateError.message ?? "Could not verify your submission status.");
+      setSaveError(toUserFacingAttendanceResponseError(duplicateError));
       return;
     }
 
@@ -215,7 +216,7 @@ export default function AttendanceResponseForm({
         return;
       }
 
-      setSaveError(error.message ?? "Could not submit your response.");
+      setSaveError(toUserFacingAttendanceResponseError(error));
       return;
     }
 
