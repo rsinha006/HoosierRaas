@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ReimbursementForm from "@/components/reimbursement-form";
+import { buildPublicExpenseCategories } from "@/lib/finance";
 import { PUBLIC_PAGE_ROBOTS } from "@/lib/public-links";
 import { createClient } from "@/lib/supabase/server";
 import type { Competition } from "@/lib/competitions";
@@ -16,14 +17,23 @@ export default async function PublicReimbursementsPage() {
   // Active season only. Reading public.competitions from here would list every
   // competition HROS has ever held, and this page cannot filter by season itself -
   // public.seasons is readable by authenticated users only.
-  const { data: competitionData, error: competitionError } = await supabase.rpc(
-    "list_active_season_competitions",
-  );
+  const [
+    { data: competitionData, error: competitionError },
+    { data: categoryData, error: categoryError },
+  ] = await Promise.all([
+    supabase.rpc("list_active_season_competitions"),
+    supabase.rpc("list_active_season_expense_categories"),
+  ]);
+
+  const loadError = competitionError ?? categoryError;
 
   const competitions = (competitionData ?? []) as Pick<
     Competition,
     "id" | "name" | "competition_date"
   >[];
+  const generalPoolCategories = buildPublicExpenseCategories(
+    (categoryData ?? []) as { category: string }[],
+  );
 
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-8 sm:px-6 sm:py-12">
@@ -36,19 +46,23 @@ export default async function PublicReimbursementsPage() {
             Reimbursement request
           </h1>
           <p className="mt-2 text-sm text-zinc-600 sm:text-base">
-            Submit out-of-pocket team expenses for finance review. Upload your
-            receipt within 24 hours of purchase when possible.
+            Submit out-of-pocket team expenses for finance review. Requests must
+            be submitted within 24 hours of purchase — late submissions
+            can&apos;t be accepted.
           </p>
         </div>
 
-        {competitionError ? (
+        {loadError ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
             <p className="font-medium">Could not load the form</p>
-            <p className="mt-1 text-sm">{competitionError.message}</p>
+            <p className="mt-1 text-sm">{loadError.message}</p>
           </div>
         ) : (
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
-            <ReimbursementForm competitions={competitions} />
+            <ReimbursementForm
+              competitions={competitions}
+              generalPoolCategories={generalPoolCategories}
+            />
           </div>
         )}
       </div>
