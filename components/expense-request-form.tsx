@@ -11,6 +11,7 @@ import {
   type PublicIufbLineItemOption,
 } from "@/lib/finance";
 import { isValidEmail } from "@/lib/members";
+import { toUserFacingExpenseRequestError } from "@/lib/user-facing-errors";
 import type { Competition } from "@/lib/competitions";
 
 type FormView = "form" | "success";
@@ -167,14 +168,12 @@ export default function ExpenseRequestForm({
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw error;
       }
 
       setView("success");
     } catch (error) {
-      setSaveError(
-        error instanceof Error ? error.message : "Could not submit expense request.",
-      );
+      setSaveError(toUserFacingExpenseRequestError(error));
     } finally {
       setLoading(false);
       submitLockRef.current = false;

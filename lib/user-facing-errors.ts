@@ -153,3 +153,44 @@ export function toUserFacingMemberDeleteError(error: unknown): string {
 
   return "We could not delete this member. Please try again.";
 }
+
+/** Every public submission RPC (expense requests, reimbursements, attendance
+ *  responses) validates with a bare `raise exception 'text'`, which always
+ *  surfaces as SQLSTATE P0001 - that's a reliable signal the message was
+ *  hand-written for a dancer to read (e.g. "This email is not on the active
+ *  roster..."), rather than raw text a table constraint produced on its own
+ *  (e.g. "new row for relation ... violates check constraint ..."). Only the
+ *  hand-written kind is safe to show verbatim. */
+function isHandWrittenPublicFormError(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === "P0001";
+}
+
+export function toUserFacingExpenseRequestError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+
+  if (isHandWrittenPublicFormError(error) && message.trim()) {
+    return message;
+  }
+
+  return "We could not submit your expense request. Double-check the amount and required fields, then try again. If this keeps happening, contact your finance chair.";
+}
+
+export function toUserFacingReimbursementError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+
+  if (isHandWrittenPublicFormError(error) && message.trim()) {
+    return message;
+  }
+
+  return "We could not submit your reimbursement. Double-check the amount and required fields, then try again. If this keeps happening, contact your finance chair.";
+}
+
+export function toUserFacingAttendanceResponseError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+
+  if (isHandWrittenPublicFormError(error) && message.trim()) {
+    return message;
+  }
+
+  return "We could not submit your response. Please try again. If this keeps happening, ask a captain for help.";
+}

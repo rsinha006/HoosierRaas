@@ -17,6 +17,7 @@ import {
   validateReceiptFile,
 } from "@/lib/reimbursements";
 import { uploadReceipt } from "@/lib/upload-receipt";
+import { toUserFacingReimbursementError } from "@/lib/user-facing-errors";
 import type { Competition } from "@/lib/competitions";
 
 type FormView = "form" | "success";
@@ -176,7 +177,7 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
       );
 
       if (validationError) {
-        throw new Error(validationError.message);
+        throw validationError;
       }
 
       await uploadReceipt({
@@ -193,14 +194,12 @@ export default function ReimbursementForm({ competitions }: ReimbursementFormPro
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw error;
       }
 
       setView("success");
     } catch (error) {
-      setSaveError(
-        error instanceof Error ? error.message : "Could not submit reimbursement.",
-      );
+      setSaveError(toUserFacingReimbursementError(error));
     } finally {
       setLoading(false);
       submitLockRef.current = false;
