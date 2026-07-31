@@ -41,6 +41,14 @@ export async function deleteMemberAccount(
     return { error: "Member not found." };
   }
 
+  const { error: deleteMemberError } = await admin.rpc("admin_delete_member", {
+    p_member_id: memberId,
+  });
+
+  if (deleteMemberError) {
+    return { error: deleteMemberError.message };
+  }
+
   const documentPaths = getMemberDocumentPaths(member);
   if (documentPaths.length > 0) {
     const { error: storageError } = await admin.storage
@@ -50,14 +58,6 @@ export async function deleteMemberAccount(
     if (storageError) {
       return { error: storageError.message };
     }
-  }
-
-  const { error: deleteMemberError } = await admin.rpc("admin_delete_member", {
-    p_member_id: memberId,
-  });
-
-  if (deleteMemberError) {
-    return { error: deleteMemberError.message };
   }
 
   return { error: null };
