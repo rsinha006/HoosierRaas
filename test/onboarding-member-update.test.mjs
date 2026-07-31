@@ -1,19 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mergeOnboardingRoles } from "../lib/onboarding.ts";
-
-test("mergeOnboardingRoles keeps non-dancer roles and applies onboarding roles", () => {
-  assert.deepEqual(mergeOnboardingRoles(["exec"], ["dancer"]), ["exec", "dancer"]);
-  assert.deepEqual(mergeOnboardingRoles(["exec", "dancer"], ["production"]), [
-    "exec",
-    "production",
-  ]);
-  assert.deepEqual(mergeOnboardingRoles(null, ["dancer", "production"]), [
-    "dancer",
-    "production",
-  ]);
-});
 
 const migration = readFileSync(
   new URL(
@@ -23,17 +10,37 @@ const migration = readFileSync(
   "utf8",
 );
 
-test("onboarding update migration allows lookup and update for incomplete members", () => {
-  assert.match(
-    migration,
-    /create policy "Allow anonymous onboarding member lookup"[\s\S]*?for select[\s\S]*?to anon, authenticated/,
-  );
-  assert.match(
-    migration,
-    /create policy "Allow anonymous dancer onboarding update"[\s\S]*?for update[\s\S]*?public\.is_onboarding_completion_roles\(roles\)/,
-  );
+const hardeningMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20260718100000_block_anonymous_onboarding_updates.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+const onboardingForm = readFileSync(
+  new URL("../components/dancer-onboarding-form.tsx", import.meta.url),
+  "utf8",
+);
+
+test("onboarding update migration originally limited updates to pending members", () => {
   assert.match(
     migration,
     /create or replace function public\.is_eligible_for_onboarding_update/,
+  );
+});
+
+test("public onboarding cannot update existing member rows anonymously", () => {
+  assert.match(
+    hardeningMigration,
+    /drop policy if exists "Allow anonymous dancer onboarding update" on public\.members/,
+  );
+  assert.match(
+    hardeningMigration,
+    /create or replace function public\.is_onboarding_completion_roles[\s\S]*?public\.is_onboarding_submission\(roles\)/,
+  );
+  assert.doesNotMatch(
+    onboardingForm,
+    /\.from\("members"\)[\s\S]*?\.update\(/,
   );
 });
