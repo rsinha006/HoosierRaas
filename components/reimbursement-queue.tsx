@@ -34,6 +34,7 @@ function PendingReimbursementCard({
   const [paymentMethod, setPaymentMethod] =
     useState<ReimbursementPaymentMethod>("venmo");
   const [showDenyForm, setShowDenyForm] = useState(false);
+  const [showPaidConfirm, setShowPaidConfirm] = useState(false);
   const [denialReason, setDenialReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -193,7 +194,7 @@ function PendingReimbursementCard({
             </div>
           ) : null}
 
-          {!showDenyForm ? (
+          {!showDenyForm && !showPaidConfirm ? (
             <div className="flex flex-wrap items-end gap-3">
               <div>
                 <label
@@ -220,11 +221,11 @@ function PendingReimbursementCard({
 
               <button
                 type="button"
-                onClick={handleMarkPaid}
+                onClick={() => setShowPaidConfirm(true)}
                 disabled={loading}
                 className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Saving..." : "Mark as Paid"}
+                Mark as Paid
               </button>
               <button
                 type="button"
@@ -234,6 +235,31 @@ function PendingReimbursementCard({
               >
                 Deny
               </button>
+            </div>
+          ) : showPaidConfirm ? (
+            <div className="space-y-3 rounded-lg bg-zinc-50 p-4">
+              <p className="text-sm text-zinc-700">
+                Mark {formatCurrency(Number(reimbursement.amount))} as paid via{" "}
+                {getPaymentMethodLabel(paymentMethod)}?
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleMarkPaid}
+                  disabled={loading}
+                  className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Saving..." : "Confirm Payment"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPaidConfirm(false)}
+                  disabled={loading}
+                  className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

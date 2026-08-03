@@ -38,6 +38,7 @@ function PendingRequestCard({
   const router = useRouter();
   const [denialReason, setDenialReason] = useState("");
   const [showDenyForm, setShowDenyForm] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState<"approve" | "deny" | null>(
     null,
@@ -120,19 +121,19 @@ function PendingRequestCard({
 
   if (compact) {
     return (
-      <article className="rounded-lg border border-zinc-200 p-3">
+      <article className="rounded-lg border border-zinc-200 p-4 lg:p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-zinc-500">{requesterName}</p>
-            <h3 className="truncate text-sm font-semibold text-zinc-900">
+            <p className="truncate text-sm font-medium text-zinc-500 lg:text-xs">{requesterName}</p>
+            <h3 className="truncate text-base font-semibold text-zinc-900 lg:text-sm">
               {request.description}
             </h3>
-            <p className="mt-0.5 truncate text-xs text-zinc-600">{fundingLabel}</p>
-            <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+            <p className="mt-0.5 truncate text-sm text-zinc-600 lg:text-xs">{fundingLabel}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-zinc-500 lg:text-xs">
               {request.justification}
             </p>
           </div>
-          <div className="shrink-0 text-right text-xs">
+          <div className="shrink-0 text-right text-sm lg:text-xs">
             <p className="font-semibold text-zinc-900">
               {formatCurrency(Number(request.amount))}
             </p>
@@ -149,34 +150,58 @@ function PendingRequestCard({
         </div>
 
         {overage !== null ? (
-          <p className="mt-2 text-xs text-red-600">
+          <p className="mt-2 text-sm text-red-600 lg:text-xs">
             Exceeds budget by {formatCurrency(overage)}
           </p>
         ) : null}
 
         {canReview ? (
-          <div className="mt-2">
+          <div className="mt-2.5 lg:mt-2">
             {actionError ? (
-              <p className="mb-2 text-xs text-red-600">{actionError}</p>
+              <p className="mb-2 text-sm text-red-600 lg:text-xs">{actionError}</p>
             ) : null}
-            {!showDenyForm ? (
+            {!showDenyForm && !showApproveConfirm ? (
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handleApprove}
+                  onClick={() => setShowApproveConfirm(true)}
                   disabled={loadingAction !== null}
-                  className="rounded-md bg-[#990000] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#7a0000] disabled:opacity-60"
+                  className="rounded-md bg-[#990000] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:opacity-60 lg:px-2.5 lg:py-1.5 lg:text-xs"
                 >
-                  {loadingAction === "approve" ? "..." : "Approve"}
+                  Approve
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDenyForm(true)}
                   disabled={loadingAction !== null}
-                  className="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+                  className="rounded-md border border-zinc-300 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 lg:px-2.5 lg:py-1.5 lg:text-xs"
                 >
                   Deny
                 </button>
+              </div>
+            ) : showApproveConfirm ? (
+              <div className="space-y-2 rounded-lg bg-zinc-50 p-3">
+                <p className="text-sm text-zinc-700 lg:text-xs">
+                  Approve {formatCurrency(Number(request.amount))} for {requesterName}?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={loadingAction !== null}
+                    className="rounded-md bg-[#990000] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:opacity-60 lg:px-2.5 lg:py-1.5 lg:text-xs"
+                  >
+                    {loadingAction === "approve" ? "Approving..." : "Confirm Approve"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowApproveConfirm(false)}
+                    disabled={loadingAction !== null}
+                    className="rounded-md border border-zinc-300 px-3.5 py-2 text-sm font-medium text-zinc-700 lg:px-2.5 lg:py-1.5 lg:text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -184,7 +209,7 @@ function PendingRequestCard({
                   rows={2}
                   value={denialReason}
                   onChange={(event) => setDenialReason(event.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-900 outline-none focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20 lg:px-2 lg:py-1.5 lg:text-xs"
                   placeholder="Denial reason"
                 />
                 <div className="flex gap-2">
@@ -192,7 +217,7 @@ function PendingRequestCard({
                     type="button"
                     onClick={handleDeny}
                     disabled={loadingAction !== null}
-                    className="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    className="rounded-md bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60 lg:px-2.5 lg:py-1.5 lg:text-xs"
                   >
                     Confirm
                   </button>
@@ -203,7 +228,7 @@ function PendingRequestCard({
                       setDenialReason("");
                       setActionError(null);
                     }}
-                    className="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-700"
+                    className="rounded-md border border-zinc-300 px-3.5 py-2 text-sm font-medium text-zinc-700 lg:px-2.5 lg:py-1.5 lg:text-xs"
                   >
                     Cancel
                   </button>
@@ -272,15 +297,15 @@ function PendingRequestCard({
             </div>
           ) : null}
 
-          {!showDenyForm ? (
+          {!showDenyForm && !showApproveConfirm ? (
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={handleApprove}
+                onClick={() => setShowApproveConfirm(true)}
                 disabled={loadingAction !== null}
                 className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loadingAction === "approve" ? "Approving..." : "Approve"}
+                Approve
               </button>
               <button
                 type="button"
@@ -290,6 +315,30 @@ function PendingRequestCard({
               >
                 Deny
               </button>
+            </div>
+          ) : showApproveConfirm ? (
+            <div className="space-y-3 rounded-lg bg-zinc-50 p-4">
+              <p className="text-sm text-zinc-700">
+                Approve {formatCurrency(Number(request.amount))} for {requesterName}?
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={loadingAction !== null}
+                  className="rounded-lg bg-[#990000] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingAction === "approve" ? "Approving..." : "Confirm Approve"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowApproveConfirm(false)}
+                  disabled={loadingAction !== null}
+                  className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -380,11 +429,11 @@ export default function ExpenseApprovalQueue({
 
           <div className="p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {pendingRequests.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-center text-xs text-zinc-500">
+              <p className="rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-center text-sm text-zinc-500 lg:text-xs">
                 No pending expense requests.
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5 lg:space-y-2">
                 {pendingRequests.map((request) => (
                   <PendingRequestCard
                     key={request.id}
@@ -473,23 +522,23 @@ export default function ExpenseApprovalQueue({
                     const requesterName = getExpenseRequesterLabel(request);
 
                     return (
-                      <div key={request.id} className="space-y-1 py-2.5">
+                      <div key={request.id} className="space-y-1.5 py-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-zinc-900">
+                            <p className="truncate text-sm font-medium text-zinc-900">
                               {request.description}
                             </p>
-                            <p className="truncate text-[11px] text-zinc-500">
+                            <p className="truncate text-xs text-zinc-500">
                               {requesterName} · {formatRequestDate(request.created_at)}
                             </p>
                           </div>
-                          <p className="shrink-0 text-xs font-medium text-zinc-900">
+                          <p className="shrink-0 text-sm font-medium text-zinc-900">
                             {formatCurrency(Number(request.amount))}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                               request.status === "approved"
                                 ? "bg-green-50 text-green-700"
                                 : "bg-red-50 text-red-700"
@@ -497,7 +546,7 @@ export default function ExpenseApprovalQueue({
                           >
                             {request.status === "approved" ? "Approved" : "Denied"}
                           </span>
-                          <span className="text-[11px] text-zinc-500">
+                          <span className="text-xs text-zinc-500">
                             {getExpenseRequestFundingLabel(request)}
                           </span>
                         </div>
