@@ -53,6 +53,6 @@ test("the compact History table's mobile view shows the same funding label", () 
 
   assert.match(
     mobileHistorySection,
-    /<span className="text-\[11px\] text-zinc-500">\s*\{getExpenseRequestFundingLabel\(request\)\}/,
+    /<span className="text-xs text-zinc-500">\s*\{getExpenseRequestFundingLabel\(request\)\}/,
   );
 });
