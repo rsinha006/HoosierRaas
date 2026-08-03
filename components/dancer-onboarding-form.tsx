@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import { formatPhoneForStorage, isValidEmail, isValidPhone } from "@/lib/members";
 import {
   CLOTHING_SIZES,
@@ -17,6 +18,24 @@ import {
 } from "@/lib/onboarding";
 
 type FormView = "form" | "success" | "duplicate";
+
+const FIELD_ORDER: FieldOrder = [
+  { key: "firstName", id: "first-name" },
+  { key: "lastName", id: "last-name" },
+  { key: "email", id: "email" },
+  { key: "phone", id: "phone" },
+  { key: "graduationYear", id: "graduation-year" },
+  { key: "shirtSize", id: "shirt-size" },
+  { key: "pantsSize", id: "pants-size" },
+  { key: "government_id", id: "government_id" },
+  { key: "birthday_image", id: "birthday_image" },
+  { key: "student_id", id: "student_id" },
+  { key: "covid_vaccination", id: "covid_vaccination" },
+  { key: "drinksAlcohol", id: "drinks-alcohol-group" },
+  { key: "emergencyContactName", id: "emergency-contact-name" },
+  { key: "emergencyContactPhone", id: "emergency-contact-phone" },
+  { key: "roles", id: "roles-group" },
+];
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-3 text-base text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -178,6 +197,7 @@ export default function DancerOnboardingForm() {
     }
 
     setFieldErrors(errors);
+    focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
   }
 
@@ -586,7 +606,7 @@ export default function DancerOnboardingForm() {
       <section className="space-y-4">
         <SectionHeading title="Emergency contact and role" />
 
-        <fieldset className="space-y-2">
+        <fieldset id="drinks-alcohol-group" className="space-y-2">
           <legend className={labelClassName}>
             Do you drink? {requiredMark}
           </legend>
@@ -648,7 +668,7 @@ export default function DancerOnboardingForm() {
           <FieldError message={fieldErrors.emergencyContactPhone} />
         </div>
 
-        <fieldset className="space-y-3">
+        <fieldset id="roles-group" className="space-y-3">
           <legend className={labelClassName}>
             Role {requiredMark}
           </legend>

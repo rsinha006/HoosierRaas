@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import { isValidEmail } from "@/lib/members";
 import {
   isVideoDeadlineDay,
@@ -12,6 +13,15 @@ import {
   type PublicAttendanceSession,
 } from "@/lib/attendance";
 import { toUserFacingAttendanceResponseError } from "@/lib/user-facing-errors";
+
+const FIELD_ORDER: FieldOrder = [
+  { key: "firstName", id: "first-name" },
+  { key: "lastName", id: "last-name" },
+  { key: "email", id: "email" },
+  { key: "excuseText", id: "excuse-text" },
+  { key: "practiceVideoStatus", id: "practice-video-status" },
+  { key: "practiceVideoExcuse", id: "video-excuse" },
+];
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-4 py-3 text-base text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -149,6 +159,7 @@ export default function AttendanceResponseForm({
     }
 
     setFieldErrors(errors);
+    focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
   }
 
@@ -403,7 +414,7 @@ export default function AttendanceResponseForm({
             description="Practice video deadlines are on Thursdays and Sundays."
           />
 
-          <fieldset className="space-y-3">
+          <fieldset id="practice-video-status" className="space-y-3">
             <legend className="mb-1 text-sm font-medium text-zinc-700">
               Did you submit your practice video before the deadline? {requiredMark}
             </legend>

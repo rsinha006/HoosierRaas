@@ -10,9 +10,21 @@ import {
   type PublicExpenseCategoryOption,
   type PublicIufbLineItemOption,
 } from "@/lib/finance";
+import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import { isValidEmail } from "@/lib/members";
 import { toUserFacingExpenseRequestError } from "@/lib/user-facing-errors";
 import type { Competition } from "@/lib/competitions";
+
+const FIELD_ORDER: FieldOrder = [
+  { key: "firstName", id: "first-name" },
+  { key: "lastName", id: "last-name" },
+  { key: "email", id: "email" },
+  { key: "category", id: "category" },
+  { key: "iufbLineItemId", id: "iufbLineItemId" },
+  { key: "description", id: "description" },
+  { key: "amount", id: "amount" },
+  { key: "justification", id: "justification" },
+];
 
 type FormView = "form" | "success";
 
@@ -136,6 +148,7 @@ export default function ExpenseRequestForm({
     }
 
     setFieldErrors(errors);
+    focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
   }
 

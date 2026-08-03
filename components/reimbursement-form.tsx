@@ -7,6 +7,7 @@ import {
   type ExpenseCategory,
   type PublicExpenseCategoryOption,
 } from "@/lib/finance";
+import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import { isValidEmail } from "@/lib/members";
 import {
   getReceiptStoragePath,
@@ -19,6 +20,17 @@ import {
 import { uploadReceipt } from "@/lib/upload-receipt";
 import { toUserFacingReimbursementError } from "@/lib/user-facing-errors";
 import type { Competition } from "@/lib/competitions";
+
+const FIELD_ORDER: FieldOrder = [
+  { key: "firstName", id: "first-name" },
+  { key: "lastName", id: "last-name" },
+  { key: "email", id: "email" },
+  { key: "description", id: "description" },
+  { key: "amount", id: "amount" },
+  { key: "dateOfPurchase", id: "dateOfPurchase" },
+  { key: "category", id: "category" },
+  { key: "receipt", id: "receipt" },
+];
 
 type FormView = "form" | "success";
 
@@ -141,6 +153,7 @@ export default function ReimbursementForm({
     }
 
     setFieldErrors(errors);
+    focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
   }
 
