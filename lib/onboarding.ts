@@ -66,3 +66,48 @@ export function validateUploadFile(
 
   return null;
 }
+
+export const ONBOARDING_DRAFT_STORAGE_KEY = "hros-onboarding-draft";
+
+/** Everything in the onboarding form except the four uploaded files —
+ *  a File can't be serialized to localStorage, so a resumed draft always
+ *  needs those re-attached. Using localStorage rather than sessionStorage
+ *  because this form is commonly filled out on a phone, where the browser
+ *  itself (not just the tab) is liable to get killed by the OS mid-session. */
+export type OnboardingDraftState = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  graduationYear: string;
+  dietaryRestrictions: string;
+  medicalConditions: string;
+  shirtSize: ClothingSize | "";
+  pantsSize: ClothingSize | "";
+  drinksAlcohol: "yes" | "no" | "";
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  roles: OnboardingRole[];
+  step: number;
+};
+
+export function saveOnboardingDraft(state: OnboardingDraftState) {
+  localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(state));
+}
+
+export function loadOnboardingDraft(): OnboardingDraftState | null {
+  const raw = localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as OnboardingDraftState;
+  } catch {
+    return null;
+  }
+}
+
+export function clearOnboardingDraft() {
+  localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+}
