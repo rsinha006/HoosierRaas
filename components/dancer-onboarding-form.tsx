@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import SelectedFilePreview from "@/components/selected-file-preview";
 import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import { formatPhoneForStorage, isValidEmail, isValidPhone } from "@/lib/members";
 import {
@@ -598,6 +599,7 @@ export default function DancerOnboardingForm() {
               }
               className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#990000]/10 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-[#990000]"
             />
+            <SelectedFilePreview file={files[field.id]} />
             <FieldError message={fieldErrors[field.id]} />
           </div>
         ))}
