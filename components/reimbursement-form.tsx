@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import SelectedFilePreview from "@/components/selected-file-preview";
 import {
   formatCurrency,
   type ExpenseCategory,
@@ -431,9 +432,7 @@ export default function ReimbursementForm({
           onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
           className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#990000]/10 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-[#990000]"
         />
-        {receiptFile ? (
-          <p className="text-sm text-zinc-600">Selected: {receiptFile.name}</p>
-        ) : null}
+        <SelectedFilePreview file={receiptFile} />
         <FieldError message={fieldErrors.receipt} />
       </section>
 
