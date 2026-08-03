@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SelectedFilePreview from "@/components/selected-file-preview";
 import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
@@ -8,10 +8,13 @@ import { formatPhoneForStorage, isValidEmail, isValidPhone } from "@/lib/members
 import {
   CLOTHING_SIZES,
   ONBOARDING_STORAGE_BUCKET,
+  clearOnboardingDraft,
   getGraduationYearOptions,
   isValidIuEmail,
+  loadOnboardingDraft,
   mergeOnboardingRoles,
   normalizeOptionalText,
+  saveOnboardingDraft,
   validateUploadFile,
   type ClothingSize,
   type OnboardingFileField,
@@ -36,6 +39,22 @@ const FIELD_ORDER: FieldOrder = [
   { key: "emergencyContactName", id: "emergency-contact-name" },
   { key: "emergencyContactPhone", id: "emergency-contact-phone" },
   { key: "roles", id: "roles-group" },
+];
+
+const STEPS: { title: string; description?: string }[] = [
+  { title: "Personal information", description: "Tell us how to reach you this season." },
+  { title: "Health and sizing", description: "Help us plan merch, meals, and team needs." },
+  { title: "Documents", description: "JPG, PNG, WEBP, HEIC, or PDF up to 10 MB each." },
+  { title: "Emergency contact and role" },
+];
+
+/** Which validateForm() error keys belong to each step, so "Continue" only
+ *  blocks on problems the person can actually see on screen right now. */
+const STEP_FIELD_KEYS: string[][] = [
+  ["firstName", "lastName", "email", "phone", "graduationYear"],
+  ["shirtSize", "pantsSize"],
+  ["government_id", "birthday_image", "student_id", "covid_vaccination"],
+  ["drinksAlcohol", "emergencyContactName", "emergencyContactPhone", "roles"],
 ];
 
 const inputClassName =
@@ -73,6 +92,25 @@ const fileFields: {
   },
 ];
 
+function StepProgress({ step }: { step: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Step {step + 1} of {STEPS.length}
+        </span>
+        <span className="text-sm font-medium text-zinc-900">{STEPS[step].title}</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+        <div
+          className="h-full rounded-full bg-[#990000] transition-all"
+          style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({
   title,
   description,
@@ -100,6 +138,8 @@ export default function DancerOnboardingForm() {
   const graduationYears = useMemo(() => getGraduationYearOptions(), []);
 
   const [view, setView] = useState<FormView>("form");
+  const [step, setStep] = useState(0);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -123,6 +163,75 @@ export default function DancerOnboardingForm() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Restore a draft saved on this device before anything else runs, so the
+  // save effect below doesn't overwrite it with blank initial state first.
+  // This has to be an effect, not a lazy useState initializer: localStorage
+  // doesn't exist during the server render, and computing these fields from
+  // it on the client's first render instead would make that render disagree
+  // with the server-rendered HTML it's supposed to hydrate.
+  useEffect(() => {
+    const draft = loadOnboardingDraft();
+
+    if (draft) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFirstName(draft.firstName);
+      setLastName(draft.lastName);
+      setEmail(draft.email);
+      setPhone(draft.phone);
+      setGraduationYear(draft.graduationYear);
+      setDietaryRestrictions(draft.dietaryRestrictions);
+      setMedicalConditions(draft.medicalConditions);
+      setShirtSize(draft.shirtSize);
+      setPantsSize(draft.pantsSize);
+      setDrinksAlcohol(draft.drinksAlcohol);
+      setEmergencyContactName(draft.emergencyContactName);
+      setEmergencyContactPhone(draft.emergencyContactPhone);
+      setRoles(draft.roles);
+      setStep(draft.step);
+    }
+
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    saveOnboardingDraft({
+      firstName,
+      lastName,
+      email,
+      phone,
+      graduationYear,
+      dietaryRestrictions,
+      medicalConditions,
+      shirtSize,
+      pantsSize,
+      drinksAlcohol,
+      emergencyContactName,
+      emergencyContactPhone,
+      roles,
+      step,
+    });
+  }, [
+    hasHydrated,
+    firstName,
+    lastName,
+    email,
+    phone,
+    graduationYear,
+    dietaryRestrictions,
+    medicalConditions,
+    shirtSize,
+    pantsSize,
+    drinksAlcohol,
+    emergencyContactName,
+    emergencyContactPhone,
+    roles,
+    step,
+  ]);
+
   function toggleRole(role: OnboardingRole) {
     setRoles((current) =>
       current.includes(role)
@@ -135,7 +244,7 @@ export default function DancerOnboardingForm() {
     setFiles((current) => ({ ...current, [field]: file }));
   }
 
-  function validateForm() {
+  function computeErrors() {
     const errors: Record<string, string> = {};
 
     if (!firstName.trim()) {
@@ -197,9 +306,42 @@ export default function DancerOnboardingForm() {
       }
     }
 
+    return errors;
+  }
+
+  function validateStep(stepIndex: number) {
+    const errors = computeErrors();
+    const relevantKeys = STEP_FIELD_KEYS[stepIndex];
+    const stepErrors = Object.fromEntries(
+      Object.entries(errors).filter(([key]) => relevantKeys.includes(key)),
+    );
+
+    setFieldErrors(stepErrors);
+    focusFirstFieldError(
+      FIELD_ORDER.filter((field) => relevantKeys.includes(field.key)),
+      stepErrors,
+    );
+
+    return Object.keys(stepErrors).length === 0;
+  }
+
+  function validateForm() {
+    const errors = computeErrors();
     setFieldErrors(errors);
     focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
+  }
+
+  function handleNext() {
+    if (!validateStep(step)) {
+      return;
+    }
+
+    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+  }
+
+  function handleBack() {
+    setStep((current) => Math.max(current - 1, 0));
   }
 
   async function uploadFile(
@@ -348,6 +490,7 @@ export default function DancerOnboardingForm() {
         }
       }
 
+      clearOnboardingDraft();
       setView("success");
     } catch (error) {
       setSaveError(
@@ -404,310 +547,348 @@ export default function DancerOnboardingForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8" noValidate>
-      <section className="space-y-4">
-        <SectionHeading
-          title="Personal information"
-          description="Tell us how to reach you this season."
-        />
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <StepProgress step={step} />
+      <p className="text-xs text-zinc-500">
+        Your answers are saved on this device as you go, so if you get
+        interrupted you can come back and pick up where you left off.
+        Uploaded files aren&apos;t saved this way — you&apos;ll need to
+        re-attach those.
+      </p>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="first-name" className={labelClassName}>
-              First name {requiredMark}
-            </label>
-            <input
-              id="first-name"
-              type="text"
-              autoComplete="given-name"
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
-              className={inputClassName}
-            />
-            <FieldError message={fieldErrors.firstName} />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="last-name" className={labelClassName}>
-              Last name {requiredMark}
-            </label>
-            <input
-              id="last-name"
-              type="text"
-              autoComplete="family-name"
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
-              className={inputClassName}
-            />
-            <FieldError message={fieldErrors.lastName} />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="email" className={labelClassName}>
-            IU email {requiredMark}
-          </label>
-          <input
-            id="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder="you@iu.edu"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={inputClassName}
+      {step === 0 ? (
+        <section className="space-y-4">
+          <SectionHeading
+            title={STEPS[0].title}
+            description={STEPS[0].description}
           />
-          <FieldError message={fieldErrors.email} />
-        </div>
 
-        <div className="space-y-2">
-          <label htmlFor="phone" className={labelClassName}>
-            Phone number {requiredMark}
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            className={inputClassName}
-          />
-          <FieldError message={fieldErrors.phone} />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="graduation-year" className={labelClassName}>
-            Graduation year {requiredMark}
-          </label>
-          <select
-            id="graduation-year"
-            value={graduationYear}
-            onChange={(event) => setGraduationYear(event.target.value)}
-            className={inputClassName}
-          >
-            <option value="">Select year</option>
-            {graduationYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-          <FieldError message={fieldErrors.graduationYear} />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeading
-          title="Health and sizing"
-          description="Help us plan merch, meals, and team needs."
-        />
-
-        <div className="space-y-2">
-          <label htmlFor="dietary-restrictions" className={labelClassName}>
-            Dietary restrictions
-          </label>
-          <textarea
-            id="dietary-restrictions"
-            rows={3}
-            placeholder="None if not applicable"
-            value={dietaryRestrictions}
-            onChange={(event) => setDietaryRestrictions(event.target.value)}
-            className={inputClassName}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="medical-conditions" className={labelClassName}>
-            Medical conditions
-          </label>
-          <textarea
-            id="medical-conditions"
-            rows={3}
-            placeholder="None if not applicable"
-            value={medicalConditions}
-            onChange={(event) => setMedicalConditions(event.target.value)}
-            className={inputClassName}
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="shirt-size" className={labelClassName}>
-              Shirt size {requiredMark}
-            </label>
-            <select
-              id="shirt-size"
-              value={shirtSize}
-              onChange={(event) =>
-                setShirtSize(event.target.value as ClothingSize | "")
-              }
-              className={inputClassName}
-            >
-              <option value="">Select size</option>
-              {CLOTHING_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-            <FieldError message={fieldErrors.shirtSize} />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="pants-size" className={labelClassName}>
-              Pants size {requiredMark}
-            </label>
-            <select
-              id="pants-size"
-              value={pantsSize}
-              onChange={(event) =>
-                setPantsSize(event.target.value as ClothingSize | "")
-              }
-              className={inputClassName}
-            >
-              <option value="">Select size</option>
-              {CLOTHING_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-            <FieldError message={fieldErrors.pantsSize} />
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeading
-          title="Documents"
-          description="JPG, PNG, WEBP, HEIC, or PDF up to 10 MB each."
-        />
-
-        {fileFields.map((field) => (
-          <div key={field.id} className="space-y-2">
-            <label htmlFor={field.id} className={labelClassName}>
-              {field.label} {requiredMark}
-            </label>
-            <p className="text-sm text-zinc-500">{field.description}</p>
-            <input
-              id={field.id}
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(event) =>
-                setFile(field.id, event.target.files?.[0] ?? null)
-              }
-              className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#990000]/10 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-[#990000]"
-            />
-            <SelectedFilePreview file={files[field.id]} />
-            <FieldError message={fieldErrors[field.id]} />
-          </div>
-        ))}
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeading title="Emergency contact and role" />
-
-        <fieldset id="drinks-alcohol-group" className="space-y-2">
-          <legend className={labelClassName}>
-            Do you drink? {requiredMark}
-          </legend>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
-              <input
-                type="radio"
-                name="drinks-alcohol"
-                value="yes"
-                checked={drinksAlcohol === "yes"}
-                onChange={() => setDrinksAlcohol("yes")}
-                className="h-4 w-4 border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
-              />
-              Yes
-            </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
-              <input
-                type="radio"
-                name="drinks-alcohol"
-                value="no"
-                checked={drinksAlcohol === "no"}
-                onChange={() => setDrinksAlcohol("no")}
-                className="h-4 w-4 border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
-              />
-              No
-            </label>
-          </div>
-          <FieldError message={fieldErrors.drinksAlcohol} />
-        </fieldset>
-
-        <div className="space-y-2">
-          <label htmlFor="emergency-contact-name" className={labelClassName}>
-            Emergency contact name {requiredMark}
-          </label>
-          <input
-            id="emergency-contact-name"
-            type="text"
-            autoComplete="name"
-            value={emergencyContactName}
-            onChange={(event) => setEmergencyContactName(event.target.value)}
-            className={inputClassName}
-          />
-          <FieldError message={fieldErrors.emergencyContactName} />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="emergency-contact-phone" className={labelClassName}>
-            Emergency contact phone {requiredMark}
-          </label>
-          <input
-            id="emergency-contact-phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            value={emergencyContactPhone}
-            onChange={(event) => setEmergencyContactPhone(event.target.value)}
-            className={inputClassName}
-          />
-          <FieldError message={fieldErrors.emergencyContactPhone} />
-        </div>
-
-        <fieldset id="roles-group" className="space-y-3">
-          <legend className={labelClassName}>
-            Role {requiredMark}
-          </legend>
-          <p className="text-sm text-zinc-500">Select all that apply.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(["dancer", "production"] as const).map((role) => (
-              <label
-                key={role}
-                className="flex items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm text-zinc-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={roles.includes(role)}
-                  onChange={() => toggleRole(role)}
-                  className="h-4 w-4 rounded border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
-                />
-                <span className="capitalize">{role}</span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="first-name" className={labelClassName}>
+                First name {requiredMark}
               </label>
-            ))}
-          </div>
-          <FieldError message={fieldErrors.roles} />
-        </fieldset>
-      </section>
+              <input
+                id="first-name"
+                type="text"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                className={inputClassName}
+              />
+              <FieldError message={fieldErrors.firstName} />
+            </div>
 
-      {saveError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {saveError}
-        </div>
+            <div className="space-y-2">
+              <label htmlFor="last-name" className={labelClassName}>
+                Last name {requiredMark}
+              </label>
+              <input
+                id="last-name"
+                type="text"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+                className={inputClassName}
+              />
+              <FieldError message={fieldErrors.lastName} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="email" className={labelClassName}>
+              IU email {requiredMark}
+            </label>
+            <input
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@iu.edu"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className={inputClassName}
+            />
+            <FieldError message={fieldErrors.email} />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="phone" className={labelClassName}>
+              Phone number {requiredMark}
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              className={inputClassName}
+            />
+            <FieldError message={fieldErrors.phone} />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="graduation-year" className={labelClassName}>
+              Graduation year {requiredMark}
+            </label>
+            <select
+              id="graduation-year"
+              value={graduationYear}
+              onChange={(event) => setGraduationYear(event.target.value)}
+              className={inputClassName}
+            >
+              <option value="">Select year</option>
+              {graduationYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <FieldError message={fieldErrors.graduationYear} />
+          </div>
+        </section>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-[#990000] px-4 py-3.5 text-base font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? "Submitting..." : "Submit onboarding form"}
-      </button>
+      {step === 1 ? (
+        <section className="space-y-4">
+          <SectionHeading
+            title={STEPS[1].title}
+            description={STEPS[1].description}
+          />
+
+          <div className="space-y-2">
+            <label htmlFor="dietary-restrictions" className={labelClassName}>
+              Dietary restrictions
+            </label>
+            <textarea
+              id="dietary-restrictions"
+              rows={3}
+              placeholder="None if not applicable"
+              value={dietaryRestrictions}
+              onChange={(event) => setDietaryRestrictions(event.target.value)}
+              className={inputClassName}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="medical-conditions" className={labelClassName}>
+              Medical conditions
+            </label>
+            <textarea
+              id="medical-conditions"
+              rows={3}
+              placeholder="None if not applicable"
+              value={medicalConditions}
+              onChange={(event) => setMedicalConditions(event.target.value)}
+              className={inputClassName}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="shirt-size" className={labelClassName}>
+                Shirt size {requiredMark}
+              </label>
+              <select
+                id="shirt-size"
+                value={shirtSize}
+                onChange={(event) =>
+                  setShirtSize(event.target.value as ClothingSize | "")
+                }
+                className={inputClassName}
+              >
+                <option value="">Select size</option>
+                {CLOTHING_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={fieldErrors.shirtSize} />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="pants-size" className={labelClassName}>
+                Pants size {requiredMark}
+              </label>
+              <select
+                id="pants-size"
+                value={pantsSize}
+                onChange={(event) =>
+                  setPantsSize(event.target.value as ClothingSize | "")
+                }
+                className={inputClassName}
+              >
+                <option value="">Select size</option>
+                {CLOTHING_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={fieldErrors.pantsSize} />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {step === 2 ? (
+        <section className="space-y-4">
+          <SectionHeading
+            title={STEPS[2].title}
+            description={STEPS[2].description}
+          />
+
+          {fileFields.map((field) => (
+            <div key={field.id} className="space-y-2">
+              <label htmlFor={field.id} className={labelClassName}>
+                {field.label} {requiredMark}
+              </label>
+              <p className="text-sm text-zinc-500">{field.description}</p>
+              <input
+                id={field.id}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(event) =>
+                  setFile(field.id, event.target.files?.[0] ?? null)
+                }
+                className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#990000]/10 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-[#990000]"
+              />
+              <SelectedFilePreview file={files[field.id]} />
+              <FieldError message={fieldErrors[field.id]} />
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {step === 3 ? (
+        <section className="space-y-4">
+          <SectionHeading title={STEPS[3].title} />
+
+          <fieldset id="drinks-alcohol-group" className="space-y-2">
+            <legend className={labelClassName}>
+              Do you drink? {requiredMark}
+            </legend>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="radio"
+                  name="drinks-alcohol"
+                  value="yes"
+                  checked={drinksAlcohol === "yes"}
+                  onChange={() => setDrinksAlcohol("yes")}
+                  className="h-4 w-4 border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="radio"
+                  name="drinks-alcohol"
+                  value="no"
+                  checked={drinksAlcohol === "no"}
+                  onChange={() => setDrinksAlcohol("no")}
+                  className="h-4 w-4 border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
+                />
+                No
+              </label>
+            </div>
+            <FieldError message={fieldErrors.drinksAlcohol} />
+          </fieldset>
+
+          <div className="space-y-2">
+            <label htmlFor="emergency-contact-name" className={labelClassName}>
+              Emergency contact name {requiredMark}
+            </label>
+            <input
+              id="emergency-contact-name"
+              type="text"
+              autoComplete="name"
+              value={emergencyContactName}
+              onChange={(event) => setEmergencyContactName(event.target.value)}
+              className={inputClassName}
+            />
+            <FieldError message={fieldErrors.emergencyContactName} />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="emergency-contact-phone" className={labelClassName}>
+              Emergency contact phone {requiredMark}
+            </label>
+            <input
+              id="emergency-contact-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={emergencyContactPhone}
+              onChange={(event) => setEmergencyContactPhone(event.target.value)}
+              className={inputClassName}
+            />
+            <FieldError message={fieldErrors.emergencyContactPhone} />
+          </div>
+
+          <fieldset id="roles-group" className="space-y-3">
+            <legend className={labelClassName}>
+              Role {requiredMark}
+            </legend>
+            <p className="text-sm text-zinc-500">Select all that apply.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(["dancer", "production"] as const).map((role) => (
+                <label
+                  key={role}
+                  className="flex items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm text-zinc-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={roles.includes(role)}
+                    onChange={() => toggleRole(role)}
+                    className="h-4 w-4 rounded border-zinc-300 text-[#990000] focus:ring-[#990000]/20"
+                  />
+                  <span className="capitalize">{role}</span>
+                </label>
+              ))}
+            </div>
+            <FieldError message={fieldErrors.roles} />
+          </fieldset>
+
+          {saveError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {saveError}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="flex gap-3">
+        {step > 0 ? (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="rounded-lg border border-zinc-300 px-4 py-3.5 text-base font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Back
+          </button>
+        ) : null}
+
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            onClick={handleNext}
+            className="flex-1 rounded-lg bg-[#990000] px-4 py-3.5 text-base font-semibold text-white transition hover:bg-[#7a0000]"
+          >
+            Continue
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 rounded-lg bg-[#990000] px-4 py-3.5 text-base font-semibold text-white transition hover:bg-[#7a0000] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Submitting..." : "Submit onboarding form"}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
