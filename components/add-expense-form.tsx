@@ -11,7 +11,16 @@ import {
   type PopulatedGeneralPoolCategory,
   type PopulatedIufbLineItemOption,
 } from "@/lib/finance";
+import { focusFirstFieldError, type FieldOrder } from "@/lib/form-field-focus";
 import type { Competition } from "@/lib/competitions";
+
+const FIELD_ORDER: FieldOrder = [
+  { key: "category", id: "category" },
+  { key: "iufbLineItemId", id: "iufbLineItemId" },
+  { key: "description", id: "description" },
+  { key: "amount", id: "amount" },
+  { key: "justification", id: "justification" },
+];
 
 const inputClassName =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-[#990000] focus:ring-2 focus:ring-[#990000]/20";
@@ -100,6 +109,7 @@ export default function AddExpenseForm({
     }
 
     setFieldErrors(errors);
+    focusFirstFieldError(FIELD_ORDER, errors);
     return Object.keys(errors).length === 0;
   }
 
