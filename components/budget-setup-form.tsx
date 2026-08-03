@@ -81,7 +81,16 @@ export default function BudgetSetupForm({
   );
   const [acknowledgedOverAllocation, setAcknowledgedOverAllocation] =
     useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [categoryErrors, setCategoryErrors] = useState<
+    Partial<Record<ExpenseCategory, string>>
+  >({});
+  const [lineItemErrors, setLineItemErrors] = useState<
+    Record<string, { description?: string; approvedAmount?: string }>
+  >({});
+  // Kept as a list, not a single message: the whole point of this rework is
+  // that every blocking problem shows up together on one save attempt
+  // instead of one at a time across repeated clicks.
+  const [saveErrors, setSaveErrors] = useState<string[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -145,6 +154,14 @@ export default function BudgetSetupForm({
       [category]: value,
     }));
     setSaveSuccess(false);
+    setCategoryErrors((current) => {
+      if (!current[category]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[category];
+      return next;
+    });
   }
 
   function addLineItem() {
@@ -163,6 +180,20 @@ export default function BudgetSetupForm({
       ),
     );
     setSaveSuccess(false);
+    setLineItemErrors((current) => {
+      if (!current[clientId]?.[field]) {
+        return current;
+      }
+      const nextItemErrors = { ...current[clientId] };
+      delete nextItemErrors[field];
+      const next = { ...current };
+      if (Object.keys(nextItemErrors).length === 0) {
+        delete next[clientId];
+      } else {
+        next[clientId] = nextItemErrors;
+      }
+      return next;
+    });
   }
 
   function removeLineItem(clientId: string) {
@@ -170,6 +201,14 @@ export default function BudgetSetupForm({
       current.filter((item) => item.clientId !== clientId),
     );
     setSaveSuccess(false);
+    setLineItemErrors((current) => {
+      if (!current[clientId]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[clientId];
+      return next;
+    });
   }
 
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
@@ -179,35 +218,58 @@ export default function BudgetSetupForm({
       return;
     }
 
-    setSaveError(null);
+    setSaveErrors([]);
     setSaveSuccess(false);
 
+    const nextCategoryErrors: Partial<Record<ExpenseCategory, string>> = {};
     for (const category of EXPENSE_CATEGORIES) {
       const amount = parseAmount(allocations[category.value]);
       if (Number.isNaN(amount)) {
-        setSaveError(`Enter a valid amount for ${category.label}.`);
-        return;
+        nextCategoryErrors[category.value] = "Enter a valid amount.";
       }
     }
 
+    const nextLineItemErrors: Record<
+      string,
+      { description?: string; approvedAmount?: string }
+    > = {};
     for (const item of lineItems) {
+      const itemErrors: { description?: string; approvedAmount?: string } = {};
+
       if (!item.description.trim()) {
-        setSaveError("Every IUFB line item needs a description.");
-        return;
+        itemErrors.description = "Description is required.";
       }
 
       const amount = parseAmount(item.approvedAmount);
       if (Number.isNaN(amount)) {
-        setSaveError("Enter valid approved amounts for all IUFB line items.");
-        return;
+        itemErrors.approvedAmount = "Enter a valid amount.";
+      }
+
+      if (Object.keys(itemErrors).length > 0) {
+        nextLineItemErrors[item.clientId] = itemErrors;
       }
     }
 
+    setCategoryErrors(nextCategoryErrors);
+    setLineItemErrors(nextLineItemErrors);
+
+    // Every blocking problem is collected here and shown together, rather
+    // than returning on the first one — fixing an amount, saving, finding
+    // the next problem, and repeating was the whole complaint.
+    const blockers: string[] = [];
+
+    if (Object.keys(nextCategoryErrors).length > 0) {
+      blockers.push("Fix the highlighted category amounts before saving.");
+    }
+
+    if (Object.keys(nextLineItemErrors).length > 0) {
+      blockers.push("Fix the highlighted IUFB line items before saving.");
+    }
+
     if (iufbOverAllocated) {
-      setSaveError(
-        "Total IUFB approved exceeds available IUFB income. Reduce line item amounts before saving.",
+      blockers.push(
+        "Total IUFB approved exceeds available IUFB income — reduce line item amounts before saving.",
       );
-      return;
     }
 
     // Not a hard stop, unlike IUFB: general pool income arrives across the season as
@@ -215,16 +277,19 @@ export default function BudgetSetupForm({
     // accident is not, and nothing downstream will stop an expense being approved
     // against a category with no money behind it.
     if (generalPoolOverAllocated && !acknowledgedOverAllocation) {
-      setSaveError(
-        `Allocations total ${formatCurrency(totalGeneralPoolAllocated)} against ${formatCurrency(generalPoolAvailable)} of general pool income. Confirm below that you meant to, or reduce them before saving.`,
+      blockers.push(
+        `Allocations total ${formatCurrency(totalGeneralPoolAllocated)} against ${formatCurrency(generalPoolAvailable)} of general pool income — confirm below that you meant to, or reduce them before saving.`,
       );
-      return;
     }
 
     if (changedCategories.length > 0 && !changeReason.trim()) {
-      setSaveError(
+      blockers.push(
         "You're changing a budget that's already been set — enter a reason for the change before saving.",
       );
+    }
+
+    if (blockers.length > 0) {
+      setSaveErrors(blockers);
       return;
     }
 
@@ -243,7 +308,7 @@ export default function BudgetSetupForm({
 
     if (budgetError) {
       setLoading(false);
-      setSaveError(budgetError.message);
+      setSaveErrors([budgetError.message]);
       return;
     }
 
@@ -263,7 +328,7 @@ export default function BudgetSetupForm({
 
       if (logError) {
         setLoading(false);
-        setSaveError(`Budget saved, but the change log entry failed: ${logError.message}`);
+        setSaveErrors([`Budget saved, but the change log entry failed: ${logError.message}`]);
         return;
       }
     }
@@ -283,7 +348,7 @@ export default function BudgetSetupForm({
 
       if (deleteError) {
         setLoading(false);
-        setSaveError(deleteError.message);
+        setSaveErrors([deleteError.message]);
         return;
       }
     }
@@ -302,7 +367,7 @@ export default function BudgetSetupForm({
 
         if (error) {
           setLoading(false);
-          setSaveError(error.message);
+          setSaveErrors([error.message]);
           return;
         }
       } else {
@@ -315,7 +380,7 @@ export default function BudgetSetupForm({
 
         if (error) {
           setLoading(false);
-          setSaveError(error.message);
+          setSaveErrors([error.message]);
           return;
         }
       }
@@ -399,7 +464,7 @@ export default function BudgetSetupForm({
                     onChange={(event) =>
                       updateAllocation(row.value, event.target.value)
                     }
-                    className={inputClassName}
+                    className={`${inputClassName} ${categoryErrors[row.value] ? "border-red-300" : ""}`}
                     placeholder="0.00"
                   />
                 ) : (
@@ -407,6 +472,9 @@ export default function BudgetSetupForm({
                     {formatCurrency(row.allocated)}
                   </p>
                 )}
+                {categoryErrors[row.value] ? (
+                  <p className="mt-1 text-sm text-red-600">{categoryErrors[row.value]}</p>
+                ) : null}
               </div>
 
               <div className="mt-3 flex items-center justify-between text-sm">
@@ -447,7 +515,7 @@ export default function BudgetSetupForm({
                         onChange={(event) =>
                           updateAllocation(row.value, event.target.value)
                         }
-                        className={inputClassName}
+                        className={`${inputClassName} ${categoryErrors[row.value] ? "border-red-300" : ""}`}
                         placeholder="0.00"
                       />
                     ) : (
@@ -455,6 +523,9 @@ export default function BudgetSetupForm({
                         {formatCurrency(row.allocated)}
                       </span>
                     )}
+                    {categoryErrors[row.value] ? (
+                      <p className="mt-1 text-sm text-red-600">{categoryErrors[row.value]}</p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 text-right text-zinc-600">
                     {formatCurrency(row.spent)}
@@ -510,6 +581,21 @@ export default function BudgetSetupForm({
           </div>
         </div>
 
+        {iufbOverAllocated ? (
+          <div
+            role="alert"
+            className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <p className="font-medium">
+              This exceeds available IUFB income by {formatCurrency(-iufbRemaining)}.
+            </p>
+            <p className="mt-1">
+              Unlike the general pool, IUFB can&apos;t be saved over its available
+              income — reduce one or more line item amounts before saving.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-6 space-y-4">
           {lineItems.length === 0 ? (
             <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500">
@@ -536,12 +622,17 @@ export default function BudgetSetupForm({
                           event.target.value,
                         )
                       }
-                      className={inputClassName}
+                      className={`${inputClassName} ${lineItemErrors[item.clientId]?.description ? "border-red-300" : ""}`}
                       placeholder="e.g. Competition travel stipend"
                     />
                   ) : (
                     <p className="text-sm text-zinc-900">{item.description}</p>
                   )}
+                  {lineItemErrors[item.clientId]?.description ? (
+                    <p className="mt-1 text-sm text-red-600">
+                      {lineItemErrors[item.clientId]?.description}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
@@ -561,7 +652,7 @@ export default function BudgetSetupForm({
                           event.target.value,
                         )
                       }
-                      className={inputClassName}
+                      className={`${inputClassName} ${lineItemErrors[item.clientId]?.approvedAmount ? "border-red-300" : ""}`}
                       placeholder="0.00"
                     />
                   ) : (
@@ -569,6 +660,11 @@ export default function BudgetSetupForm({
                       {formatCurrency(parseAmount(item.approvedAmount) || 0)}
                     </p>
                   )}
+                  {lineItemErrors[item.clientId]?.approvedAmount ? (
+                    <p className="mt-1 text-sm text-red-600">
+                      {lineItemErrors[item.clientId]?.approvedAmount}
+                    </p>
+                  ) : null}
                 </div>
 
                 {canWrite ? (
@@ -640,9 +736,20 @@ export default function BudgetSetupForm({
         </section>
       ) : null}
 
-      {saveError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {saveError}
+      {saveErrors.length > 0 ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {saveErrors.length === 1 ? (
+            <p>{saveErrors[0]}</p>
+          ) : (
+            <ul className="list-disc space-y-1 pl-5">
+              {saveErrors.map((message, index) => (
+                <li key={index}>{message}</li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : null}
 

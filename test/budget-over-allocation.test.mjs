@@ -52,7 +52,7 @@ test("an over-allocated general pool is coloured and spelled out", () => {
 test("saving an over-allocated budget takes an explicit confirmation", () => {
   assert.match(
     form,
-    /if \(generalPoolOverAllocated && !acknowledgedOverAllocation\) \{\s+setSaveError\(/,
+    /if \(generalPoolOverAllocated && !acknowledgedOverAllocation\) \{\s+blockers\.push\(/,
   );
   assert.match(form, /checked=\{acknowledgedOverAllocation\}/);
 });
@@ -62,7 +62,7 @@ test("saving an over-allocated budget takes an explicit confirmation", () => {
 test("the IUFB envelope is still refused outright", () => {
   assert.match(
     form,
-    /if \(iufbOverAllocated\) \{\s+setSaveError\(\s+"Total IUFB approved exceeds available IUFB income/,
+    /if \(iufbOverAllocated\) \{\s+blockers\.push\(\s+"Total IUFB approved exceeds available IUFB income/,
   );
 });
 
