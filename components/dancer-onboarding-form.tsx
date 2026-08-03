@@ -683,6 +683,7 @@ export default function DancerOnboardingForm() {
               onChange={(event) => setMedicalConditions(event.target.value)}
               className={inputClassName}
             />
+            <p className="text-xs text-zinc-500">Only visible to the exec board.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -770,6 +771,7 @@ export default function DancerOnboardingForm() {
             <legend className={labelClassName}>
               Do you drink? {requiredMark}
             </legend>
+            <p className="text-xs text-zinc-500">Only visible to the exec board.</p>
             <div className="flex gap-6">
               <label className="flex items-center gap-2 text-sm text-zinc-700">
                 <input

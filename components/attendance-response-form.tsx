@@ -381,6 +381,7 @@ export default function AttendanceResponseForm({
                 onChange={(event) => setExcuseText(event.target.value)}
                 className={inputClassName}
               />
+              <p className="text-xs text-zinc-500">Only visible to the exec board.</p>
               <FieldError message={fieldErrors.excuseText} />
             </div>
 
